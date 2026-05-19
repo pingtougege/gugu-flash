@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gugu Flash</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/apps/web/src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="phone-stage" data-screen="feedScreen" aria-label="Gugu Flash app prototype">
+        <header class="topbar">
+          <button class="icon-button" id="profileButton" type="button" title="我的">我</button>
+          <div class="brand">
+            <span class="brand-mark">G</span>
+            <span id="brandText">咕咕闪</span>
+          </div>
+          <button class="icon-button" id="operatorButton" type="button" title="官方精选台">选</button>
+        </header>
+
+        <section class="screen active" id="feedScreen" aria-label="内容流">
+          <div class="feed-card" id="feedCard">
+            <div class="feed-visual" id="feedVisual">
+              <div class="feed-character" id="feedCharacter">☔</div>
+            </div>
+            <div class="feed-switch" aria-label="内容频道">
+              <button class="active" type="button">推荐</button>
+              <button type="button">关注</button>
+              <button type="button">同好</button>
+            </div>
+            <div class="feed-copy">
+              <div class="feed-tags" id="feedTags"></div>
+              <h1 id="feedTitle">雨天咕咕</h1>
+              <p id="feedText">今天的雨很轻，像有人在玻璃外面偷偷练习温柔。</p>
+              <div class="author-line" id="feedAuthor"></div>
+            </div>
+            <div class="side-actions">
+              <button class="round-action" id="likeButton" type="button"><span>♡</span><small id="likeCount">0</small></button>
+              <button class="round-action" id="saveButton" type="button"><span>☆</span><small id="saveCount">0</small></button>
+              <button class="round-action" id="remixButton" type="button"><span>↻</span><small id="remixCount">0</small></button>
+              <button class="round-action" id="commentButton" type="button"><span>⋯</span><small id="commentCount">0</small></button>
+            </div>
+            <div class="feed-controls">
+              <button class="ghost-button" id="prevButton" type="button">上一条</button>
+              <button class="primary-button" id="playButton" type="button">进入互动</button>
+              <button class="ghost-button" id="nextButton" type="button">下一条</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="playerScreen" aria-label="H5互动播放器">
+          <div class="player-card" id="playerCard">
+            <div class="player-scene" id="playerScene">
+              <button class="back-button" id="backToFeedButton" type="button">返回</button>
+              <div class="scene-character" id="sceneCharacter">☔</div>
+              <div class="scene-panel">
+                <div class="speaker" id="sceneSpeaker">雨天咕咕</div>
+                <p id="sceneText"></p>
+                <div class="choice-list" id="choiceList"></div>
+                <div class="completion-actions hidden" id="completionActions">
+                  <button id="playerSaveButton" type="button">收藏</button>
+                  <button id="playerRemixButton" type="button">Remix</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="friendsScreen" aria-label="好友">
+          <div class="panel-page">
+            <div class="panel-header">
+              <div>
+                <h2>好友</h2>
+                <p>看好友动态、共创邀请和与你有关的电子吧唧互动。</p>
+              </div>
+            </div>
+            <div class="quick-stats" id="friendStats"></div>
+            <div class="message-list" id="friendList"></div>
+          </div>
+        </section>
+
+        <section class="screen" id="profileScreen" aria-label="我的">
+          <div class="panel-page">
+            <div class="panel-header">
+              <div>
+                <h2>我的</h2>
+                <p>创作、作品、设备和被官方硬件化的高光都放在这里。</p>
+              </div>
+            </div>
+            <div class="profile-card">
+              <div class="avatar">你</div>
+              <div>
+                <h3>咕咕创作者</h3>
+                <p>刷到喜欢的电子吧唧，也可以自己做一个。</p>
+              </div>
+            </div>
+            <div class="profile-stats" id="profileStats"></div>
+
+            <div class="create-entry">
+              <div>
+                <span>创作中心</span>
+                <strong>一句话生成 H5 吧唧</strong>
+                <small>写设定、选模板、预览草稿后发布到内容流</small>
+              </div>
+              <button class="primary-button" id="openCreateButton" type="button">开始创作</button>
+            </div>
+
+            <div class="section-heading">
+              <h3>我的作品</h3>
+              <span id="myWorkCount">0 个作品</span>
+            </div>
+            <div class="work-grid" id="myWorkGrid"></div>
+          </div>
+        </section>
+
+        <section class="screen" id="createScreen" aria-label="创作">
+          <div class="panel-page create-page">
+            <div class="panel-header">
+              <button class="back-button compact" id="closeCreateButton" type="button">返回</button>
+              <div>
+                <h2>创作</h2>
+                <p>把一句设定变成可以刷、可以互动、可以被官方精选的 H5 吧唧作品。</p>
+              </div>
+            </div>
+            <div class="mine-create">
+              <div class="section-heading">
+                <h3>快速创作</h3>
+                <span>一句话生成 H5 吧唧</span>
+              </div>
+              <label class="field">
+                <span>主题</span>
+                <textarea id="promptInput" rows="4" placeholder="例如：做一个雨天陪伴感的电子吧唧小剧场"></textarea>
+              </label>
+              <div class="template-grid">
+                <button class="template active" data-template="healing" type="button">治愈陪伴</button>
+                <button class="template" data-template="adventure" type="button">轻冒险</button>
+                <button class="template" data-template="energy" type="button">元气日常</button>
+              </div>
+              <button class="primary-button wide" id="generateButton" type="button">生成 H5 草稿</button>
+              <div class="draft-preview hidden" id="draftPreview">
+                <h3 id="draftTitle"></h3>
+                <p id="draftSummary"></p>
+                <div class="draft-fields">
+                  <label class="field compact">
+                    <span>标题</span>
+                    <input id="draftTitleInput" type="text" maxlength="18" />
+                  </label>
+                  <label class="field compact">
+                    <span>标签</span>
+                    <input id="draftTagsInput" type="text" />
+                  </label>
+                </div>
+                <div class="scene-mini-list" id="draftSceneList"></div>
+                <button class="primary-button wide" id="publishDraftButton" type="button">发布到内容流</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="badgeScreen" aria-label="吧唧">
+          <div class="panel-page badge-page">
+            <div class="panel-header">
+              <div>
+                <h2>吧唧</h2>
+                <p>管理电子吧唧，购买内容包并同步到设备。</p>
+              </div>
+            </div>
+            <div class="device-hero">
+              <div>
+                <span>当前设备</span>
+                <strong>Gugu Badge S3</strong>
+                <p>在线 · 电量 82% · 正在运行雨天咕咕</p>
+              </div>
+              <button id="openStoreButton" type="button">商店</button>
+            </div>
+            <div class="badge-status-grid">
+              <div><strong id="ownedPackCount">0</strong><span>已拥有</span></div>
+              <div><strong id="downloadedPackCount">0</strong><span>已下载</span></div>
+              <div><strong id="syncedPackCount">0</strong><span>已装设备</span></div>
+            </div>
+            <div class="section-heading">
+              <h3>当前运行内容</h3>
+              <span id="installedPackName">未同步</span>
+            </div>
+            <div class="installed-pack" id="installedPack"></div>
+            <div class="section-heading">
+              <h3>我的设备</h3>
+              <span id="deviceCount">0 台已绑定</span>
+            </div>
+            <div class="device-list" id="deviceList"></div>
+            <button class="primary-button wide bind-button" id="bindDeviceButton" type="button">绑定新吧唧</button>
+          </div>
+        </section>
+
+        <section class="screen" id="storeScreen" aria-label="商店">
+          <div class="panel-page store-page">
+            <div class="panel-header">
+              <button class="back-button compact" id="closeStoreButton" type="button">返回</button>
+              <div>
+                <h2>商店</h2>
+                <p>购买官方内容包，下载后同步到当前选中的电子吧唧。</p>
+              </div>
+            </div>
+            <div class="store-target" id="storeTarget"></div>
+            <div class="section-heading">
+              <h3>官方内容包</h3>
+              <span>购买 · 下载 · 同步</span>
+            </div>
+            <div class="store-list" id="storeList"></div>
+          </div>
+        </section>
+
+        <section class="screen" id="operatorScreen" aria-label="官方精选台">
+          <div class="panel-page">
+            <div class="panel-header">
+              <button class="back-button compact" id="closeOperatorButton" type="button">返回</button>
+              <div>
+                <h2>官方精选台</h2>
+                <p>根据互动数据挑选 H5，进入硬件适配漏斗。</p>
+              </div>
+            </div>
+            <div class="ops-metrics">
+              <div><strong id="opsPublicCount">0</strong><span>公开内容</span></div>
+              <div><strong id="opsCandidateCount">0</strong><span>硬件候选</span></div>
+              <div><strong id="opsReadyCount">0</strong><span>可下载</span></div>
+            </div>
+            <div class="ops-list" id="opsList"></div>
+          </div>
+        </section>
+
+        <nav class="tabbar" aria-label="主导航">
+          <button class="tab" data-target="friendsScreen" type="button">好友</button>
+          <button class="tab active" data-target="feedScreen" type="button">刷</button>
+          <button class="tab" data-target="badgeScreen" type="button">吧唧</button>
+          <button class="tab" data-target="profileScreen" type="button">我的</button>
+        </nav>
+      </section>
+    </main>
+    <script type="module" src="/apps/web/src/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,183 @@
+[
+  {
+    "id": "h5_rain_gugu",
+    "title": "雨天咕咕",
+    "author": { "id": "user_mika", "name": "Mika" },
+    "status": "public_h5",
+    "hardwareStatus": "hardware_candidate",
+    "cover": {
+      "background": "linear-gradient(160deg, #0f172a 0%, #155e75 55%, #67e8f9 130%)",
+      "character": "☔"
+    },
+    "tags": ["治愈", "雨天", "陪伴"],
+    "metrics": { "plays": 12840, "likes": 3280, "saves": 906, "comments": 141, "remixes": 72, "completionRate": 0.78 },
+    "entrySceneId": "start",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000,
+    "remixOf": null,
+    "scenes": [
+      {
+        "id": "start",
+        "background": "linear-gradient(160deg, #0f172a 0%, #155e75 55%, #67e8f9 130%)",
+        "character": "☔",
+        "speaker": "雨天咕咕",
+        "text": "今天的雨很轻，像有人在玻璃外面偷偷练习温柔。",
+        "actions": [
+          { "label": "摸摸头", "goto": "touch" },
+          { "label": "一起听雨", "goto": "listen" }
+        ]
+      },
+      {
+        "id": "touch",
+        "background": "linear-gradient(160deg, #164e63 0%, #0f766e 55%, #99f6e4 130%)",
+        "character": "✨",
+        "speaker": "雨天咕咕",
+        "text": "收到摸摸。电量好像多了 3%，但开心多了 300%。",
+        "actions": [
+          { "label": "再看一个结局", "goto": "listen" },
+          { "label": "结束", "goto": "end" }
+        ]
+      },
+      {
+        "id": "listen",
+        "background": "linear-gradient(160deg, #1e293b 0%, #334155 55%, #94a3b8 130%)",
+        "character": "🌧",
+        "speaker": "雨天咕咕",
+        "text": "如果今天很累，就把没说完的话先放在雨里。我会帮你保管。",
+        "actions": [
+          { "label": "收藏这句话", "goto": "end" }
+        ]
+      },
+      {
+        "id": "end",
+        "background": "linear-gradient(160deg, #020617 0%, #0f172a 70%, #38bdf8 150%)",
+        "character": "💙",
+        "speaker": "雨天咕咕",
+        "text": "下次下雨，也来找我。",
+        "actions": [
+          { "label": "重新播放", "goto": "start" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "h5_midnight_train",
+    "title": "零点列车",
+    "author": { "id": "user_noa", "name": "Noa" },
+    "status": "public_h5",
+    "hardwareStatus": "h5_only",
+    "cover": {
+      "background": "linear-gradient(160deg, #111827 0%, #7c2d12 60%, #facc15 150%)",
+      "character": "🚃"
+    },
+    "tags": ["冒险", "选择", "夜晚"],
+    "metrics": { "plays": 7840, "likes": 1492, "saves": 312, "comments": 86, "remixes": 28, "completionRate": 0.64 },
+    "entrySceneId": "start",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000,
+    "remixOf": null,
+    "scenes": [
+      {
+        "id": "start",
+        "background": "linear-gradient(160deg, #111827 0%, #7c2d12 60%, #facc15 150%)",
+        "character": "🚃",
+        "speaker": "站台广播",
+        "text": "零点列车即将进站。目的地：你还没有决定的明天。",
+        "actions": [
+          { "label": "上车", "goto": "board" },
+          { "label": "留在站台", "goto": "platform" }
+        ]
+      },
+      {
+        "id": "board",
+        "background": "linear-gradient(160deg, #1f2937 0%, #6d28d9 60%, #f0abfc 150%)",
+        "character": "🎫",
+        "speaker": "检票员",
+        "text": "你的票很特别，上面写着：允许重新开始一次。",
+        "actions": [
+          { "label": "握紧车票", "goto": "end" }
+        ]
+      },
+      {
+        "id": "platform",
+        "background": "linear-gradient(160deg, #0f172a 0%, #475569 75%, #cbd5e1 150%)",
+        "character": "🕯",
+        "speaker": "站台广播",
+        "text": "你没有错过列车。你只是选择先陪自己站一会儿。",
+        "actions": [
+          { "label": "等下一班", "goto": "board" }
+        ]
+      },
+      {
+        "id": "end",
+        "background": "linear-gradient(160deg, #312e81 0%, #4338ca 70%, #c4b5fd 150%)",
+        "character": "🌌",
+        "speaker": "零点列车",
+        "text": "窗外的星星排成一行，像在给你的勇气让路。",
+        "actions": [
+          { "label": "重新播放", "goto": "start" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "h5_soda_planet",
+    "title": "汽水星球",
+    "author": { "id": "user_yu", "name": "Yu" },
+    "status": "public_h5",
+    "hardwareStatus": "h5_only",
+    "cover": {
+      "background": "linear-gradient(160deg, #ecfeff 0%, #a7f3d0 48%, #fb7185 130%)",
+      "character": "🥤"
+    },
+    "tags": ["元气", "夏天", "二创友好"],
+    "metrics": { "plays": 5120, "likes": 1180, "saves": 244, "comments": 51, "remixes": 44, "completionRate": 0.69 },
+    "entrySceneId": "start",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000,
+    "remixOf": null,
+    "scenes": [
+      {
+        "id": "start",
+        "background": "linear-gradient(160deg, #ecfeff 0%, #a7f3d0 48%, #fb7185 130%)",
+        "character": "🥤",
+        "speaker": "汽水咕咕",
+        "text": "欢迎降落汽水星球。这里的云会冒泡，烦恼会过期。",
+        "actions": [
+          { "label": "打开瓶盖", "goto": "pop" },
+          { "label": "摇一摇", "goto": "shake" }
+        ]
+      },
+      {
+        "id": "pop",
+        "background": "linear-gradient(160deg, #cffafe 0%, #22c55e 60%, #fef08a 140%)",
+        "character": "🫧",
+        "speaker": "汽水咕咕",
+        "text": "啵。你获得了一枚气泡勋章，今日限定，明天也有效。",
+        "actions": [
+          { "label": "收下", "goto": "end" }
+        ]
+      },
+      {
+        "id": "shake",
+        "background": "linear-gradient(160deg, #fff7ed 0%, #fb7185 60%, #7dd3fc 140%)",
+        "character": "💥",
+        "speaker": "汽水咕咕",
+        "text": "喷出来啦！不过没关系，星球规定：快乐溅到哪里，哪里就算庆祝。",
+        "actions": [
+          { "label": "大笑", "goto": "end" }
+        ]
+      },
+      {
+        "id": "end",
+        "background": "linear-gradient(160deg, #f0fdfa 0%, #2dd4bf 65%, #f9a8d4 140%)",
+        "character": "🌈",
+        "speaker": "汽水咕咕",
+        "text": "下次来，记得带一颗不太严肃的心。",
+        "actions": [
+          { "label": "重新播放", "goto": "start" }
+        ]
+      }
+    ]
+  }
+]
