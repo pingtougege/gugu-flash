@@ -195,6 +195,48 @@ test("creator studio scene inspector saves one scene back to the project", async
   await expect(page.locator("#draftPlaytestPanel")).toContainText(savedText);
 });
 
+test("creator studio switches back to an existing StoryProject and saves a version snapshot", async ({ page }) => {
+  const firstTitle = "星桥邮局第一项目";
+  const secondTitle = "海盐灯塔第二项目";
+
+  await openCreate(page);
+  await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill(firstTitle);
+  await generateDraft(page);
+  await expect(page.locator("#draftTitle")).toHaveText(firstTitle);
+  const firstSceneText = (await page.locator("#draftPlaytestPanel .draft-play-copy p").textContent())?.trim() || "";
+  const firstSceneSnippet = firstSceneText.slice(0, 18);
+  expect(firstSceneSnippet.length).toBeGreaterThan(4);
+
+  await publishDraft(page);
+  await expect(page.locator("#feedScreen")).toBeVisible();
+
+  await openCreate(page);
+  await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill(secondTitle);
+  await generateDraft(page);
+  await expect(page.locator("#draftTitle")).toHaveText(secondTitle);
+
+  await page.locator("[data-create-advanced-toggle]").click();
+  const studio = page.locator("#creatorStudioPanel");
+  await expect(studio).toBeVisible();
+  await expect(studio.locator(".studio-project-card")).toHaveCount(2);
+  await expect(studio.locator(".studio-project-card.active")).toContainText(secondTitle);
+
+  await studio.locator("[data-studio-project-id]").filter({ hasText: firstTitle }).click();
+  await expect(page.locator("#draftTitle")).toHaveText(firstTitle);
+  await expect(studio.locator(".studio-project-card.active")).toContainText(firstTitle);
+  await expect(studio.locator(".studio-scene-item").first()).toContainText(firstSceneSnippet);
+  await expect(page.locator("#draftPlaytestPanel")).toContainText(firstSceneSnippet);
+
+  const snapshotText = "切回第一项目后保存版本快照。";
+  await studio.locator("[data-studio-scene-select]").first().click();
+  await page.locator('[data-testid="studio-scene-title"]').fill("第一项目快照入口");
+  await page.locator('[data-testid="studio-scene-text"]').fill(snapshotText);
+  await page.locator('[data-testid="studio-scene-save"]').click();
+
+  await expect(page.locator("#studioSceneSaveMessage")).toContainText(/快照|版本/);
+  await expect(studio.locator(".studio-scene-item").first()).toContainText(snapshotText);
+});
+
 test("generated creation deck keeps ownership as an editable card", async ({ page }) => {
   await openCreate(page);
   await expect(page.locator("#createWizardNav")).toBeVisible();

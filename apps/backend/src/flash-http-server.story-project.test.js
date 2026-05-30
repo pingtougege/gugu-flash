@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import {
+  GUGU_COMIC_EPISODE_SCHEMA_VERSION,
   GUGU_H5_SCHEMA_VERSION,
   GUGU_STORY_PROJECT_SCHEMA_VERSION,
 } from "../../../packages/core/src/index.js";
@@ -250,6 +251,32 @@ test("StoryProject HTTP slice publishes a playable project as a public H5 Work",
     assert.equal(fetchedProject.item.versionId, published.version.id);
     const fetchedWork = await api.getWork(published.item.id);
     assert.equal(fetchedWork.item.id, published.item.id);
+  });
+});
+
+test("StoryProject HTTP slice compiles a project as a ComicEpisode", async () => {
+  await withStoryProjectBackend(async (api) => {
+    const created = await api.createStoryProject(makeStoryProject({
+      id: "story_project_comic_success",
+    }));
+    const project = structuredClone(created.item);
+    project.title = "Backend Slice Comic";
+    project.script.scenes[0].text = "The first panel was revised for the comic compiler.";
+
+    const compiled = await api.compileStoryProjectComic(created.item.id, {
+      project,
+      episodeId: "comic_backend_slice_success",
+    });
+
+    assert.equal(compiled.item.id, "comic_backend_slice_success");
+    assert.equal(compiled.item.schemaVersion, GUGU_COMIC_EPISODE_SCHEMA_VERSION);
+    assert.equal(compiled.item.targetType, "ComicEpisode");
+    assert.equal(compiled.item.storyProjectId, created.item.id);
+    assert.equal(compiled.item.title, "Backend Slice Comic");
+    assert.equal(compiled.item.panelCount, project.storyGraph.nodes.length);
+    assert.equal(compiled.episode.id, compiled.item.id);
+    assert.equal(compiled.project.script.scenes[0].text, "The first panel was revised for the comic compiler.");
+    assert.deepEqual(compiled.item.validationErrors, []);
   });
 });
 

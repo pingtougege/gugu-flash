@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { createMockFlashApi } from "../../../packages/api-client/src/mock-flash-api.js";
 import {
   GUGU_STORY_PROJECT_SCHEMA_VERSION,
+  compileStoryProjectToComicEpisode,
   compileStoryProjectToH5Pack,
   createDraftQualityChecks,
   createAiEditProposalPreview,
@@ -997,9 +998,38 @@ export function createFlashBackendApp(options = {}) {
       }
 
       if (parts[0] === "flash" && parts[1] === "story-projects" && parts[2] && parts[3] === "compile" && parts[4] === "comic" && req.method === "POST") {
-        notImplemented(res, "story_project_comic_compile_not_implemented", {
-          storyProjectId: decodePart(parts[2]),
-          targetType: "ComicEpisode",
+        const projectId = decodePart(parts[2]);
+        const existing = await persistence.storyProjects.get(projectId);
+        if (!existing) {
+          notFound(res, "story_project_not_found");
+          return;
+        }
+        const body = await readJsonBody(req);
+        const timestamp = Date.now();
+        const project = body.project
+          ? normalizeStoryProjectForPersistence(body.project, { id: projectId, existing, session: requestSession, timestamp })
+          : normalizeStoryProjectForPersistence(existing, { id: projectId, existing, session: requestSession, timestamp });
+        const errors = validateStoryProject(project);
+        if (errors.length) {
+          validationFailed(res, "story_project_invalid", errors);
+          return;
+        }
+        let episode;
+        try {
+          episode = compileStoryProjectToComicEpisode(project, {
+            episodeId: body.episodeId || body.comicEpisodeId,
+            status: body.status || "draft_storyboard",
+            timestamp,
+            throwOnInvalid: true,
+          });
+        } catch (error) {
+          validationFailed(res, "story_project_comic_compile_failed", String(error?.message || error).split("\n").filter(Boolean));
+          return;
+        }
+        ok(res, {
+          item: episode,
+          episode,
+          project,
         });
         return;
       }

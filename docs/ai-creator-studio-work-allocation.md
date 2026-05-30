@@ -553,3 +553,34 @@ node --test packages/api-client/src/flash-api-contract.test.js packages/core/src
 node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/core/src/gugu-story-project.test.js
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio scene inspector|creator studio opens|mobile guide defaults"
 ```
+
+### 2026-05-31 Phase 1 Versioned Studio And Comic API Start
+
+Started by Codex and assigned agents:
+
+- Leibniz: expose `compileStoryProjectToComicEpisode` through HTTP and mock API.
+- Hume: make StoryProject cards open/switch projects and create version snapshots on save.
+- Dalton: review comic compile and version snapshot risks.
+- Codex: integrate, verify, and report.
+
+Acceptance target:
+
+```text
+Creator Studio can open existing StoryProjects, save a scene, create a version snapshot, and backend/mock can compile the same project into a ComicEpisode storyboard.
+```
+
+### 2026-05-31 Phase 1 Versioned Studio And Comic API Complete
+
+Completed by Codex and assigned agents:
+
+- Leibniz delivered backend, HTTP client, mock API, route-map, and tests for StoryProject-to-`ComicEpisode` compilation.
+- Hume delivered clickable StoryProject switching, draft/preview synchronization, save-time version snapshot creation, and focused e2e coverage.
+- Dalton identified the contract-map gap, state contamination risk, duplicate snapshot risk, and partial-failure status requirement before final integration.
+- Codex integrated the work, added a saving guard plus partial snapshot-failure state, and updated the project board.
+
+Verification target:
+
+```text
+node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js packages/core/src/gugu-story-project.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio switches back|creator studio scene inspector|creator studio opens|mobile guide defaults"
+```

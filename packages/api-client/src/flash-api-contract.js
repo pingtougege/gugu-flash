@@ -178,6 +178,7 @@ export const MOCK_FLASH_API_METHOD_ROUTES = {
   listStoryProjectVersions: "storyProjects.versions.list",
   createStoryProjectVersion: "storyProjects.versions.create",
   compileStoryProjectH5: "storyProjects.compileH5",
+  compileStoryProjectComic: "storyProjects.compileComic",
   publishStoryProject: "storyProjects.publish",
   createStoryProjectAiJob: "ai.storyProjectJobs.create",
   getAiGenerationJob: "ai.storyProjectJobs.get",

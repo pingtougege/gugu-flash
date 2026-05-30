@@ -8,6 +8,7 @@ import {
   createCompatibilityReport,
   createDraftQualityChecks,
   createPublishChecklist,
+  compileStoryProjectToComicEpisode,
   compileStoryProjectToH5Pack,
   createStoryProjectFromPrompt,
   createStoryProjectPlayabilityReport,
@@ -1679,6 +1680,46 @@ export function createMockFlashApi({
         h5Pack: pack,
         report,
       };
+    },
+
+    async compileStoryProjectComic(id, payload = {}) {
+      const existing = findStoryProject(id);
+      if (!existing) return { item: null, episode: null, project: null, reason: "not_found" };
+      const timestamp = Date.now();
+      const project = payload.project
+        ? normalizeStoryProjectForMock(payload.project, { id, existing, timestamp })
+        : normalizeStoryProjectForMock(existing, { id, existing, timestamp });
+      const errors = validateStoryProject(project);
+      if (errors.length) {
+        return {
+          item: null,
+          episode: null,
+          project,
+          message: "story_project_invalid",
+          errors,
+        };
+      }
+      try {
+        const episode = compileStoryProjectToComicEpisode(project, {
+          episodeId: payload.episodeId || payload.comicEpisodeId,
+          status: payload.status || "draft_storyboard",
+          timestamp,
+          throwOnInvalid: true,
+        });
+        return {
+          item: episode,
+          episode,
+          project,
+        };
+      } catch (error) {
+        return {
+          item: null,
+          episode: null,
+          project,
+          message: "story_project_comic_compile_failed",
+          errors: String(error?.message || error).split("\n").filter(Boolean),
+        };
+      }
     },
 
     async publishStoryProject(id, payload = {}) {

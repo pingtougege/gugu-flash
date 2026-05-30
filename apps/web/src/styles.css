@@ -3098,9 +3098,27 @@ input:focus-visible {
   align-items: center;
 }
 
+button.studio-project-card {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .studio-project-card.active {
   border-color: rgba(17, 138, 178, 0.26);
   background: rgba(14, 165, 233, 0.08);
+}
+
+button.studio-project-card:hover {
+  border-color: rgba(17, 138, 178, 0.26);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+button.studio-project-card:focus-visible {
+  outline: 2px solid rgba(17, 138, 178, 0.36);
+  outline-offset: 2px;
 }
 
 button.studio-scene-item {
@@ -3325,6 +3343,10 @@ button.studio-scene-item:focus-visible {
 .studio-save-message.saved,
 .studio-save-message.local {
   color: #047857;
+}
+
+.studio-save-message.partial {
+  color: #b45309;
 }
 
 .studio-save-message.error {

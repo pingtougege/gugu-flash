@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  GUGU_COMIC_EPISODE_SCHEMA_VERSION,
   GUGU_H5_SCHEMA_VERSION,
   GUGU_IP_POOL,
   GUGU_STORY_PROJECT_SCHEMA_VERSION,
@@ -109,6 +110,28 @@ test("mock StoryProject update persists a single scene body edit", async () => {
 
   assert.equal(updatedScene.text, "改过的单场景正文会被专业工作台读回。");
   assert.equal(fetchedScene.text, "改过的单场景正文会被专业工作台读回。");
+});
+
+test("mock StoryProject comic compile returns a ComicEpisode", async () => {
+  const { api } = createMemoryApi([]);
+  const created = await api.createAiDraft("一间深夜修理铺遇到会说话的旧钟", "healing");
+  const project = structuredClone(created.storyProject);
+  project.title = "修理铺漫剧分镜";
+
+  const compiled = await api.compileStoryProjectComic(project.id, {
+    project,
+    episodeId: "comic_mock_story_project",
+  });
+
+  assert.equal(compiled.item.id, "comic_mock_story_project");
+  assert.equal(compiled.item.schemaVersion, GUGU_COMIC_EPISODE_SCHEMA_VERSION);
+  assert.equal(compiled.item.targetType, "ComicEpisode");
+  assert.equal(compiled.item.storyProjectId, project.id);
+  assert.equal(compiled.item.title, "修理铺漫剧分镜");
+  assert.equal(compiled.item.panelCount, project.storyGraph.nodes.length);
+  assert.equal(compiled.episode.id, compiled.item.id);
+  assert.equal(compiled.project.title, "修理铺漫剧分镜");
+  assert.deepEqual(compiled.item.validationErrors, []);
 });
 
 test("applyStoreListing requires the rights acknowledgement", async () => {
