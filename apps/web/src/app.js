@@ -59,6 +59,13 @@ const state = {
   storyProjectListStatus: "idle",
   storyProjectSaveStatus: "idle",
   storyProjectSaveMessage: "",
+  storyProjectVersions: [],
+  storyProjectVersionStatus: "idle",
+  storyProjectVersionMessage: "",
+  storyProjectRestoringVersionId: null,
+  comicStoryboard: null,
+  comicStoryboardStatus: "idle",
+  comicStoryboardMessage: "",
   selectedStudioSceneId: null,
   storeApplyPackId: null,
   storeTermsAccepted: false,
@@ -98,6 +105,8 @@ const $ = (id) => document.getElementById(id);
 let generationStageTimer = null;
 let createDeckScrollTimer = null;
 let suppressCreateDeckSyncUntil = 0;
+let studioVersionRequestId = 0;
+let studioComicRequestId = 0;
 const DRAFT_GENERATION_TIMEOUT_MS = 120000;
 const FEED_SWIPE_MIN_DISTANCE = 48;
 const FEED_SWIPE_MIN_DOMINANCE = 1.2;
@@ -1386,6 +1395,19 @@ function normalizeStoryProjectResponse(response = {}) {
   return response.item ? [response.item] : [];
 }
 
+function normalizeStoryProjectVersionResponse(response = {}) {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response.items)) return response.items;
+  if (Array.isArray(response.versions)) return response.versions;
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response.item)) return response.item;
+  return response.item ? [response.item] : [];
+}
+
+function normalizeComicStoryboardResponse(response = {}) {
+  return response?.episode || response?.comicEpisode || response?.item || null;
+}
+
 function mergeStoryProjects(projects = []) {
   const byId = new Map();
   for (const project of projects) {
@@ -1420,6 +1442,32 @@ function storyProjectStatusText(status = "") {
   return labels[status] || "StoryProject";
 }
 
+function storyProjectVersionStatusText(status = "") {
+  const labels = {
+    draft: "草稿",
+    locked: "已锁定",
+    published: "已发布",
+    restored: "已恢复",
+    archived: "已归档",
+  };
+  return labels[status] || status || "版本";
+}
+
+function storyProjectVersionLabel(version = {}, index = 0) {
+  return version.label || version.reason || `版本 ${index + 1}`;
+}
+
+function formatStudioTimestamp(value) {
+  const date = Number.isFinite(Number(value)) ? new Date(Number(value)) : new Date(value);
+  if (Number.isNaN(date.getTime())) return "时间未知";
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function storyProjectMatchesDraft(project = {}, draft = {}) {
   if (!project?.id || !draft) return false;
   if ([draft.storyProjectId, draft.sourceProjectId].includes(project.id)) return true;
@@ -1434,6 +1482,18 @@ function upsertStoryProject(project) {
     project,
     ...state.storyProjects.filter((item) => item.id !== project.id),
   ]);
+}
+
+function resetStudioDerivedState({ keepVersions = false } = {}) {
+  if (!keepVersions) {
+    state.storyProjectVersions = [];
+    state.storyProjectVersionStatus = "idle";
+    state.storyProjectVersionMessage = "";
+  }
+  state.storyProjectRestoringVersionId = null;
+  state.comicStoryboard = null;
+  state.comicStoryboardStatus = "idle";
+  state.comicStoryboardMessage = "";
 }
 
 function setCurrentStoryProject(project) {
@@ -1493,7 +1553,7 @@ function compileStoryProjectForStudio(project = {}) {
   return draft;
 }
 
-function selectStudioProject(projectId) {
+async function selectStudioProject(projectId) {
   if (!projectId) return;
   const project = state.storyProjects.find((item) => item.id === projectId);
   if (!project) return;
@@ -1505,11 +1565,16 @@ function selectStudioProject(projectId) {
   state.selectedScriptSceneId = state.draftPlaySceneId;
   state.storyProjectSaveStatus = "idle";
   state.storyProjectSaveMessage = `已切换到「${project.title || "未命名项目"}」。`;
+  resetStudioDerivedState();
   resetDraftScriptEditState();
   usePackAsCreateSettings(state.draft);
   renderDraft(state.draft);
   renderCreateWizard({ syncCard: false });
   renderDraftPlaytest(state.draft);
+  await Promise.all([
+    loadStoryProjectVersionsForStudio(),
+    generateComicStoryboardForStudio(),
+  ]);
 }
 
 async function loadStoryProjectsForStudio({ render = true } = {}) {
@@ -1528,6 +1593,89 @@ async function loadStoryProjectsForStudio({ render = true } = {}) {
     state.storyProjectListStatus = "loaded";
   } catch (error) {
     state.storyProjectListStatus = "error";
+  }
+  if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+}
+
+async function loadStoryProjectVersionsForStudio({ render = true } = {}) {
+  const projectId = state.storyProject?.id;
+  const requestId = ++studioVersionRequestId;
+  if (!projectId) {
+    state.storyProjectVersions = [];
+    state.storyProjectVersionStatus = "idle";
+    state.storyProjectVersionMessage = "当前草稿还没有 StoryProject，保存后才会产生版本。";
+    if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+    return;
+  }
+  if (!flashApi.listStoryProjectVersions) {
+    state.storyProjectVersions = [];
+    state.storyProjectVersionStatus = "unavailable";
+    state.storyProjectVersionMessage = "当前运行环境暂未开放版本历史接口。";
+    if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+    return;
+  }
+
+  state.storyProjectVersionStatus = "loading";
+  state.storyProjectVersionMessage = "正在同步版本历史。";
+  if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+  try {
+    const response = await flashApi.listStoryProjectVersions(projectId);
+    if (requestId !== studioVersionRequestId || state.storyProject?.id !== projectId) return;
+    state.storyProjectVersions = normalizeStoryProjectVersionResponse(response)
+      .filter((version) => version?.id)
+      .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
+    state.storyProjectVersionStatus = "loaded";
+    state.storyProjectVersionMessage = flashApi.restoreStoryProjectVersion
+      ? `已加载 ${state.storyProjectVersions.length} 个版本。`
+      : "已加载版本历史，当前环境暂未开放恢复接口。";
+  } catch (error) {
+    if (requestId !== studioVersionRequestId) return;
+    state.storyProjectVersionStatus = "error";
+    state.storyProjectVersionMessage = "版本历史同步失败，请稍后重试。";
+  }
+  if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+}
+
+async function generateComicStoryboardForStudio({ render = true } = {}) {
+  const projectId = state.storyProject?.id;
+  const requestId = ++studioComicRequestId;
+  if (!projectId) {
+    state.comicStoryboard = null;
+    state.comicStoryboardStatus = "idle";
+    state.comicStoryboardMessage = "当前草稿还没有 StoryProject，无法生成漫剧分镜。";
+    if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+    return;
+  }
+  if (!flashApi.compileStoryProjectComic) {
+    state.comicStoryboard = null;
+    state.comicStoryboardStatus = "unavailable";
+    state.comicStoryboardMessage = "当前运行环境暂未开放 Comic storyboard API。";
+    if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+    return;
+  }
+
+  const project = structuredClone(state.storyProject);
+  state.comicStoryboardStatus = "loading";
+  state.comicStoryboardMessage = "正在生成漫剧分镜。";
+  if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+  try {
+    const response = await flashApi.compileStoryProjectComic(projectId, { project });
+    if (requestId !== studioComicRequestId || state.storyProject?.id !== projectId) return;
+    const episode = normalizeComicStoryboardResponse(response);
+    if (!episode?.id) {
+      state.comicStoryboard = null;
+      state.comicStoryboardStatus = "error";
+      state.comicStoryboardMessage = response?.reason || response?.message || "漫剧分镜生成失败。";
+    } else {
+      state.comicStoryboard = episode;
+      state.comicStoryboardStatus = "loaded";
+      state.comicStoryboardMessage = `已生成 ${episode.panelCount || episode.panels?.length || 0} 格分镜。`;
+    }
+  } catch (error) {
+    if (requestId !== studioComicRequestId) return;
+    state.comicStoryboard = null;
+    state.comicStoryboardStatus = "error";
+    state.comicStoryboardMessage = "漫剧分镜生成失败，请检查 StoryProject。";
   }
   if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
 }
@@ -1641,6 +1789,144 @@ function renderStudioSceneInspector(draft) {
   `;
 }
 
+function ensureCreatorStudioDynamicSections() {
+  const panel = $("creatorStudioPanel");
+  const body = panel?.querySelector(".creator-studio-body");
+  if (!body) return;
+  const publishSection = $("studioPublishDiagnostics")?.closest(".studio-section");
+  const insertSection = (html) => {
+    if (publishSection) publishSection.insertAdjacentHTML("beforebegin", html);
+    else body.insertAdjacentHTML("beforeend", html);
+  };
+  if (!$("studioComicStoryboard")) {
+    insertSection(`
+      <section class="studio-section studio-comic-section" aria-label="漫剧分镜">
+        <div class="studio-section-title">
+          <strong>漫剧分镜 / Comic storyboard</strong>
+          <span id="studioComicStatus">待生成</span>
+        </div>
+        <div class="studio-section-toolbar">
+          <p id="studioComicMessage" class="studio-helper-text">点击生成可把 StoryProject 编译成漫剧分镜。</p>
+          <button class="ghost-button compact" id="studioComicRefreshButton" data-studio-comic-refresh type="button">生成/刷新</button>
+        </div>
+        <div class="studio-comic-list" id="studioComicStoryboard"></div>
+      </section>
+    `);
+  }
+  if (!$("studioVersionHistory")) {
+    insertSection(`
+      <section class="studio-section studio-version-section" aria-label="版本历史">
+        <div class="studio-section-title">
+          <strong>版本历史</strong>
+          <span id="studioVersionStatus">未加载</span>
+        </div>
+        <div class="studio-version-list" id="studioVersionHistory"></div>
+      </section>
+    `);
+  }
+}
+
+function studioComicStatusText() {
+  if (state.comicStoryboardStatus === "loading") return "生成中";
+  if (state.comicStoryboardStatus === "loaded") {
+    return `${state.comicStoryboard?.panelCount || state.comicStoryboard?.panels?.length || 0} panels`;
+  }
+  if (state.comicStoryboardStatus === "error") return "生成失败";
+  if (state.comicStoryboardStatus === "unavailable") return "不可用";
+  return state.storyProject?.id ? "待生成" : "本地草稿";
+}
+
+function panelDialogueText(panel = {}) {
+  const line = (panel.dialogue || []).find((item) => item?.line || item?.text);
+  return line?.line || line?.text || panel.sourceText || "这一格还没有对白。";
+}
+
+function renderStudioComicStoryboard() {
+  if (!state.storyProject?.id) {
+    return `<div class="empty-state compact-empty">当前草稿还未绑定 StoryProject，保存为项目后可生成漫剧分镜。</div>`;
+  }
+  if (!flashApi.compileStoryProjectComic) {
+    return `<div class="empty-state compact-empty">当前运行环境暂未开放 Comic storyboard API。</div>`;
+  }
+  if (state.comicStoryboardStatus === "loading") {
+    return `<div class="empty-state compact-empty">正在生成漫剧分镜。</div>`;
+  }
+  if (state.comicStoryboardStatus === "error") {
+    return `<div class="empty-state compact-empty">${escapeHtml(state.comicStoryboardMessage || "漫剧分镜生成失败。")}</div>`;
+  }
+
+  const panels = state.comicStoryboard?.panels || [];
+  if (!panels.length) {
+    return `<div class="empty-state compact-empty">点击“生成/刷新”，把当前 StoryProject 编译成可检查的漫剧分镜。</div>`;
+  }
+  return panels.slice(0, 6).map((panel) => {
+    const nextBeats = (panel.nextBeats || []).map((beat) => beat.label).filter(Boolean).join(" / ");
+    return `
+      <article class="studio-comic-panel">
+        <span>Panel ${escapeHtml(panel.panelIndex || "")}</span>
+        <div>
+          <strong>${escapeHtml(panel.title || panel.sceneId || "未命名分镜")}</strong>
+          <small>${escapeHtml(panel.shotType || "shot")} · ${escapeHtml(panel.sceneId || panel.nodeId || "")}</small>
+        </div>
+        <p><b>${escapeHtml(panel.speaker || "旁白")}</b> ${escapeHtml(panelDialogueText(panel))}</p>
+        <small>原文：${escapeHtml(panel.sourceText || panel.caption || "暂无原文")}</small>
+        <em>Next beats：${escapeHtml(nextBeats || "无")}</em>
+      </article>
+    `;
+  }).join("");
+}
+
+function studioVersionStatusText() {
+  if (state.storyProjectVersionStatus === "loading") return "同步中";
+  if (state.storyProjectVersionStatus === "restoring") return "恢复中";
+  if (state.storyProjectVersionStatus === "loaded") {
+    const readonly = flashApi.restoreStoryProjectVersion ? "" : " · 只读";
+    return `${state.storyProjectVersions.length} 个版本${readonly}`;
+  }
+  if (state.storyProjectVersionStatus === "error") return "同步失败";
+  if (state.storyProjectVersionStatus === "unavailable") return "不可用";
+  return state.storyProject?.id ? "未加载" : "本地草稿";
+}
+
+function renderStudioVersionHistory() {
+  if (!state.storyProject?.id) {
+    return `<div class="empty-state compact-empty">当前草稿还没有版本历史。</div>`;
+  }
+  if (!flashApi.listStoryProjectVersions) {
+    return `<div class="empty-state compact-empty">当前运行环境暂未开放版本历史接口。</div>`;
+  }
+  if (state.storyProjectVersionStatus === "loading" && !state.storyProjectVersions.length) {
+    return `<div class="empty-state compact-empty">正在同步版本历史。</div>`;
+  }
+  if (state.storyProjectVersionStatus === "error") {
+    return `<div class="empty-state compact-empty">${escapeHtml(state.storyProjectVersionMessage || "版本历史同步失败。")}</div>`;
+  }
+  if (!state.storyProjectVersions.length) {
+    return `<div class="empty-state compact-empty">保存场景后会在这里生成版本快照。</div>`;
+  }
+
+  const restoreReady = Boolean(flashApi.restoreStoryProjectVersion);
+  const cards = state.storyProjectVersions.slice(0, 6).map((version, index) => {
+    const isCurrent = version.id === state.storyProject?.versionId;
+    const isRestoring = state.storyProjectRestoringVersionId === version.id;
+    return `
+      <article class="studio-version-item ${isCurrent ? "active" : ""}" data-studio-version-id="${escapeHtml(version.id)}">
+        <div>
+          <strong>${escapeHtml(storyProjectVersionLabel(version, index))}</strong>
+          <small>${escapeHtml(storyProjectVersionStatusText(version.status))} · ${escapeHtml(formatStudioTimestamp(version.createdAt))} · ${escapeHtml(version.id)}</small>
+        </div>
+        <button class="ghost-button compact" data-studio-version-restore="${escapeHtml(version.id)}" type="button" ${!restoreReady || isRestoring ? "disabled" : ""}>
+          ${isRestoring ? "恢复中" : "恢复"}
+        </button>
+      </article>
+    `;
+  }).join("");
+  const message = state.storyProjectVersionMessage
+    ? `<p class="studio-version-message">${escapeHtml(state.storyProjectVersionMessage)}</p>`
+    : "";
+  return `${cards}${message}`;
+}
+
 function applyStudioSceneEditToDraft(draft, sceneId, values) {
   const scene = (draft.scenes || []).find((item) => item.id === sceneId);
   if (!scene) return null;
@@ -1733,7 +2019,11 @@ async function saveStudioSceneInspector() {
   setCurrentStoryProject(project);
   state.storyProjectSaveStatus = "saving";
   state.storyProjectSaveMessage = "正在保存 StoryProject。";
+  state.comicStoryboard = null;
+  state.comicStoryboardStatus = "idle";
+  state.comicStoryboardMessage = "场景保存后可刷新漫剧分镜。";
   renderCreatorStudio(state.draft);
+  let shouldRefreshComic = false;
   try {
     const response = await flashApi.updateStoryProject(project.id, project);
     let savedProject = response?.item || response?.project || project;
@@ -1762,15 +2052,68 @@ async function saveStudioSceneInspector() {
       : snapshotFailed
         ? "项目已保存，版本快照创建失败。"
         : "保存成功，StoryProject 已更新。";
+    await loadStoryProjectVersionsForStudio({ render: false });
+    state.comicStoryboard = null;
+    state.comicStoryboardStatus = "idle";
+    state.comicStoryboardMessage = "场景已保存，可刷新漫剧分镜。";
+    shouldRefreshComic = true;
   } catch (error) {
     state.storyProjectSaveStatus = "error";
     state.storyProjectSaveMessage = "保存到 StoryProject 失败，本地修改已保留。";
   }
   renderDraft(state.draft);
+  if (shouldRefreshComic) await generateComicStoryboardForStudio();
+}
+
+async function restoreStudioStoryProjectVersion(versionId) {
+  if (!versionId || !state.storyProject?.id) return;
+  if (!flashApi.restoreStoryProjectVersion) {
+    state.storyProjectVersionStatus = "loaded";
+    state.storyProjectVersionMessage = "当前环境暂不支持版本恢复。";
+    renderCreatorStudio(state.draft);
+    return;
+  }
+
+  const projectId = state.storyProject.id;
+  const version = state.storyProjectVersions.find((item) => item.id === versionId);
+  state.storyProjectVersionStatus = "restoring";
+  state.storyProjectVersionMessage = `正在恢复「${storyProjectVersionLabel(version, 0)}」。`;
+  state.storyProjectRestoringVersionId = versionId;
+  renderCreatorStudio(state.draft);
+  try {
+    const response = await flashApi.restoreStoryProjectVersion(projectId, versionId, {
+      reason: "Creator Studio 恢复版本",
+    });
+    const restoredProject = response?.project || response?.item || response?.storyProject;
+    if (!restoredProject?.id) throw new Error("restore_failed");
+    setCurrentStoryProject(restoredProject);
+    state.draft = compileStoryProjectForStudio(restoredProject);
+    state.editingWorkId = null;
+    state.draftPlaySceneId = state.draft.entrySceneId || state.draft.scenes?.[0]?.id || null;
+    state.selectedStudioSceneId = state.draftPlaySceneId;
+    state.selectedScriptSceneId = state.draftPlaySceneId;
+    state.storyProjectSaveStatus = "saved";
+    state.storyProjectSaveMessage = `已恢复到「${storyProjectVersionLabel(response?.version || version, 0)}」。`;
+    state.storyProjectVersionStatus = "loaded";
+    state.storyProjectVersionMessage = `已恢复版本：${storyProjectVersionLabel(response?.version || version, 0)}。`;
+    state.storyProjectRestoringVersionId = null;
+    resetDraftScriptEditState();
+    usePackAsCreateSettings(state.draft);
+    resetStudioDerivedState({ keepVersions: true });
+    await loadStoryProjectVersionsForStudio({ render: false });
+    renderDraft(state.draft);
+    await generateComicStoryboardForStudio();
+  } catch (error) {
+    state.storyProjectVersionStatus = "error";
+    state.storyProjectVersionMessage = "版本恢复失败，当前项目未切换。";
+    state.storyProjectRestoringVersionId = null;
+    renderCreatorStudio(state.draft);
+  }
 }
 
 function renderCreatorStudio(draft) {
   if (!$("creatorStudioPanel") || !draft) return;
+  ensureCreatorStudioDynamicSections();
   const scenes = draft.scenes || [];
   const activeStudioScene = selectedStudioScene(draft);
   const report = createTextGamePlaytestReport(draft);
@@ -1837,6 +2180,12 @@ function renderCreatorStudio(draft) {
   }).join("") : `<div class="empty-state compact-empty">还没有场景。</div>`;
   $("studioSceneSaveStatus").textContent = studioSaveStatusText();
   $("studioSceneInspector").innerHTML = renderStudioSceneInspector(draft);
+  $("studioComicStatus").textContent = studioComicStatusText();
+  $("studioComicMessage").textContent = state.comicStoryboardMessage || "点击生成可把 StoryProject 编译成漫剧分镜。";
+  $("studioComicRefreshButton").disabled = state.comicStoryboardStatus === "loading" || !state.storyProject?.id || !flashApi.compileStoryProjectComic;
+  $("studioComicStoryboard").innerHTML = renderStudioComicStoryboard();
+  $("studioVersionStatus").textContent = studioVersionStatusText();
+  $("studioVersionHistory").innerHTML = renderStudioVersionHistory();
   $("studioPublishStatus").textContent = publishStatus;
   $("studioPublishDiagnostics").innerHTML = checklistChecks.slice(0, 6).map((check) => `
     <article class="studio-diagnostic-item ${check.status}">
@@ -3269,6 +3618,7 @@ async function runDraftGeneration() {
   state.createGuideAdvanced = false;
   state.createWizardStep = "making";
   setCurrentStoryProject(null);
+  resetStudioDerivedState();
   state.storyProjectSaveStatus = "idle";
   state.storyProjectSaveMessage = "";
   state.selectedStudioSceneId = null;
@@ -3286,6 +3636,7 @@ async function runDraftGeneration() {
     state.draftPlaySceneId = state.draft?.entrySceneId || state.draft?.scenes?.[0]?.id || null;
     state.selectedStudioSceneId = state.draftPlaySceneId;
     setCurrentStoryProject(response.storyProject || null);
+    resetStudioDerivedState();
     await loadStoryProjectsForStudio({ render: false });
     state.aiEdit = {
       status: "idle",
@@ -3892,6 +4243,7 @@ function startEditingWork(pack) {
   state.editingWorkId = pack.id;
   state.createGuideAdvanced = false;
   setCurrentStoryProject(null);
+  resetStudioDerivedState();
   state.storyProjectSaveStatus = "idle";
   state.storyProjectSaveMessage = "";
   state.selectedStudioSceneId = null;
@@ -4611,7 +4963,13 @@ function wireEvents() {
         state.createWizardStep = state.draft ? "preview" : "prompt";
       }
       renderCreateWizard();
-      if (state.createGuideAdvanced) await loadStoryProjectsForStudio();
+      if (state.createGuideAdvanced) {
+        await loadStoryProjectsForStudio();
+        await Promise.all([
+          loadStoryProjectVersionsForStudio(),
+          generateComicStoryboardForStudio(),
+        ]);
+      }
       return;
     }
     const button = event.target.closest("[data-create-step-target]");
@@ -4676,9 +5034,18 @@ function wireEvents() {
       selectStudioScene(studioSceneButton.dataset.studioSceneSelect);
       return;
     }
+    if (event.target.closest("[data-studio-comic-refresh]")) {
+      await generateComicStoryboardForStudio();
+      return;
+    }
+    const studioVersionRestoreButton = event.target.closest("[data-studio-version-restore]");
+    if (studioVersionRestoreButton) {
+      await restoreStudioStoryProjectVersion(studioVersionRestoreButton.dataset.studioVersionRestore);
+      return;
+    }
     const studioProjectButton = event.target.closest("[data-studio-project-id]");
     if (studioProjectButton) {
-      selectStudioProject(studioProjectButton.dataset.studioProjectId);
+      await selectStudioProject(studioProjectButton.dataset.studioProjectId);
       return;
     }
     if (event.target.closest("#studioSceneSaveButton")) {
@@ -4746,7 +5113,11 @@ function wireEvents() {
     if (event.target.id === "studioSceneTitleInput" || event.target.id === "studioSceneTextInput") {
       state.storyProjectSaveStatus = "idle";
       state.storyProjectSaveMessage = state.storyProject?.id ? "有未保存修改。" : "有本地未保存修改。";
+      state.comicStoryboardStatus = "idle";
+      state.comicStoryboardMessage = "场景有未保存修改，保存后再刷新分镜。";
       $("studioSceneSaveStatus").textContent = studioSaveStatusText();
+      $("studioComicStatus").textContent = studioComicStatusText();
+      $("studioComicMessage").textContent = state.comicStoryboardMessage;
       const message = $("studioSceneSaveMessage");
       if (message) {
         message.textContent = state.storyProjectSaveMessage;

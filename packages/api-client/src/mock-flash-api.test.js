@@ -134,6 +134,62 @@ test("mock StoryProject comic compile returns a ComicEpisode", async () => {
   assert.deepEqual(compiled.item.validationErrors, []);
 });
 
+test("mock StoryProject version restore replaces the current project", async () => {
+  const { api } = createMemoryApi([]);
+  const created = await api.createAiDraft("一间深夜修理铺遇到会说话的旧钟", "healing");
+  const originalProject = structuredClone(created.storyProject);
+  originalProject.title = "修理铺初版";
+  const version = await api.createStoryProjectVersion(originalProject.id, {
+    project: originalProject,
+    label: "初版快照",
+  });
+  const editedProject = structuredClone(version.project);
+  editedProject.title = "修理铺改写版";
+  editedProject.script.scenes[0].text = "这段文字应该会被版本恢复覆盖。";
+  await api.updateStoryProject(editedProject.id, editedProject);
+
+  const restored = await api.restoreStoryProjectVersion(originalProject.id, version.item.id, {
+    reason: "恢复初版。",
+  });
+
+  assert.equal(restored.item.title, "修理铺初版");
+  assert.equal(restored.item.script.scenes[0].text, originalProject.script.scenes[0].text);
+  assert.notEqual(restored.item.versionId, version.item.id);
+  assert.equal(restored.item.restoredFromVersionId, version.item.id);
+  assert.equal(restored.version.id, restored.item.versionId);
+  assert.equal(restored.version.status, "restored");
+  assert.equal(restored.version.projectSnapshot.versionId, restored.item.versionId);
+  assert.equal(restored.restoredFromVersion.id, version.item.id);
+  const fetched = await api.getStoryProject(originalProject.id);
+  assert.equal(fetched.item.title, "修理铺初版");
+  assert.equal(fetched.item.versionId, restored.version.id);
+
+  const publishedSnapshotProject = {
+    ...fetched.item,
+    title: "修理铺已发布快照",
+    status: "published",
+    outputWorkId: "h5_previous_publish",
+    publishedAt: 1760000001000,
+  };
+  const publishedVersion = await api.createStoryProjectVersion(originalProject.id, {
+    project: publishedSnapshotProject,
+    label: "已发布快照",
+    status: "published",
+  });
+  const restoredPublished = await api.restoreStoryProjectVersion(originalProject.id, publishedVersion.item.id);
+  assert.equal(restoredPublished.item.title, "修理铺已发布快照");
+  assert.equal(restoredPublished.item.status, "ready_to_preview");
+  assert.equal(restoredPublished.item.outputWorkId, null);
+  assert.equal(restoredPublished.item.publishedAt, null);
+  assert.equal(restoredPublished.item.restoredFromVersionId, publishedVersion.item.id);
+  assert.equal(restoredPublished.version.status, "restored");
+
+  const other = await api.createAiDraft("另一间店的独立故事", "healing");
+  const mismatch = await api.restoreStoryProjectVersion(other.storyProject.id, version.item.id);
+  assert.equal(mismatch.reason, "version_mismatch");
+  assert.equal(mismatch.item, null);
+});
+
 test("applyStoreListing requires the rights acknowledgement", async () => {
   const { api, getStored } = createMemoryApi([makePack("h5_terms")]);
 

@@ -451,6 +451,12 @@ export function createMockFlashApi({
     return structuredClone(item);
   }
 
+  function findStoryProjectVersion(id) {
+    ensureStoryProjectState();
+    const item = storyProjectVersionsCache.find((version) => version.id === id);
+    return item ? structuredClone(item) : null;
+  }
+
   function saveAiGenerationJob(job = {}) {
     ensureStoryProjectState();
     const item = structuredClone(job);
@@ -1640,6 +1646,55 @@ export function createMockFlashApi({
         updatedAt: timestamp,
       });
       return { item: version, project: savedProject };
+    },
+
+    async restoreStoryProjectVersion(id, versionId, payload = {}) {
+      const existing = findStoryProject(id);
+      if (!existing) return { item: null, project: null, version: null, reason: "not_found" };
+      const version = findStoryProjectVersion(versionId);
+      if (!version) return { item: null, project: null, version: null, reason: "version_not_found" };
+      if (version.storyProjectId !== id) {
+        return { item: null, project: null, version, reason: "version_mismatch" };
+      }
+      const timestamp = Date.now();
+      const restoredProject = normalizeStoryProjectForMock(version.projectSnapshot || {}, {
+        id,
+        existing,
+        timestamp,
+      });
+      const errors = validateStoryProject(restoredProject);
+      if (errors.length) {
+        return {
+          item: null,
+          project: restoredProject,
+          version,
+          message: "story_project_invalid",
+          errors,
+        };
+      }
+      const restoreVersionId = makeMockId("spv");
+      const restoredStatus = restoredProject.status === "published"
+        ? "ready_to_preview"
+        : restoredProject.status || "ready_to_preview";
+      const savedProject = saveStoryProject({
+        ...restoredProject,
+        status: restoredStatus,
+        versionId: restoreVersionId,
+        restoredFromVersionId: version.id,
+        updatedAt: timestamp,
+        ...(restoredProject.status === "published" ? {
+          outputWorkId: null,
+          publishedAt: null,
+        } : {}),
+      });
+      const restoreVersion = saveStoryProjectVersion(createStoryProjectVersionSnapshot(savedProject, {
+        id: restoreVersionId,
+        status: "restored",
+        label: payload.label || `恢复：${version.label || version.id}`,
+        reason: payload.reason || `StoryProject restored from version ${version.id}.`,
+        timestamp,
+      }));
+      return { item: savedProject, project: savedProject, version: restoreVersion, restoredFromVersion: version };
     },
 
     async compileStoryProjectH5(id, payload = {}) {

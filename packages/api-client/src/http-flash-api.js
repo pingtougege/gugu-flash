@@ -85,6 +85,7 @@ export function createHttpFlashApi({ baseUrl = "", token = "", getToken = null }
     updateStoryProject: (id, project = {}) => request(`/flash/story-projects/${encode(id)}`, { method: "PATCH", body: { project } }),
     listStoryProjectVersions: (id) => request(`/flash/story-projects/${encode(id)}/versions`),
     createStoryProjectVersion: (id, payload = {}) => post(`/flash/story-projects/${encode(id)}/versions`, payload),
+    restoreStoryProjectVersion: (id, versionId, payload = {}) => post(`/flash/story-projects/${encode(id)}/versions/${encode(versionId)}/restore`, payload),
     compileStoryProjectH5: (id, payload = {}) => post(`/flash/story-projects/${encode(id)}/compile/h5`, payload),
     compileStoryProjectComic: (id, payload = {}) => post(`/flash/story-projects/${encode(id)}/compile/comic`, payload),
     publishStoryProject: (id, payload = {}) => post(`/flash/story-projects/${encode(id)}/publish`, payload),

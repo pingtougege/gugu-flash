@@ -916,6 +916,64 @@ export function createFlashBackendApp(options = {}) {
         return;
       }
 
+      if (parts[0] === "flash" && parts[1] === "story-projects" && parts[2] && parts[3] === "versions" && parts[4] && parts[5] === "restore" && req.method === "POST") {
+        const projectId = decodePart(parts[2]);
+        const versionId = decodePart(parts[4]);
+        const body = await readJsonBody(req);
+        const existing = await persistence.storyProjects.get(projectId);
+        if (!existing) {
+          notFound(res, "story_project_not_found");
+          return;
+        }
+        const version = await persistence.storyProjectVersions.get(versionId);
+        if (!version) {
+          notFound(res, "story_project_version_not_found");
+          return;
+        }
+        if (version.storyProjectId !== projectId) {
+          badRequest(res, "story_project_version_mismatch");
+          return;
+        }
+        const timestamp = Date.now();
+        const restoredProject = normalizeStoryProjectForPersistence(version.projectSnapshot || {}, {
+          id: projectId,
+          existing,
+          session: requestSession,
+          timestamp,
+        });
+        const errors = validateStoryProject(restoredProject);
+        if (errors.length) {
+          validationFailed(res, "story_project_invalid", errors);
+          return;
+        }
+        const restoreVersionId = prefixedId("spv");
+        const restoredStatus = restoredProject.status === "published"
+          ? "ready_to_preview"
+          : restoredProject.status || "ready_to_preview";
+        const savedProject = {
+          ...restoredProject,
+          status: restoredStatus,
+          versionId: restoreVersionId,
+          restoredFromVersionId: version.id,
+          updatedAt: timestamp,
+          ...(restoredProject.status === "published" ? {
+            outputWorkId: null,
+            publishedAt: null,
+          } : {}),
+        };
+        const restoreVersion = createStoryProjectVersionSnapshot(savedProject, {
+          id: restoreVersionId,
+          status: "restored",
+          label: body.label || `恢复：${version.label || version.id}`,
+          reason: body.reason || `StoryProject restored from version ${version.id}.`,
+          timestamp,
+        });
+        await persistence.storyProjectVersions.save(restoreVersion);
+        await persistence.storyProjects.save(savedProject);
+        ok(res, { item: savedProject, project: savedProject, version: restoreVersion, restoredFromVersion: version });
+        return;
+      }
+
       if (parts[0] === "flash" && parts[1] === "story-projects" && parts[2] && parts[3] === "versions" && req.method === "POST") {
         const projectId = decodePart(parts[2]);
         const existing = await persistence.storyProjects.get(projectId);

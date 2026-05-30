@@ -50,6 +50,7 @@ test("mock facade methods map to future backend routes", () => {
   assert.equal(routeForMockMethod("applyStoreListing").requestEntity, "StoreListing");
   assert.equal(routeForMockMethod("collectAnimeIpPool").path, "/flash/operator/anime-ip-collection");
   assert.equal(routeForMockMethod("collectAnimeIpCharacters").path, "/flash/operator/anime-ip-characters/:id/collect");
+  assert.equal(routeForMockMethod("restoreStoryProjectVersion").path, "/flash/story-projects/:id/versions/:versionId/restore");
 });
 
 test("story project API routes are reserved for Creator Studio", () => {
@@ -57,6 +58,8 @@ test("story project API routes are reserved for Creator Studio", () => {
   assert.equal(getApiRoute("storyProjects.create").requestEntity, "StoryProject");
   assert.equal(getApiRoute("storyProjects.versions.list").method, "GET");
   assert.equal(getApiRoute("storyProjects.versions.create").responseEntity, "StoryProjectVersion");
+  assert.equal(getApiRoute("storyProjects.versions.restore").method, "POST");
+  assert.equal(getApiRoute("storyProjects.versions.restore").responseEntity, "StoryProject");
   assert.equal(getApiRoute("storyProjects.compileH5").responseEntity, "WorkDraft");
   assert.equal(getApiRoute("storyProjects.compileComic").responseEntity, "ComicEpisode");
   assert.equal(getApiRoute("ai.storyProjectJobs.create").responseEntity, "AiGenerationJob");

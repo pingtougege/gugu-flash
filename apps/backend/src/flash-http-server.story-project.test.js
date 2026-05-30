@@ -280,6 +280,76 @@ test("StoryProject HTTP slice compiles a project as a ComicEpisode", async () =>
   });
 });
 
+test("StoryProject HTTP slice restores a project from a saved version", async () => {
+  await withStoryProjectBackend(async (api, baseUrl) => {
+    const created = await api.createStoryProject(makeStoryProject({
+      id: "story_project_restore_success",
+      title: "Restorable First Cut",
+    }));
+    const version = await api.createStoryProjectVersion(created.item.id, {
+      label: "Before rewrite",
+      reason: "Keep a restorable branch.",
+    });
+    const editedProject = structuredClone(created.item);
+    editedProject.title = "Restorable Rewrite";
+    editedProject.script.scenes[0].text = "This rewrite should be replaced by the restored snapshot.";
+    const updated = await api.updateStoryProject(created.item.id, editedProject);
+    assert.equal(updated.item.title, "Restorable Rewrite");
+
+    const restored = await api.restoreStoryProjectVersion(created.item.id, version.item.id, {
+      reason: "Restore from first cut.",
+    });
+
+    assert.equal(restored.item.id, created.item.id);
+    assert.equal(restored.item.title, "Restorable First Cut");
+    assert.equal(restored.item.script.scenes[0].text, created.item.script.scenes[0].text);
+    assert.equal(restored.item.storyGraph.edges.length, 4);
+    assert.notEqual(restored.item.versionId, version.item.id);
+    assert.equal(restored.item.restoredFromVersionId, version.item.id);
+    assert.equal(restored.version.id, restored.item.versionId);
+    assert.equal(restored.version.status, "restored");
+    assert.equal(restored.version.projectSnapshot.versionId, restored.item.versionId);
+    assert.equal(restored.restoredFromVersion.id, version.item.id);
+
+    const fetchedProject = await api.getStoryProject(created.item.id);
+    assert.equal(fetchedProject.item.title, "Restorable First Cut");
+    assert.equal(fetchedProject.item.restoredFromVersionId, version.item.id);
+    assert.equal(fetchedProject.item.versionId, restored.version.id);
+
+    const publishedSnapshotProject = {
+      ...fetchedProject.item,
+      title: "Published Snapshot",
+      status: "published",
+      outputWorkId: "h5_previous_publish",
+      publishedAt: 1760000001000,
+    };
+    const publishedVersion = await api.createStoryProjectVersion(created.item.id, {
+      project: publishedSnapshotProject,
+      label: "Published snapshot",
+      status: "published",
+    });
+    const restoredPublished = await api.restoreStoryProjectVersion(created.item.id, publishedVersion.item.id);
+    assert.equal(restoredPublished.item.title, "Published Snapshot");
+    assert.equal(restoredPublished.item.status, "ready_to_preview");
+    assert.equal(restoredPublished.item.outputWorkId, null);
+    assert.equal(restoredPublished.item.publishedAt, null);
+    assert.equal(restoredPublished.item.restoredFromVersionId, publishedVersion.item.id);
+    assert.equal(restoredPublished.version.status, "restored");
+
+    const missingVersion = await postRaw(baseUrl, `/flash/story-projects/${created.item.id}/versions/spv_missing/restore`);
+    assert.equal(missingVersion.code, 404);
+    assert.equal(missingVersion.message, "story_project_version_not_found");
+
+    const otherProject = await api.createStoryProject(makeStoryProject({
+      id: "story_project_restore_other",
+      title: "Other Project",
+    }));
+    const mismatch = await postRaw(baseUrl, `/flash/story-projects/${otherProject.item.id}/versions/${version.item.id}/restore`);
+    assert.equal(mismatch.code, 400);
+    assert.equal(mismatch.message, "story_project_version_mismatch");
+  });
+});
+
 test("StoryProject HTTP slice blocks publishing projects that fail publish checks", async () => {
   await withStoryProjectBackend(async (api, baseUrl) => {
     const created = await api.createStoryProject(makeStoryProject({

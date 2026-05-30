@@ -3051,7 +3051,9 @@ input:focus-visible {
 .creator-studio-body,
 .studio-project-list,
 .studio-scene-list,
-.studio-diagnostic-list {
+.studio-diagnostic-list,
+.studio-comic-list,
+.studio-version-list {
   display: grid;
   gap: 8px;
 }
@@ -3084,7 +3086,9 @@ input:focus-visible {
 
 .studio-project-card,
 .studio-scene-item,
-.studio-diagnostic-item {
+.studio-diagnostic-item,
+.studio-comic-panel,
+.studio-version-item {
   display: grid;
   gap: 7px;
   padding: 9px;
@@ -3167,6 +3171,8 @@ button.studio-scene-item:focus-visible {
 .studio-scene-item small,
 .studio-scene-item p,
 .studio-diagnostic-item small,
+.studio-comic-panel small,
+.studio-version-item small,
 .studio-mobile-preview span {
   color: var(--muted);
   font-size: 11px;
@@ -3266,6 +3272,80 @@ button.studio-scene-item:focus-visible {
 .studio-diagnostic-item {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
+}
+
+.studio-section-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.studio-helper-text,
+.studio-version-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.studio-comic-panel {
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: start;
+}
+
+.studio-comic-panel > span {
+  justify-self: start;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #6d3a00;
+  background: rgba(245, 158, 11, 0.14);
+  font-size: 10px;
+  font-weight: 840;
+}
+
+.studio-comic-panel strong,
+.studio-version-item strong {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-comic-panel p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.studio-comic-panel p b {
+  color: #0f5f73;
+}
+
+.studio-comic-panel > small,
+.studio-comic-panel > em {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.studio-comic-panel > em {
+  color: #475569;
+  font-style: normal;
+}
+
+.studio-version-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.studio-version-item.active {
+  border-color: rgba(6, 214, 160, 0.28);
+  background: rgba(6, 214, 160, 0.08);
 }
 
 .studio-mobile-preview {

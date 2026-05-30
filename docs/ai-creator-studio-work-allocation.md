@@ -584,3 +584,34 @@ Verification target:
 node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js packages/core/src/gugu-story-project.test.js
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio switches back|creator studio scene inspector|creator studio opens|mobile guide defaults"
 ```
+
+### 2026-05-31 Phase 1 Storyboard Preview And Version Restore Start
+
+Started by Codex and assigned agents:
+
+- Heisenberg: add StoryProjectVersion restore route, HTTP client method, mock method, and contract coverage.
+- Volta: add Creator Studio comic/manju storyboard preview plus version history and restore controls.
+- Ohm: review restore, storyboard preview, state sync, and mobile default-flow risks.
+- Codex: integrate, verify, and report.
+
+Acceptance target:
+
+```text
+Professional Creator Studio can preview the current StoryProject as a ComicEpisode storyboard, list version snapshots, restore a chosen version, and keep mobile creation simple by default.
+```
+
+### 2026-05-31 Phase 1 Storyboard Preview And Version Restore Complete
+
+Completed by Codex and assigned agents:
+
+- Heisenberg added StoryProjectVersion restore route, HTTP client method, mock method, contract mapping, route coverage, and tests.
+- Volta added Creator Studio Comic storyboard preview, version history, restore controls, save-time refresh behavior, and focused e2e coverage.
+- Ohm identified restore audit, published snapshot, state sync, and mobile-flow risks before final integration.
+- Codex changed restore semantics so every restore creates a new `restored` snapshot and published snapshots return to editable preview state.
+
+Verification target:
+
+```text
+node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js apps/backend/src/alpha-route-coverage.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
+```

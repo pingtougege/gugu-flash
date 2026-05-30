@@ -165,6 +165,11 @@ test("creator studio opens with scene count and publish diagnostics after draft 
   await expect(studio).toContainText("Creator Studio");
   await expect(studio).toContainText("项目概览");
   await expect(studio.locator("[data-studio-scene-count]")).toHaveText(/\d+ 个场景/);
+  await expect(studio).toContainText("Comic storyboard");
+  await expect(studio.locator(".studio-comic-panel").first()).toBeVisible();
+  await expect(studio.locator(".studio-comic-panel").first()).toContainText(/Panel|原文|Next beats/);
+  await expect(studio.locator("#studioComicStatus")).toContainText(/panels/);
+  await expect(studio).toContainText("版本历史");
   await expect(studio).toContainText("发布诊断");
   await expect(studio.locator(".studio-scene-item").first()).toBeVisible();
   await expect(studio.locator(".studio-scene-item").first()).toContainText(/脚本|入口|结局|可达/);
@@ -190,9 +195,29 @@ test("creator studio scene inspector saves one scene back to the project", async
   await expect(page.locator("#studioSceneSaveMessage")).toContainText("保存成功");
   await expect(studio.locator(".studio-scene-item").first()).toContainText("工作台改过的入口");
   await expect(studio.locator(".studio-scene-item").first()).toContainText(savedText);
+  await expect(studio.locator(".studio-version-item").first()).toBeVisible();
+  await expect(studio.locator("#studioVersionHistory")).toContainText("场景保存");
+  await expect(studio.locator("#studioVersionStatus")).toContainText(/版本/);
+
+  const versionCountAfterFirstSave = await studio.locator(".studio-version-item").count();
+  const secondSavedText = "第二次保存会刷新版本历史状态。";
+  await page.locator('[data-testid="studio-scene-text"]').fill(secondSavedText);
+  await page.locator('[data-testid="studio-scene-save"]').click();
+  await expect(page.locator("#studioSceneSaveMessage")).toContainText(/快照|版本/);
+  await expect(studio.locator(".studio-scene-item").first()).toContainText(secondSavedText);
+  await expect(studio.locator(".studio-version-item").nth(versionCountAfterFirstSave)).toBeVisible();
+
+  const restoreButton = studio.locator("[data-studio-version-restore]").first();
+  await expect(restoreButton).toBeVisible();
+  if (await restoreButton.isDisabled()) {
+    await expect(studio.locator("#studioVersionHistory")).toContainText("暂未开放恢复接口");
+  } else {
+    await restoreButton.click();
+    await expect(page.locator("#studioSceneSaveMessage")).toContainText("已恢复");
+  }
 
   await page.locator('[data-create-step-target="playtest"]').click();
-  await expect(page.locator("#draftPlaytestPanel")).toContainText(savedText);
+  await expect(page.locator("#draftPlaytestPanel")).toContainText(secondSavedText);
 });
 
 test("creator studio switches back to an existing StoryProject and saves a version snapshot", async ({ page }) => {

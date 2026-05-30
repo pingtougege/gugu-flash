@@ -47,6 +47,9 @@ Allowed statuses:
 | Backend Platform Round 4 | Leibniz | StoryProject comic compile API/mock | verified | `/compile/comic` returning `ComicEpisode` |
 | Frontend Experience Round 4 | Hume | Project switching and save snapshots | verified | Clickable project list + version snapshot save |
 | QA And Release Round 4 | Dalton | Comic/snapshot risk review | verified | Read-only risk checklist |
+| Backend Platform Round 5 | Heisenberg | StoryProject version restore API/mock | verified | Restore endpoint + facade contract |
+| Frontend Experience Round 5 | Volta | Comic preview and version history UI | verified | Creator Studio storyboard/history panel |
+| QA And Release Round 5 | Ohm | Restore/storyboard risk review | verified | Read-only risk checklist |
 
 ## 3. Phase 0 Board
 
@@ -54,11 +57,11 @@ Allowed statuses:
 | --- | --- | --- | --- | --- | --- |
 | Story project schema | Codex | verified | `packages/core/src/gugu-story-project.js` | `npm run test:unit` | Extend only when API/UI needs fields |
 | Story project compiler | Codex | verified | `compileStoryProjectToH5Pack` | `npm run test:unit` | Extend for comic/manju outputs later |
-| Comic storyboard compiler | Codex / Leibniz | verified | `compileStoryProjectToComicEpisode` + `/compile/comic` | `node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js` | Add visual comic editor later |
+| Comic storyboard compiler | Codex / Leibniz / Volta | verified | `compileStoryProjectToComicEpisode` + `/compile/comic` + Studio preview | `node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js` | Add panel-level visual editor later |
 | Playability validation | Codex | verified | `validateStoryProject`, `createStoryProjectPlayabilityReport` | `npm run test:unit` | Surface errors in mobile wizard |
 | Domain entities | Codex | verified | `StoryProject`, `StoryProjectVersion`, `AiGenerationJob` | `npm run test:unit` | Add production DB migration later |
 | API contract routes | Codex | verified | `storyProjects.*`, `ai.storyProjectJobs.*` | `npm run test:unit` | Keep route map updated as outputs expand |
-| Backend persistence/API | Mencius / Mendel / Leibniz | verified | StoryProject CRUD/version/job/compile/publish/apply API | `npm run test:unit` | Add production DB migration later |
+| Backend persistence/API | Mencius / Mendel / Leibniz / Heisenberg | verified | StoryProject CRUD/version/restore/job/compile/publish/apply API | `npm run test:unit` | Add production DB migration later |
 | Mobile guided creation | Euler | verified | Five-step mobile guide and advanced edit toggle | Focused Playwright + browser smoke | Add inline project recovery/history later |
 | Mobile project-backed generation | Codex | verified | `createStoryProjectFromPrompt`, AI draft response `storyProject` | `node --test packages/core/src/gugu-story-project.test.js packages/api-client/src/mock-flash-api.test.js` | Wire dedicated project list loading later |
 | QA verification map | Zeno | verified | `docs/ai-creator-studio-verification-checklist.md` | Lead review | Keep commands current after Round 2 |
@@ -75,7 +78,7 @@ Phase 1 can start only after these gates are verified:
 | Backend can persist story projects | Mencius | verified | StoryProject JSON store + HTTP tests |
 | Backend can compile story project to H5 preview | Mencius | verified | `/flash/story-projects/:id/compile/h5` |
 | Mobile wizard PRD/UI insertion exists | Euler | verified | 5-step guide + e2e coverage |
-| Web professional editing exists | Averroes / Harvey / Hume | verified | Creator Studio panel, project switching, scene save snapshots + e2e |
+| Web professional editing exists | Averroes / Harvey / Hume / Volta | verified | Creator Studio panel, project switching, scene save snapshots, storyboard preview, version restore + e2e |
 | AI graph-output contract exists | Codex / AI Ops | verified | `docs/ai-story-project-generation-contract.md` |
 | Rights and publish checklist exists | Safety / Mendel | verified | Server-side StoryProject publish blockers |
 | QA test matrix exists | Zeno | verified | `docs/ai-creator-studio-verification-checklist.md` |
@@ -98,7 +101,7 @@ Next 24h:
 
 Date: 2026-05-31
 
-Overall status: `verified_round_4`
+Overall status: `verified_round_5`
 
 Verified since last update:
 
@@ -107,6 +110,9 @@ Verified since last update:
 - Professional Creator Studio skeleton opens from advanced editing and shows project, scene, health, and publish diagnostics.
 - StoryProject comic compile now works through backend, HTTP client, mock API, and route contract.
 - Professional Creator Studio can switch between existing StoryProjects and save a scene with a version snapshot.
+- Professional Creator Studio can preview the current StoryProject as a `ComicEpisode` storyboard.
+- StoryProject versions can be restored through backend, HTTP client, mock API, and Creator Studio.
+- Restore creates a new `restored` version snapshot and downgrades restored published snapshots back to preview state.
 - Snapshot failure is separated from full project-save failure in the editor status.
 - Mobile default flow remains five-step guided creation with professional tools hidden by default.
 
@@ -118,14 +124,48 @@ npm run check:content
 npm run check:ai-creation-maturity
 node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js packages/core/src/gugu-story-project.test.js
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio switches back|creator studio scene inspector|creator studio opens|mobile guide defaults"
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
 browser smoke at 1280x720 and 375x667
 ```
 
 Next 24h:
 
-- Add a visible comic/manju output preview in Creator Studio.
-- Add version history browsing and restore controls.
-- Start production storage/auth hardening for StoryProject and StoryProjectVersion.
+- Add panel-level comic/manju editing and visual asset hooks.
+- Add production storage/auth hardening for StoryProject and StoryProjectVersion.
+- Add version diff UI and restore audit filters.
+
+### 2026-05-31 Agent Execution Round 5 Started
+
+Goal:
+
+- Make the professional web Studio show a concrete comic/manju storyboard preview from `ComicEpisode`.
+- Let creators browse StoryProject version history and restore a saved snapshot.
+- Keep the mobile creation flow simple and unchanged while professional controls deepen behind advanced editing.
+
+Assignments:
+
+- Heisenberg owns StoryProject version restore API/mock/client contract.
+- Volta owns Creator Studio comic preview, version history, and restore UX.
+- Ohm owns read-only QA risk review.
+- Codex owns integration, verification, progress reporting, commit, and push.
+
+### 2026-05-31 Agent Execution Round 5 Completed
+
+Completed by Codex and assigned agents:
+
+- Added `restoreStoryProjectVersion` across API contract, HTTP client, mock API, and backend route.
+- Restore now creates a new `restored` StoryProjectVersion and points the current project at that audit snapshot.
+- Restoring a published snapshot downgrades the editable StoryProject to `ready_to_preview` and clears stale publish output references.
+- Creator Studio now shows a Comic storyboard panel compiled from the current StoryProject.
+- Creator Studio now lists version history and can restore a snapshot, then recompiles draft, Inspector, phone preview, and storyboard.
+- Mobile default creation remains five-step and keeps professional controls behind advanced editing.
+
+Verification:
+
+```text
+node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js apps/backend/src/alpha-route-coverage.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
+```
 
 ### 2026-05-31 Agent Execution Round 4 Started
 
