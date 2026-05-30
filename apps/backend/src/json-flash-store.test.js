@@ -135,6 +135,56 @@ test("JSON flash store creates, refreshes, and revokes sessions", async () => {
   }
 });
 
+test("JSON flash store exposes StoryProject repositories", async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), "gugu-flash-store-story-projects-"));
+  const seedPath = join(tempDir, "seed.json");
+  const dataPath = join(tempDir, "packs.json");
+  const statePath = join(tempDir, "state.json");
+
+  try {
+    const store = createJsonFlashStore({ dataPath, statePath, seedPath });
+    const project = {
+      id: "story_project_repo_1",
+      authorUserId: "user_local",
+      schemaVersion: "gugu_story_project_v1",
+      title: "仓库里的雨夜",
+      contentOrigin: "original",
+      status: "draft",
+      updatedAt: 1760000000000,
+    };
+    const version = {
+      id: "spv_repo_1",
+      storyProjectId: project.id,
+      schemaVersion: "gugu_story_project_v1",
+      projectSnapshot: project,
+      status: "locked",
+      createdAt: 1760000000100,
+    };
+    const job = {
+      id: "ai_job_repo_1",
+      storyProjectId: project.id,
+      stage: "outline",
+      status: "queued",
+      inputSnapshotId: version.id,
+      createdAt: 1760000000200,
+      updatedAt: 1760000000200,
+    };
+
+    await store.storyProjects.save(project);
+    await store.storyProjectVersions.save(version);
+    await store.aiGenerationJobs.save(job);
+
+    const second = createJsonFlashStore({ dataPath, statePath, seedPath });
+    assert.deepEqual(await second.storyProjects.get(project.id), project);
+    assert.deepEqual(await second.storyProjects.list({ authorUserId: "user_local" }), [project]);
+    assert.deepEqual(await second.storyProjectVersions.listForProject(project.id), [version]);
+    assert.deepEqual(await second.aiGenerationJobs.get(job.id), job);
+    assert.deepEqual(await second.aiGenerationJobs.listForProject(project.id), [job]);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("JSON flash store exposes comment repositories", async () => {
   const tempDir = await mkdtemp(join(tmpdir(), "gugu-flash-store-comments-"));
   const seedPath = join(tempDir, "seed.json");

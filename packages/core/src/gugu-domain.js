@@ -3,6 +3,9 @@ export const GUGU_FLASH_CLIENT_TARGETS = ["web", "native", "miniprogram", "opera
 export const DOMAIN_ENTITY_TYPES = {
   User: "User",
   Session: "Session",
+  StoryProject: "StoryProject",
+  StoryProjectVersion: "StoryProjectVersion",
+  AiGenerationJob: "AiGenerationJob",
   WorkDraft: "WorkDraft",
   Work: "Work",
   WorkVersion: "WorkVersion",
@@ -37,6 +40,9 @@ export const DOMAIN_ENTITY_TYPES = {
 export const DOMAIN_STATUS = {
   User: ["active", "limited", "suspended", "deleted"],
   Session: ["active", "expired", "revoked"],
+  StoryProject: ["draft", "validating", "ready_to_preview", "ready_to_publish", "published", "archived"],
+  StoryProjectVersion: ["draft", "locked", "published", "archived"],
+  AiGenerationJob: ["queued", "running", "waiting_user", "succeeded", "failed", "canceled"],
   WorkDraft: ["editing", "validating", "ready_to_publish", "archived"],
   Work: ["public_limited", "public", "taken_down", "deleted"],
   WorkVersion: ["active", "locked", "replaced", "removed"],
@@ -99,6 +105,21 @@ export const DOMAIN_ENTITY_SCHEMAS = {
   Session: {
     idPrefix: "session_",
     required: ["id", "userId", "status", "createdAt", "expiresAt"],
+    statusField: "status",
+  },
+  StoryProject: {
+    idPrefix: "story_project_",
+    required: ["id", "authorUserId", "schemaVersion", "title", "contentOrigin", "status", "updatedAt"],
+    statusField: "status",
+  },
+  StoryProjectVersion: {
+    idPrefix: "spv_",
+    required: ["id", "storyProjectId", "schemaVersion", "projectSnapshot", "status", "createdAt"],
+    statusField: "status",
+  },
+  AiGenerationJob: {
+    idPrefix: "ai_job_",
+    required: ["id", "storyProjectId", "stage", "status", "inputSnapshotId", "createdAt", "updatedAt"],
     statusField: "status",
   },
   WorkDraft: {

@@ -979,6 +979,9 @@ function promptTitle(prompt, fallback = "新咕咕剧场") {
   if (explicit && !isPromptMetaPhrase(explicit)) return explicit.slice(0, 10);
 
   const quoted = text.match(/[“「《](.*?)[”」》]/)?.[1];
+  const leadingAscii = text.match(/^[A-Za-z][A-Za-z0-9_-]{1,23}(?=\s)/)?.[0];
+  if (leadingAscii && !isPromptMetaPhrase(leadingAscii)) return leadingAscii.slice(0, 10);
+
   const candidates = [
     quoted,
     ...text

@@ -128,9 +128,40 @@ test("original work can be published without entering the store flow", async ({ 
   await expect(workCard).toContainText("喜欢这个作品的话，可以申请进商店。");
 });
 
+test("mobile guide defaults to idea role generation playtest and publish checks", async ({ page }) => {
+  await openCreate(page);
+  await expect(page.locator("#createWizardNav")).toContainText("创意");
+  await expect(page.locator("#createWizardNav")).toContainText("角色/IP");
+  await expect(page.locator("#createWizardNav")).toContainText("生成");
+  await expect(page.locator("#createWizardNav")).toContainText("试玩");
+  await expect(page.locator("#createWizardNav")).toContainText("发布检查");
+
+  await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill("月台上的星星收信员");
+  await generateDraft(page);
+
+  await expect(page.locator('[data-create-step="script"]')).toBeHidden();
+  await expect(page.locator('[data-create-step="views"]')).toBeHidden();
+  await expect(page.locator('[data-create-step="assets"]')).toBeHidden();
+  await expect(page.locator("[data-create-advanced-toggle]")).toHaveText("高级编辑");
+
+  await page.locator("#createWizardNextButton").click();
+  await expect(page.locator('[data-create-step="playtest"]')).toHaveClass(/active/);
+  await expect(page.locator('[data-mobile-guide-step="playtest"]')).toHaveClass(/active/);
+  await page.locator("#createWizardNextButton").click();
+  await expect(page.locator('[data-create-step="publish"]')).toHaveClass(/active/);
+  await expect(page.locator('[data-mobile-guide-step="publish"]')).toHaveClass(/active/);
+  await expect(page.locator('[data-testid="create-publish"]')).toBeVisible();
+});
+
 test("generated creation deck keeps ownership as an editable card", async ({ page }) => {
   await openCreate(page);
-  await expect(page.locator("#createWizardNav")).toBeHidden();
+  await expect(page.locator("#createWizardNav")).toBeVisible();
+  await expect(page.locator("#createWizardNav")).toContainText("创意");
+  await expect(page.locator("#createWizardNav")).toContainText("角色/IP");
+  await expect(page.locator("#createWizardNav")).toContainText("生成");
+  await expect(page.locator("#createWizardNav")).toContainText("试玩");
+  await expect(page.locator("#createWizardNav")).toContainText("发布检查");
+  await expect(page.locator('[data-mobile-guide-step="prompt"]')).toHaveClass(/active/);
   await expect(page.locator('[data-create-step="prompt"] .create-step-title')).toHaveCount(0);
   await expect(page.locator("#promptPolishLauncher")).toBeVisible();
   await expect(page.locator("#promptPolishModal")).toBeHidden();
@@ -141,10 +172,19 @@ test("generated creation deck keeps ownership as an editable card", async ({ pag
   await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill("雨夜便利店预言猫");
   await generateDraft(page);
 
-  await expect(page.locator("#createWizardNav")).toContainText("总览");
-  await expect(page.locator("#createWizardNav")).toContainText("角色");
-  await expect(page.locator("#createWizardNav")).toContainText("立绘");
+  await expect(page.locator('[data-mobile-guide-step="making"]')).toHaveClass(/active/);
+  await expect(page.locator("#createWizardNav")).not.toContainText("立绘");
+  await expect(page.locator("#createWizardNav")).not.toContainText("剧本");
   await expect(page.locator('[data-create-step="preview"]')).toHaveClass(/active/);
+  await expect(page.locator('[data-create-step="script"]')).toBeHidden();
+  await expect(page.locator('[data-create-step="views"]')).toBeHidden();
+  await expect(page.locator('[data-create-step="assets"]')).toBeHidden();
+  await expect(page.locator("#createWizardNextButton")).toHaveText("去试玩");
+  await expect(page.locator("[data-create-advanced-toggle]")).toHaveText("高级编辑");
+  await page.locator("[data-create-advanced-toggle]").click();
+  await expect(page.locator(".create-professional-rail")).toContainText("剧本");
+  await expect(page.locator(".create-professional-rail")).toContainText("立绘");
+  await expect(page.locator(".create-professional-rail")).toContainText("场景");
   await expect(page.locator("#draftOverviewGrid")).toContainText("标签");
   await expect(page.locator("#draftOverviewGrid")).toContainText("归属");
   await expect(page.locator("#draftTagsInput")).not.toHaveValue(/AI草稿|可二创|原创|完整文字游戏|玩家目标/);
@@ -487,6 +527,7 @@ test("create workspace uses full screen and keeps flow actions from covering car
 
   await page.locator("#createWizardNextButton").click();
   await expect(page.locator('[data-create-step="preview"]')).toHaveClass(/active/);
+  await page.locator("[data-create-advanced-toggle]").click();
   await page.locator('[data-create-step-target="settings"]').click();
   await page.locator("[data-persona-picker-open]").click();
   await expect(page.locator("#personaPickerActions")).toBeVisible();

@@ -77,6 +77,16 @@ export {
 } from "./ai-text-game-contract.js";
 
 export {
+  GUGU_STORY_NODE_TYPES,
+  GUGU_STORY_PROJECT_SCHEMA_VERSION,
+  GUGU_STORY_PROJECT_STATUSES,
+  compileStoryProjectToH5Pack,
+  createStoryProjectFromH5Pack,
+  createStoryProjectPlayabilityReport,
+  validateStoryProject,
+} from "./gugu-story-project.js";
+
+export {
   WEBWIDE_IP_DISCOVERY_SOURCE,
   discoverWebwideIpCandidates,
   mergeCandidateLists,

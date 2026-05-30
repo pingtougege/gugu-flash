@@ -2830,6 +2830,10 @@ input:focus-visible {
   display: none;
 }
 
+.create-flow.mobile-guide-flow.pre-draft-flow {
+  display: grid;
+}
+
 .create-flow.pre-draft-flow button {
   max-width: 132px;
 }
@@ -2878,6 +2882,133 @@ input:focus-visible {
   height: 100%;
   border-radius: inherit;
   background: var(--accent-3);
+}
+
+.create-flow.mobile-guide-flow {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0 10px;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.create-guide-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.create-flow.mobile-guide-flow .create-guide-step {
+  display: grid;
+  min-width: 0;
+  min-height: 54px;
+  place-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  color: #475569;
+  background: #f8fafc;
+  font-size: 10px;
+  text-align: center;
+  white-space: normal;
+}
+
+.create-flow.mobile-guide-flow .create-guide-step span {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: #94a3b8;
+  font-size: 10px;
+}
+
+.create-flow.mobile-guide-flow .create-guide-step strong {
+  min-width: 0;
+  color: inherit;
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.create-flow.mobile-guide-flow .create-guide-step small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.create-flow.mobile-guide-flow .create-guide-step.active {
+  border-color: rgba(17, 138, 178, 0.34);
+  color: #075985;
+  background: rgba(14, 165, 233, 0.11);
+}
+
+.create-flow.mobile-guide-flow .create-guide-step.complete {
+  border-color: rgba(6, 214, 160, 0.28);
+  color: #047857;
+  background: rgba(6, 214, 160, 0.10);
+}
+
+.create-flow.mobile-guide-flow .create-guide-step.complete span,
+.create-flow.mobile-guide-flow .create-guide-step.active span {
+  display: grid;
+  background: var(--accent-3);
+}
+
+.create-guide-tools {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.create-advanced-toggle {
+  min-height: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 999px;
+  padding: 0 12px;
+  color: #475569;
+  background: #f8fafc;
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.create-advanced-toggle.active {
+  color: #075985;
+  border-color: rgba(17, 138, 178, 0.34);
+  background: rgba(14, 165, 233, 0.10);
+}
+
+.create-professional-rail {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: none;
+}
+
+.create-professional-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.create-flow.mobile-guide-flow .create-professional-rail button {
+  flex: 0 0 auto;
+  min-height: 28px;
+  border-radius: 999px;
+  padding: 0 10px;
+  color: #64748b;
+  background: white;
+  font-size: 10px;
+  font-weight: 820;
+}
+
+.create-flow.mobile-guide-flow .create-professional-rail button.active {
+  border-color: rgba(17, 138, 178, 0.34);
+  color: #075985;
+  background: rgba(14, 165, 233, 0.10);
 }
 
 .create-card-deck {

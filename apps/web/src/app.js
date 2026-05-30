@@ -57,6 +57,7 @@ const state = {
   editingWorkId: null,
   publishedDraftKeys: new Set(),
   createWizardStep: "prompt",
+  createGuideAdvanced: false,
   generationWorkbench: {
     visible: false,
     status: "idle",
@@ -104,6 +105,14 @@ const CREATE_WIZARD_STEPS = [
   { id: "assets", label: "场景" },
   { id: "playtest", label: "试玩" },
   { id: "publish", label: "检查" },
+];
+
+const MOBILE_CREATE_GUIDE_STEPS = [
+  { id: "prompt", label: "创意", hint: "写一句" },
+  { id: "settings", label: "角色/IP", hint: "选归属" },
+  { id: "making", label: "生成", hint: "AI 制作" },
+  { id: "playtest", label: "试玩", hint: "能玩" },
+  { id: "publish", label: "发布检查", hint: "过检查" },
 ];
 
 const CREATE_STEP_AI_SCOPES = {
@@ -555,9 +564,75 @@ function createVisibleWizardSteps() {
   if (state.draftGenerating) {
     return createStepsByIds(["prompt", "making"]);
   }
-  return state.draft
+  if (!state.draft) return createStepsByIds(["prompt", "settings"]);
+  return state.createGuideAdvanced
     ? createStepsByIds(["preview", "settings", "script", "views", "assets", "playtest", "publish"])
-    : createStepsByIds(["prompt", "settings"]);
+    : createStepsByIds(["preview", "playtest", "publish"]);
+}
+
+function mobileGuideActiveStep(activeStep) {
+  if (state.draftGenerating || activeStep === "making") return "making";
+  if (!state.draft) return activeStep === "settings" ? "settings" : "prompt";
+  if (activeStep === "publish") return "publish";
+  if (activeStep === "playtest") return "playtest";
+  if (activeStep === "settings") return "settings";
+  return "making";
+}
+
+function mobileGuideTarget(stepId) {
+  if (state.draft && state.createGuideAdvanced) return "";
+  if (stepId === "prompt") return !state.draft && !state.draftGenerating ? "prompt" : "";
+  if (stepId === "settings") {
+    if (!state.draft && !state.draftGenerating) return "settings";
+    return "";
+  }
+  if (stepId === "making") {
+    if (state.draftGenerating) return "making";
+    return state.draft ? "preview" : "";
+  }
+  if (stepId === "playtest") return state.draft ? "playtest" : "";
+  if (stepId === "publish") return state.draft ? "publish" : "";
+  return "";
+}
+
+function renderMobileGuide(activeStep, visibleSteps) {
+  const activeGuideStep = mobileGuideActiveStep(activeStep);
+  const activeGuideIndex = MOBILE_CREATE_GUIDE_STEPS.findIndex((step) => step.id === activeGuideStep);
+  const guideSteps = MOBILE_CREATE_GUIDE_STEPS.map((step, index) => {
+    const target = mobileGuideTarget(step.id);
+    const disabled = !target || !canEnterCreateWizardStep(target);
+    const classes = [
+      "create-guide-step",
+      step.id === activeGuideStep ? "active" : "",
+      index < activeGuideIndex ? "complete" : "",
+    ].filter(Boolean).join(" ");
+    return `
+      <button class="${classes}" ${target ? `data-create-step-target="${target}"` : ""} data-mobile-guide-step="${step.id}" type="button" ${disabled ? "disabled" : ""}>
+        <span>${index + 1}</span>
+        <strong>${step.label}</strong>
+        <small>${step.hint}</small>
+      </button>
+    `;
+  }).join("");
+  const professionalRail = state.draft && state.createGuideAdvanced ? `
+    <div class="create-professional-rail" aria-label="高级编辑步骤">
+      ${visibleSteps.map((step) => `
+        <button class="${step.id === activeStep ? "active" : ""}" data-create-step-target="${step.id}" type="button">
+          ${step.label}
+        </button>
+      `).join("")}
+    </div>
+  ` : "";
+  const advancedToggle = state.draft ? `
+    <button class="create-advanced-toggle ${state.createGuideAdvanced ? "active" : ""}" data-create-advanced-toggle type="button">
+      ${state.createGuideAdvanced ? "收起高级编辑" : "高级编辑"}
+    </button>
+  ` : "";
+  return `
+    <div class="create-guide-steps">${guideSteps}</div>
+    ${state.draft ? `<div class="create-guide-tools">${advancedToggle}</div>` : ""}
+    ${professionalRail}
+  `;
 }
 
 function setCreateWizardStep(stepId, { scroll = true } = {}) {
@@ -605,42 +680,19 @@ function renderCreateWizard({ syncCard = true } = {}) {
     activeStep = visibleSteps[0]?.id || "prompt";
     state.createWizardStep = activeStep;
   }
-  const activeIndex = createWizardStepIndex(activeStep);
   const { canGenerate, stepState } = getCreateStepState();
   const visibleStepIds = new Set(visibleSteps.map((step) => step.id));
   const createWizardNav = $("createWizardNav");
   const isPreDraftFlow = !state.draft && !state.draftGenerating;
+  const isDraftFlow = Boolean(state.draft);
   $("createAdvanced")?.classList.toggle("draft-character-only", Boolean(state.draft));
   document.querySelector('[data-create-step="settings"]')?.classList.toggle("draft-character-only", Boolean(state.draft));
+  createWizardNav.className = "create-flow mobile-guide-flow";
   createWizardNav.classList.toggle("pre-draft-flow", isPreDraftFlow);
-  createWizardNav.classList.toggle("draft-flow", Boolean(state.draft));
+  createWizardNav.classList.toggle("draft-flow", isDraftFlow);
   createWizardNav.classList.toggle("making-flow", state.draftGenerating);
-  if (isPreDraftFlow) {
-    const currentNumber = activeStep === "settings" ? 2 : 1;
-    const currentLabel = activeStep === "settings" ? "归属和主角" : "创意";
-    const progress = activeStep === "settings" ? 100 : 50;
-    const context = activeStep === "settings" ? "确认归属后启动 AI 制作" : "下一步配置归属和主角";
-    createWizardNav.innerHTML = `
-      <button class="active" data-create-step-target="${activeStep}" type="button">
-        <span>${currentNumber}</span>
-        ${currentLabel}
-      </button>
-      <div class="create-flow-context">
-        <div class="create-flow-meter" aria-hidden="true"><i style="width: ${progress}%"></i></div>
-        <small>${context}</small>
-      </div>
-    `;
-  } else {
-    createWizardNav.innerHTML = visibleSteps.map((step, index) => {
-      const unlocked = canEnterCreateWizardStep(step.id);
-      return `
-        <button class="${step.id === activeStep ? "active" : ""} ${index < activeIndex ? "complete" : ""}" data-create-step-target="${step.id}" type="button" ${unlocked ? "" : "disabled"}>
-          <span>${index + 1}</span>
-          ${step.label}
-        </button>
-      `;
-    }).join("");
-  }
+  createWizardNav.classList.toggle("advanced-flow", state.createGuideAdvanced);
+  createWizardNav.innerHTML = renderMobileGuide(activeStep, visibleSteps);
   requestAnimationFrame(() => {
     createWizardNav.querySelector(".active")?.scrollIntoView({ block: "nearest", inline: "center" });
   });
@@ -662,9 +714,7 @@ function renderCreateWizard({ syncCard = true } = {}) {
   $("draftPreview").classList.toggle("hidden", !state.draft);
   if (syncCard) requestAnimationFrame(() => scrollCreateCardIntoView(activeStep));
 
-  const flow = state.draft
-    ? ["preview", "settings", "script", "views", "assets", "playtest", "publish"]
-    : ["prompt", "settings"];
+  const flow = visibleSteps.map((step) => step.id);
   const flowIndex = flow.indexOf(activeStep);
   const previous = flowIndex > 0 ? CREATE_WIZARD_STEPS.find((step) => step.id === flow[flowIndex - 1]) : null;
   let next = flowIndex >= 0 && flowIndex < flow.length - 1
@@ -2710,6 +2760,7 @@ async function runDraftGeneration() {
   if (!validateCreateOptions(options)) return;
   const button = $("generateButton");
   state.draftGenerating = true;
+  state.createGuideAdvanced = false;
   state.createWizardStep = "making";
   setCreateProgress("AI 正在制作完整文字游戏：企划、角色、场景、素材和检查会一起完成。", "info");
   setButtonBusy(button, true, "制作中");
@@ -3323,6 +3374,7 @@ function usePackAsCreateSettings(pack) {
 function startEditingWork(pack) {
   const draft = structuredClone(pack);
   state.editingWorkId = pack.id;
+  state.createGuideAdvanced = false;
   state.draft = {
     ...draft,
     sourceDraftId: draft.sourceDraftId || draft.id,
@@ -4031,6 +4083,15 @@ function wireEvents() {
   });
 
   $("createWizardNav").addEventListener("click", (event) => {
+    const advancedToggle = event.target.closest("[data-create-advanced-toggle]");
+    if (advancedToggle) {
+      state.createGuideAdvanced = !state.createGuideAdvanced;
+      if (!createVisibleWizardSteps().some((step) => step.id === state.createWizardStep)) {
+        state.createWizardStep = state.draft ? "preview" : "prompt";
+      }
+      renderCreateWizard();
+      return;
+    }
     const button = event.target.closest("[data-create-step-target]");
     if (!button) return;
     setCreateWizardStep(button.dataset.createStepTarget);
@@ -4185,6 +4246,7 @@ function wireEvents() {
   $("generationRetryButton").addEventListener("click", runDraftGeneration);
   $("generationBackButton").addEventListener("click", () => {
     resetGenerationWorkbench();
+    state.createGuideAdvanced = false;
     state.createWizardStep = "prompt";
     renderCreateWizard();
     updateCreateReadiness();
@@ -4238,6 +4300,7 @@ function wireEvents() {
       state.publishedDraftKeys.add(draftKey);
       state.lastPublishedPackId = response.item?.id || null;
       state.draft = null;
+      state.createGuideAdvanced = false;
       const wasEditing = Boolean(state.editingWorkId);
       state.editingWorkId = null;
       state.createWizardStep = "prompt";

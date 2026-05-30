@@ -11,6 +11,8 @@ test("Backend Alpha route coverage stays aligned with the shared API contract", 
   assert.deepEqual(validateBackendAlphaRouteCoverage(), []);
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("feed.list"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("ai.createDraft"));
+  assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("storyProjects.create"));
+  assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("ai.storyProjectJobs.create"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("ai.generateImage"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("devices.sync"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("operator.supportDiagnostics.get"));
@@ -21,5 +23,7 @@ test("Backend Alpha route coverage stays aligned with the shared API contract", 
 test("Backend Alpha keeps stubbed production routes explicit", () => {
   assert.ok(BACKEND_ALPHA_STUB_ROUTE_IDS.has("assets.create"));
   assert.ok(BACKEND_ALPHA_STUB_ROUTE_IDS.has("drafts.validate"));
+  assert.ok(BACKEND_ALPHA_STUB_ROUTE_IDS.has("storyProjects.compileH5"));
+  assert.ok(BACKEND_ALPHA_STUB_ROUTE_IDS.has("ai.storyProjectJobs.create"));
   assert.ok(BACKEND_ALPHA_STUB_ROUTE_IDS.has("operator.hardwarePacks.create"));
 });

@@ -52,6 +52,14 @@ test("mock facade methods map to future backend routes", () => {
   assert.equal(routeForMockMethod("collectAnimeIpCharacters").path, "/flash/operator/anime-ip-characters/:id/collect");
 });
 
+test("story project API routes are reserved for Creator Studio", () => {
+  assert.equal(getApiRoute("storyProjects.create").path, "/flash/story-projects");
+  assert.equal(getApiRoute("storyProjects.create").requestEntity, "StoryProject");
+  assert.equal(getApiRoute("storyProjects.versions.create").responseEntity, "StoryProjectVersion");
+  assert.equal(getApiRoute("storyProjects.compileH5").responseEntity, "WorkDraft");
+  assert.equal(getApiRoute("ai.storyProjectJobs.create").responseEntity, "AiGenerationJob");
+});
+
 test("HTTP facade exposes the same public method surface as the mock facade", () => {
   const mockApi = createMemoryApi();
   const httpApi = createHttpFlashApi({ baseUrl: "http://127.0.0.1:4188" });

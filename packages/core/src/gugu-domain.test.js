@@ -11,6 +11,9 @@ test("domain schemas cover the P1 backend entity set", () => {
   const requiredTypes = [
     "User",
     "Session",
+    "StoryProject",
+    "StoryProjectVersion",
+    "AiGenerationJob",
     "WorkDraft",
     "Work",
     "WorkVersion",
@@ -46,6 +49,42 @@ test("domain schemas cover the P1 backend entity set", () => {
     assert.ok(listDomainEntityTypes().includes(type), `${type} schema should exist`);
     assert.ok(getDomainEntitySchema(type).required.length > 0, `${type} should define required fields`);
   }
+});
+
+test("domain validation covers story projects and AI generation jobs", () => {
+  const project = {
+    id: "story_project_001",
+    authorUserId: "user_001",
+    schemaVersion: "gugu_story_project_v1",
+    title: "雨夜便利店",
+    contentOrigin: "original",
+    status: "ready_to_preview",
+    updatedAt: 1760000000000,
+  };
+  const version = {
+    id: "spv_001",
+    storyProjectId: "story_project_001",
+    schemaVersion: "gugu_story_project_v1",
+    projectSnapshot: { id: "story_project_001" },
+    status: "locked",
+    createdAt: 1760000000000,
+  };
+  const aiJob = {
+    id: "ai_job_001",
+    storyProjectId: "story_project_001",
+    stage: "scene_graph",
+    status: "queued",
+    inputSnapshotId: "spv_001",
+    createdAt: 1760000000000,
+    updatedAt: 1760000000000,
+  };
+
+  assert.deepEqual(validateDomainEntity("StoryProject", project), []);
+  assert.deepEqual(validateDomainEntity("StoryProjectVersion", version), []);
+  assert.deepEqual(validateDomainEntity("AiGenerationJob", aiJob), []);
+  assert.deepEqual(validateDomainEntity("AiGenerationJob", { ...aiJob, status: "pretending" }), [
+    "AiGenerationJob.status invalid: pretending",
+  ]);
 });
 
 test("domain validation keeps hardware packs bound to immutable work versions", () => {

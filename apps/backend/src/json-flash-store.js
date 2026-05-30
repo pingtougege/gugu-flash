@@ -254,6 +254,25 @@ export function createJsonFlashStore({ dataPath, statePath, seedPath }) {
   const operationLogs = createArrayRepository("operationLogs");
   const paymentCallbacks = createArrayRepository("paymentCallbacks");
   const refundCallbacks = createArrayRepository("refundCallbacks");
+  const storyProjects = createArrayRepository("storyProjects", {
+    filter: (item, query) => !query.authorUserId || item.authorUserId === query.authorUserId,
+  });
+  const storyProjectVersions = {
+    ...createArrayRepository("storyProjectVersions", {
+      filter: (item, query) => !query.storyProjectId || item.storyProjectId === query.storyProjectId,
+    }),
+    listForProject(storyProjectId) {
+      return this.list({ storyProjectId });
+    },
+  };
+  const aiGenerationJobs = {
+    ...createArrayRepository("aiGenerationJobs", {
+      filter: (item, query) => !query.storyProjectId || item.storyProjectId === query.storyProjectId,
+    }),
+    listForProject(storyProjectId) {
+      return this.list({ storyProjectId });
+    },
+  };
 
   return {
     async loadPacks() {
@@ -288,5 +307,8 @@ export function createJsonFlashStore({ dataPath, statePath, seedPath }) {
     operationLogs,
     paymentCallbacks,
     refundCallbacks,
+    storyProjects,
+    storyProjectVersions,
+    aiGenerationJobs,
   };
 }
