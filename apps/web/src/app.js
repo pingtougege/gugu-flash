@@ -712,6 +712,9 @@ function renderCreateWizard({ syncCard = true } = {}) {
       : "这里决定作品权利归属，并选择原创角色或 IP 角色作为故事主角。";
   }
   $("draftPreview").classList.toggle("hidden", !state.draft);
+  $("createCardDeck")?.classList.toggle("studio-mode", Boolean(state.draft && state.createGuideAdvanced));
+  $("creatorStudioPanel")?.classList.toggle("hidden", !(state.draft && state.createGuideAdvanced));
+  $("creatorStudioPanel")?.setAttribute("aria-hidden", String(!(state.draft && state.createGuideAdvanced)));
   if (syncCard) requestAnimationFrame(() => scrollCreateCardIntoView(activeStep));
 
   const flow = visibleSteps.map((step) => step.id);
@@ -1233,6 +1236,7 @@ function saveScriptSceneModal() {
   renderDraftPlaytest(state.draft);
   renderDraftSceneEditor(state.draft);
   renderDraftQuality(state.draft);
+  renderCreatorStudio(state.draft);
   closeScriptSceneModal();
 }
 
@@ -1350,6 +1354,118 @@ function removeDraftCharacter(characterKey) {
   if (removed?.name) showToast(`已从出场角色移除「${removed.name}」。`);
 }
 
+function studioStatusLabel(status) {
+  if (status === "passed") return "通过";
+  if (status === "blocked") return "阻塞";
+  if (status === "waived") return "已豁免";
+  return "提醒";
+}
+
+function renderStudioProjectList(draft) {
+  const published = state.packs.slice(0, 3);
+  const publishedLabel = state.packs.length ? `${state.packs.length} 个已发布` : "暂无已发布";
+  $("studioProjectCount").textContent = `当前草稿 · ${publishedLabel}`;
+  return `
+    <article class="studio-project-card active">
+      <span>草稿</span>
+      <div>
+        <strong>${escapeHtml(draft.title || "未命名作品")}</strong>
+        <small>${escapeHtml(packOriginText(draft))}</small>
+      </div>
+      <em>${escapeHtml((draft.scenes || []).length)} 场</em>
+    </article>
+    ${published.map((pack) => `
+      <article class="studio-project-card">
+        <span>已发布</span>
+        <div>
+          <strong>${escapeHtml(displayWorkTitle(pack))}</strong>
+          <small>${escapeHtml(packOriginText(pack))}</small>
+        </div>
+        <em>${escapeHtml(pack.scenes?.length || 0)} 场</em>
+      </article>
+    `).join("")}
+  `;
+}
+
+function renderCreatorStudio(draft) {
+  if (!$("creatorStudioPanel") || !draft) return;
+  const scenes = draft.scenes || [];
+  const report = createTextGamePlaytestReport(draft);
+  const checks = createDraftQualityChecks(draft);
+  const checklist = createPublishChecklist(draft, { qualityChecks: checks });
+  const checklistChecks = checklist.checks || [];
+  const blocked = checklistChecks.filter((check) => check.status === "blocked");
+  const warnings = checklistChecks.filter((check) => check.status === "warning");
+  const unreachableIds = new Set(report.unreachableSceneIds || []);
+  const deadEndIds = new Set(report.deadEndSceneIds || []);
+  const endingIds = new Set(report.endingSceneIds || []);
+  const totalChoices = scenes.reduce((sum, scene) => sum + (scene.actions || []).length, 0);
+  const readyScriptCount = scenes.filter((scene, index) => (
+    scene.stageScriptText || scene.text || makeSceneScriptText(draft, scene, index)
+  )).length;
+  const publishStatus = blocked.length
+    ? `${blocked.length} 个阻塞`
+    : warnings.length
+      ? `${warnings.length} 个提醒`
+      : "可发布";
+
+  $("studioHeaderStatus").textContent = `${draft.title || "未命名作品"} · ${scenes.length} 场 · ${publishStatus}`;
+  $("studioProjectStatus").textContent = publishStatus;
+  $("studioProjectList").innerHTML = renderStudioProjectList(draft);
+  $("studioProjectOverview").innerHTML = `
+    <div><strong data-studio-overview-scene-count>${escapeHtml(scenes.length)} 个场景</strong><span>场景数量</span></div>
+    <div><strong>${escapeHtml(totalChoices)} 个选项</strong><span>分支节点</span></div>
+    <div><strong>${escapeHtml(draft.assetPlan?.length || 0)} 项素材</strong><span>素材计划</span></div>
+    <div><strong>${escapeHtml(readyScriptCount)} / ${escapeHtml(scenes.length)}</strong><span>脚本覆盖</span></div>
+  `;
+  $("studioBranchStatus").textContent = report.status === "passed"
+    ? "全路径可玩"
+    : report.status === "blocked"
+      ? "存在阻塞"
+      : "有优化建议";
+  $("studioBranchHealth").innerHTML = `
+    <div class="${report.status}"><strong>${escapeHtml(report.summary?.reachableCount || 0)} / ${escapeHtml(report.summary?.sceneCount || scenes.length)}</strong><span>可达场景</span></div>
+    <div><strong>${escapeHtml(report.summary?.pathCount || 0)}</strong><span>试玩路径</span></div>
+    <div><strong>${escapeHtml(report.summary?.endingCount || endingIds.size)}</strong><span>结局</span></div>
+    <div class="${blocked.length ? "blocked" : warnings.length ? "warning" : "passed"}"><strong>${escapeHtml(blocked.length)}</strong><span>发布阻塞</span></div>
+  `;
+  $("studioSceneCount").textContent = `${scenes.length} 个场景`;
+  $("studioSceneList").innerHTML = scenes.length ? scenes.map((scene, index) => {
+    const badges = [
+      scene.id === draft.entrySceneId ? ["入口", "passed"] : null,
+      endingIds.has(scene.id) ? ["结局", "passed"] : null,
+      unreachableIds.has(scene.id) ? ["不可达", "blocked"] : null,
+      deadEndIds.has(scene.id) ? ["死路", "blocked"] : null,
+      (scene.stageScriptText || scene.text) ? ["脚本", "passed"] : ["缺脚本", "warning"],
+    ].filter(Boolean);
+    return `
+      <article class="studio-scene-item">
+        <div>
+          <strong>${index + 1}. ${escapeHtml(scene.title || scene.id || "未命名场景")}</strong>
+          <small>${escapeHtml(scene.id || `scene_${index + 1}`)} · ${(scene.actions || []).length} 个选项</small>
+        </div>
+        <p>${escapeHtml(String(scene.text || "待补正文").slice(0, 72))}</p>
+        <div class="studio-badge-row">
+          ${badges.map(([label, status]) => `<span class="${status}">${escapeHtml(label)}</span>`).join("")}
+        </div>
+      </article>
+    `;
+  }).join("") : `<div class="empty-state compact-empty">还没有场景。</div>`;
+  $("studioPublishStatus").textContent = publishStatus;
+  $("studioPublishDiagnostics").innerHTML = checklistChecks.slice(0, 6).map((check) => `
+    <article class="studio-diagnostic-item ${check.status}">
+      <span>${studioStatusLabel(check.status)}</span>
+      <div>
+        <strong>${escapeHtml(check.label)}</strong>
+        <small>${escapeHtml(check.detail)}</small>
+      </div>
+    </article>
+  `).join("");
+  $("studioMobilePreviewHint").textContent = scenes.length
+    ? `从「${sceneLocationLabel(scenes.find((scene) => scene.id === state.draftPlaySceneId) || scenes[0], 0)}」开始手机预览。`
+    : "生成场景后可在这里进入手机预览。";
+}
+
 function renderDraft(draft) {
   const checks = createDraftQualityChecks(draft);
   draft.qualityChecks = checks;
@@ -1423,6 +1539,7 @@ function renderDraft(draft) {
   `).join("");
   renderAiEditPanel();
   renderDraftQuality(draft);
+  renderCreatorStudio(draft);
   $("publishDraftButton").textContent = state.editingWorkId ? "保存更新" : "发布";
   updateCreateReadiness();
 }
@@ -1627,6 +1744,7 @@ function refreshDraftAfterStructureChange(draft) {
   renderDraftPlaytest(draft);
   renderDraftSceneEditor(draft);
   renderDraftQuality(draft);
+  renderCreatorStudio(draft);
   $("sceneCountLabel").textContent = `${(draft.scenes || []).length} 个场景`;
 }
 
@@ -1653,6 +1771,7 @@ function wireDraftSceneEditor(draft) {
       draft.updatedAt = Date.now();
       renderDraftPlaytest(draft);
       renderDraftQuality(draft);
+      renderCreatorStudio(draft);
     });
   });
 
@@ -1666,6 +1785,7 @@ function wireDraftSceneEditor(draft) {
       draft.updatedAt = Date.now();
       renderDraftPlaytest(draft);
       renderDraftQuality(draft);
+      renderCreatorStudio(draft);
     });
   });
 
@@ -4144,6 +4264,11 @@ function wireEvents() {
       closePersonaPickerModal();
       return;
     }
+    const studioStepButton = event.target.closest("[data-studio-step-target]");
+    if (studioStepButton) {
+      setCreateWizardStep(studioStepButton.dataset.studioStepTarget);
+      return;
+    }
     const scriptButton = event.target.closest("[data-script-scene-open]");
     if (scriptButton) {
       openScriptSceneModal(scriptButton.dataset.scriptSceneOpen);
@@ -4208,6 +4333,7 @@ function wireEvents() {
         state.draft.stageScriptText = event.target.value;
       }
       state.draft.updatedAt = Date.now();
+      renderCreatorStudio(state.draft);
       return;
     }
     if ((event.target.id === "draftTitleInput" || event.target.id === "draftTagsInput") && state.draft) {
@@ -4236,6 +4362,7 @@ function wireEvents() {
     character.enabled = characterToggle.checked;
     characterToggle.closest("label")?.querySelector("span")?.replaceChildren(document.createTextNode(character.enabled ? "出场" : "备用"));
     state.draft.updatedAt = Date.now();
+    renderCreatorStudio(state.draft);
   });
   $("createScreen").addEventListener("click", (event) => {
     const deleteButton = event.target.closest("[data-character-delete]");

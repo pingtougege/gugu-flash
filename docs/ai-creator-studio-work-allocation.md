@@ -482,3 +482,33 @@ Status:
 Phase 0 shared story foundation is started and test-covered.
 Next implementation slice should add persistence/API behavior for story projects or start the mobile guided creation flow on top of the compiler.
 ```
+
+### 2026-05-31 Phase 1 Production Loop Start
+
+Completed by Codex and assigned agents:
+
+- Added project-backed prompt generation via `createStoryProjectFromPrompt`.
+- Updated mock and HTTP AI draft creation so generated drafts carry `storyProjectId` and a persisted `StoryProject`.
+- Implemented StoryProject H5 publish with server-side validation, playability report, publish blockers, H5 compile, project status update, and published version snapshot.
+- Implemented AI job apply so output projects are validated, saved, snapshotted, and linked back to the applied job.
+- Added the first professional Creator Studio panel inside the web app with project list, overview metrics, branch/ending health, scene list, publish diagnostics, and mobile preview action.
+- Kept the mobile creation default as a five-step guided flow; professional workspace is behind advanced editing.
+
+Verification:
+
+```text
+node --test apps/backend/src/flash-http-server.story-project.test.js
+node --test packages/core/src/gugu-story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js packages/api-client/src/http-flash-api.test.js
+npm run test:e2e -- -g "mobile guide defaults|creator studio opens|generated creation deck|create workspace|original work can be published|web can publish"
+npm run test:unit
+npm run check:content
+npm run check:ai-creation-maturity
+browser smoke at 1280x900 and 375x667
+```
+
+Status:
+
+```text
+StoryProject can now move from AI generation to persisted project, AI apply, validated H5 publish, and professional web inspection.
+Next slice should add editable scene inspector saving, real StoryProject project list loading, and comic/manju storyboard compile contract.
+```

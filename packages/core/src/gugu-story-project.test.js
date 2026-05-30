@@ -6,6 +6,7 @@ import {
   GUGU_STORY_PROJECT_SCHEMA_VERSION,
   compileStoryProjectToH5Pack,
   createStoryProjectFromH5Pack,
+  createStoryProjectFromPrompt,
   createStoryProjectPlayabilityReport,
   validatePack,
   validateStoryProject,
@@ -234,6 +235,25 @@ test("createStoryProjectFromH5Pack preserves scene graph and can compile back", 
   assert.deepEqual(validatePack(compiled), []);
   assert.equal(project.storyGraph.nodes.length, sourcePack.scenes.length);
   assert.equal(compiled.entrySceneId, sourcePack.entrySceneId);
+});
+
+test("createStoryProjectFromPrompt creates a project-backed mobile draft", () => {
+  const { project, draft } = createStoryProjectFromPrompt(
+    "一个雨夜便利店里，主角遇到会预言明天的猫",
+    "adventure",
+    {},
+    1760000000000,
+  );
+
+  assert.equal(project.schemaVersion, GUGU_STORY_PROJECT_SCHEMA_VERSION);
+  assert.equal(project.status, "ready_to_preview");
+  assert.equal(project.brief.sourcePrompt, "一个雨夜便利店里，主角遇到会预言明天的猫");
+  assert.equal(draft.sourceProjectId, project.id);
+  assert.equal(draft.storyProjectId, project.id);
+  assert.deepEqual(validateStoryProject(project), []);
+
+  const compiled = compileStoryProjectToH5Pack(project, { packId: "h5_prompt_project" });
+  assert.deepEqual(validatePack(compiled), []);
 });
 
 test("fanwork story projects require IP metadata before validation passes", () => {

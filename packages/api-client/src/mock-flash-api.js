@@ -7,8 +7,8 @@ import {
   createDeviceSyncEvidence,
   createCompatibilityReport,
   createDraftQualityChecks,
-  createDraftFromPrompt,
   createPublishChecklist,
+  createStoryProjectFromPrompt,
   contentOriginLabel,
   discoverWebwideIpCandidates,
   formatNumber,
@@ -1406,11 +1406,13 @@ export function createMockFlashApi({
     },
 
     async createDraft(prompt, template, options = {}) {
-      return { item: createDraftFromPrompt(prompt, template, options) };
+      const { draft, project } = createStoryProjectFromPrompt(prompt, template, options);
+      return { item: draft, storyProject: project };
     },
 
     async createAiDraft(prompt, template, options = {}) {
-      return { item: createDraftFromPrompt(prompt, template, options) };
+      const { draft, project } = createStoryProjectFromPrompt(prompt, template, options);
+      return { item: draft, storyProject: project };
     },
 
     async createAiEditProposal(payload = {}) {

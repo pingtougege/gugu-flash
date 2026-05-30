@@ -1,6 +1,6 @@
 # AI Creator Studio Verification Checklist
 
-Updated: 2026-05-30
+Updated: 2026-05-31
 
 Owner: QA And Release Squad
 
@@ -31,14 +31,16 @@ StoryProject backend/API is not complete until these are true:
 - `PATCH /flash/story-projects/:id` updates one project.
 - `POST /flash/story-projects/:id/versions` creates a version snapshot.
 - `POST /flash/story-projects/:id/compile/h5` returns a compiled H5 preview draft.
+- `POST /flash/story-projects/:id/publish` publishes only after server-side playability and publish checks pass.
+- `POST /flash/ai/jobs/:id/apply` validates and snapshots an output StoryProject.
 - Invalid story graphs return validation errors and do not pretend success.
 - Fanwork without IP metadata is blocked.
 
 Current status:
 
 ```text
-API routes are reserved and covered as Backend Alpha stubs.
-Real backend behavior is still in progress.
+StoryProject create/list/get/update/version/compile/publish/apply behavior is implemented and unit-covered.
+Comic/manju compile remains deferred.
 ```
 
 ## 3. Phase 1 Mobile Guided Creation Acceptance
@@ -49,6 +51,8 @@ Mobile guided creation is not complete until these are true:
 - User can choose original/fanwork.
 - Fanwork requires IP/persona selection.
 - AI generates a validated draft.
+- Generated drafts include a `StoryProject` reference for later professional editing.
+- HTTP AI draft generation persists the generated StoryProject.
 - User can preview from start to at least one ending.
 - User can resolve required checklist items.
 - User can publish H5 after checks pass.
@@ -84,7 +88,8 @@ Explicitly out of scope for Phase 2:
 Current status:
 
 ```text
-No dedicated apps/creator-studio or e2e coverage yet.
+Round 2 added a professional workspace skeleton inside the current web app.
+Dedicated scene editing and project list loading remain next-step work.
 ```
 
 ## 5. Existing Test Map

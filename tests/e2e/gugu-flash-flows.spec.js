@@ -153,6 +153,23 @@ test("mobile guide defaults to idea role generation playtest and publish checks"
   await expect(page.locator('[data-testid="create-publish"]')).toBeVisible();
 });
 
+test("creator studio opens with scene count and publish diagnostics after draft generation", async ({ page }) => {
+  await openCreate(page);
+  await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill("雨夜便利店预言猫专业工作台");
+  await generateDraft(page);
+
+  await page.locator("[data-create-advanced-toggle]").click();
+
+  const studio = page.locator("#creatorStudioPanel");
+  await expect(studio).toBeVisible();
+  await expect(studio).toContainText("Creator Studio");
+  await expect(studio).toContainText("项目概览");
+  await expect(studio.locator("[data-studio-scene-count]")).toHaveText(/\d+ 个场景/);
+  await expect(studio).toContainText("发布诊断");
+  await expect(studio.locator(".studio-scene-item").first()).toBeVisible();
+  await expect(studio.locator(".studio-scene-item").first()).toContainText(/脚本|入口|结局|可达/);
+});
+
 test("generated creation deck keeps ownership as an editable card", async ({ page }) => {
   await openCreate(page);
   await expect(page.locator("#createWizardNav")).toBeVisible();

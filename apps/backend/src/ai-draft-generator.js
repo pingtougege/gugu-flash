@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  createStoryProjectFromH5Pack,
   createDraftFromPrompt,
   createDraftQualityChecks,
   validatePack,
@@ -347,6 +348,9 @@ function mergeAiDraft(skeleton, aiDraft, meta) {
 
 function fallbackDraft(prompt, template, options, reason = "missing_api_key") {
   const item = createDraftFromPrompt(prompt, template, options);
+  if (item.contentOrigin === "fanwork" && options.rightsAcknowledgedAt) {
+    item.rightsAcknowledgedAt = options.rightsAcknowledgedAt;
+  }
   item.aiProvider = {
     status: "fallback",
     provider: "local_rules",
@@ -354,7 +358,13 @@ function fallbackDraft(prompt, template, options, reason = "missing_api_key") {
     generatedAt: Date.now(),
   };
   item.qualityChecks = createDraftQualityChecks(item);
-  return { item, meta: item.aiProvider };
+  const storyProject = createStoryProjectFromH5Pack(item, {
+    projectId: `story_project_${String(item.id || "").replace(/^h5_/, "")}`,
+    status: "ready_to_preview",
+  });
+  item.sourceProjectId = storyProject.id;
+  item.storyProjectId = storyProject.id;
+  return { item, storyProject, meta: item.aiProvider };
 }
 
 export async function createAiDraftFromPrompt(prompt, template = "healing", options = {}) {
@@ -371,12 +381,21 @@ export async function createAiDraftFromPrompt(prompt, template = "healing", opti
       attempts.push({ provider, ok: result.ok, reason: result.reason || null });
       if (!result.ok) continue;
       const item = mergeAiDraft(skeleton, result.draft, result);
+      if (item.contentOrigin === "fanwork" && options.rightsAcknowledgedAt) {
+        item.rightsAcknowledgedAt = options.rightsAcknowledgedAt;
+      }
       const errors = validatePack(item);
       if (errors.length) {
         attempts.push({ provider, ok: false, reason: "invalid_pack", errors });
         continue;
       }
-      return { item, meta: item.aiProvider, attempts };
+      const storyProject = createStoryProjectFromH5Pack(item, {
+        projectId: `story_project_${String(item.id || "").replace(/^h5_/, "")}`,
+        status: "ready_to_preview",
+      });
+      item.sourceProjectId = storyProject.id;
+      item.storyProjectId = storyProject.id;
+      return { item, storyProject, meta: item.aiProvider, attempts };
     } catch (error) {
       attempts.push({ provider, ok: false, reason: "exception", detail: String(error.message || error).slice(0, 240) });
     }

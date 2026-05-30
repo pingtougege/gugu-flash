@@ -317,6 +317,60 @@
               </div>
               </section>
               <div class="draft-preview hidden" id="draftPreview">
+                <section class="creator-studio-panel hidden" id="creatorStudioPanel" aria-label="Creator Studio 专业工作台">
+                  <div class="creator-studio-header">
+                    <div>
+                      <span>Creator Studio</span>
+                      <h3>专业工作台</h3>
+                      <p id="studioHeaderStatus">等待项目生成。</p>
+                    </div>
+                    <button class="ghost-light-button" data-studio-step-target="playtest" type="button">手机预览</button>
+                  </div>
+                  <div class="creator-studio-body">
+                    <section class="studio-section" aria-label="项目列表">
+                      <div class="studio-section-title">
+                        <strong>项目列表</strong>
+                        <span id="studioProjectCount">当前草稿</span>
+                      </div>
+                      <div class="studio-project-list" id="studioProjectList"></div>
+                    </section>
+                    <section class="studio-section" aria-label="项目概览">
+                      <div class="studio-section-title">
+                        <strong>项目概览</strong>
+                        <span id="studioProjectStatus">待检查</span>
+                      </div>
+                      <div class="studio-metric-grid" id="studioProjectOverview"></div>
+                    </section>
+                    <section class="studio-section" aria-label="分支和结局健康状态">
+                      <div class="studio-section-title">
+                        <strong>分支 / 结局健康</strong>
+                        <span id="studioBranchStatus">待试玩</span>
+                      </div>
+                      <div class="studio-health-grid" id="studioBranchHealth"></div>
+                    </section>
+                    <section class="studio-section" aria-label="场景列表">
+                      <div class="studio-section-title">
+                        <strong>场景列表</strong>
+                        <span id="studioSceneCount" data-studio-scene-count>0 个场景</span>
+                      </div>
+                      <div class="studio-scene-list" id="studioSceneList"></div>
+                    </section>
+                    <section class="studio-section" aria-label="发布诊断">
+                      <div class="studio-section-title">
+                        <strong>发布诊断</strong>
+                        <span id="studioPublishStatus">等待检查</span>
+                      </div>
+                      <div class="studio-diagnostic-list" id="studioPublishDiagnostics"></div>
+                    </section>
+                    <section class="studio-section studio-mobile-preview" aria-label="手机预览">
+                      <div>
+                        <strong>手机预览</strong>
+                        <span id="studioMobilePreviewHint">等待预览。</span>
+                      </div>
+                      <button class="primary-button" data-studio-step-target="playtest" type="button">打开预览</button>
+                    </section>
+                  </div>
+                </section>
                 <section class="create-step-card" data-create-step="preview">
                   <div class="create-step-title">
                     <span>作品总览</span>

@@ -1,5 +1,6 @@
 import {
   GUGU_H5_SCHEMA_VERSION,
+  createDraftFromPrompt,
   getIpEntry,
   getPersona,
   getZone,
@@ -369,7 +370,9 @@ export function createStoryProjectPlayabilityReport(project = {}, options = {}) 
 export function createStoryProjectFromH5Pack(pack = {}, options = {}) {
   const nodes = asArray(pack.scenes).map((scene) => ({
     id: scene.id,
-    type: asArray(scene.actions).length ? "scene" : "ending",
+    type: scene.ending || /(^|_)end(ing)?($|_)/i.test(String(scene.id || scene.title || ""))
+      ? "ending"
+      : asArray(scene.actions).length ? "scene" : "ending",
     sceneId: scene.id,
     title: scene.title || scene.id,
   }));
@@ -437,4 +440,28 @@ export function createStoryProjectFromH5Pack(pack = {}, options = {}) {
     createdAt: pack.createdAt || Date.now(),
     updatedAt: pack.updatedAt || Date.now(),
   };
+}
+
+export function createStoryProjectFromPrompt(prompt, template = "healing", options = {}, timestamp = Date.now()) {
+  const draft = createDraftFromPrompt(prompt, template, options, timestamp);
+  if (draft.contentOrigin === "fanwork" && options.rightsAcknowledgedAt) {
+    draft.rightsAcknowledgedAt = options.rightsAcknowledgedAt;
+  }
+
+  const projectId = options.projectId || `story_project_${String(draft.id || "").replace(/^h5_/, "")}`;
+  const project = createStoryProjectFromH5Pack(draft, {
+    projectId,
+    status: options.status || "ready_to_preview",
+  });
+
+  project.brief = {
+    ...(project.brief || {}),
+    sourcePrompt: String(prompt || "").trim(),
+    template,
+  };
+  project.outputs = [{ type: "gugu_h5_pack", id: draft.id || null, status: "draft_h5" }];
+  draft.sourceProjectId = project.id;
+  draft.storyProjectId = project.id;
+
+  return { project, draft };
 }

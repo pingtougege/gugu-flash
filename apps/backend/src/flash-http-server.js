@@ -398,6 +398,28 @@ function createCompiledStoryDraft(project, pack, {
   };
 }
 
+function storyProjectPackIdFromRequest(project = {}, body = {}) {
+  const packIdSuffix = String(project.id || "")
+    .replace(/^story_project_/, "")
+    .replace(/[^a-zA-Z0-9_]+/g, "_")
+    .slice(0, 40) || randomUUID().slice(0, 8);
+  return body.packId || body.h5PackId || project.outputWorkId || `h5_${packIdSuffix}`;
+}
+
+function storyProjectDraftIdFromRequest(project = {}, body = {}) {
+  const safeProjectId = String(project.id || "story_project")
+    .replace(/[^a-zA-Z0-9_]+/g, "_")
+    .slice(0, 64);
+  return body.draftId || project.sourceDraftId || project.draftId || `draft_${safeProjectId}`;
+}
+
+function storyProjectPublishBlockers(report = {}) {
+  const checks = Array.isArray(report.publishChecklist?.checks) ? report.publishChecklist.checks : [];
+  return checks
+    .filter((check) => check.status === "blocked")
+    .map((check) => `${check.id || "publish_check"}: ${check.detail || check.label || "blocked"}`);
+}
+
 function policyRecord(collection, id) {
   return (governancePolicy[collection] || []).find((item) => item.id === id) || null;
 }
@@ -944,8 +966,7 @@ export function createFlashBackendApp(options = {}) {
           validationFailed(res, "story_project_invalid", errors);
           return;
         }
-        const packIdSuffix = project.id.replace(/^story_project_/, "").replace(/[^a-zA-Z0-9_]+/g, "_").slice(0, 40) || randomUUID().slice(0, 8);
-        const packId = body.packId || body.h5PackId || `h5_${packIdSuffix}`;
+        const packId = storyProjectPackIdFromRequest(project, body);
         const report = createStoryProjectPlayabilityReport(project, {
           packId,
           generatedAt: timestamp,
@@ -984,9 +1005,91 @@ export function createFlashBackendApp(options = {}) {
       }
 
       if (parts[0] === "flash" && parts[1] === "story-projects" && parts[2] && parts[3] === "publish" && req.method === "POST") {
-        notImplemented(res, "story_project_publish_not_implemented", {
-          storyProjectId: decodePart(parts[2]),
-          reason: "Phase 0 only compiles a preview draft; publish still needs the release workflow.",
+        const projectId = decodePart(parts[2]);
+        const existing = await persistence.storyProjects.get(projectId);
+        if (!existing) {
+          notFound(res, "story_project_not_found");
+          return;
+        }
+        const body = await readJsonBody(req);
+        const timestamp = Date.now();
+        const candidate = body.project
+          ? normalizeStoryProjectForPersistence(body.project, { id: projectId, existing, session: requestSession, timestamp })
+          : normalizeStoryProjectForPersistence(existing, { id: projectId, existing, session: requestSession, timestamp });
+        const errors = validateStoryProject(candidate);
+        if (errors.length) {
+          validationFailed(res, "story_project_invalid", errors);
+          return;
+        }
+
+        const versionId = prefixedId("spv");
+        const packId = storyProjectPackIdFromRequest(candidate, body);
+        const project = {
+          ...candidate,
+          status: "published",
+          versionId,
+          outputWorkId: packId,
+          publishedAt: candidate.publishedAt || timestamp,
+          updatedAt: timestamp,
+        };
+        const report = createStoryProjectPlayabilityReport(project, {
+          packId,
+          status: "public_h5",
+          generatedAt: timestamp,
+          timestamp,
+          target: "h5",
+        });
+        const publishBlockers = storyProjectPublishBlockers(report);
+        if (report.errors.length || publishBlockers.length) {
+          sendJson(res, 400, {
+            code: 400,
+            message: "story_project_publish_blocked",
+            data: {
+              errors: [...report.errors, ...publishBlockers],
+              report,
+            },
+          });
+          return;
+        }
+
+        let pack;
+        try {
+          pack = compileStoryProjectToH5Pack(project, {
+            packId,
+            status: "public_h5",
+            timestamp,
+            throwOnInvalid: true,
+          });
+        } catch (error) {
+          validationFailed(res, "story_project_compile_failed", [error.message || String(error)]);
+          return;
+        }
+
+        const published = await api.publishDraft({
+          ...pack,
+          sourceDraftId: storyProjectDraftIdFromRequest(project, body),
+        });
+        const publishedWork = published.item;
+        const savedProject = {
+          ...project,
+          outputWorkId: publishedWork.id,
+          publishedAt: project.publishedAt || timestamp,
+          updatedAt: timestamp,
+        };
+        const version = createStoryProjectVersionSnapshot(savedProject, {
+          id: versionId,
+          status: "published",
+          label: body.label || "Published H5",
+          reason: body.reason || "StoryProject published as H5 Work.",
+          timestamp,
+        });
+        await persistence.storyProjectVersions.save(version);
+        await persistence.storyProjects.save(savedProject);
+        ok(res, {
+          item: publishedWork,
+          project: savedProject,
+          version,
+          report,
         });
         return;
       }
@@ -1043,10 +1146,65 @@ export function createFlashBackendApp(options = {}) {
       }
 
       if (parts[0] === "flash" && parts[1] === "ai" && parts[2] === "jobs" && parts[3] && parts[4] === "apply" && req.method === "POST") {
-        notImplemented(res, "ai_job_apply_not_implemented", {
-          aiJobId: decodePart(parts[3]),
-          reason: "Phase 0 records generation jobs; applying AI patches needs editor diff support.",
+        const jobId = decodePart(parts[3]);
+        const job = await persistence.aiGenerationJobs.get(jobId);
+        if (!job) {
+          notFound(res, "ai_job_not_found");
+          return;
+        }
+        const existing = job.storyProjectId
+          ? await persistence.storyProjects.get(job.storyProjectId)
+          : null;
+        if (!existing) {
+          notFound(res, "story_project_not_found");
+          return;
+        }
+        const body = await readJsonBody(req);
+        const outputProject = body.project || job.result?.project;
+        if (!outputProject) {
+          badRequest(res, "ai_job_output_project_missing");
+          return;
+        }
+        const timestamp = Date.now();
+        const project = normalizeStoryProjectForPersistence(outputProject, {
+          id: existing.id,
+          existing,
+          session: requestSession,
+          timestamp,
         });
+        const errors = validateStoryProject(project);
+        if (errors.length) {
+          validationFailed(res, "story_project_invalid", errors);
+          return;
+        }
+        const versionId = prefixedId("spv");
+        const savedProject = {
+          ...project,
+          versionId,
+          updatedAt: timestamp,
+        };
+        const version = createStoryProjectVersionSnapshot(savedProject, {
+          id: versionId,
+          status: body.versionStatus || "locked",
+          label: body.label || "AI job output",
+          reason: body.reason || job.prompt || job.stage || "",
+          timestamp,
+        });
+        const updatedJob = {
+          ...job,
+          status: "applied",
+          outputSnapshotId: version.id,
+          appliedAt: timestamp,
+          updatedAt: timestamp,
+          result: {
+            ...(job.result || {}),
+            project: structuredClone(savedProject),
+          },
+        };
+        await persistence.storyProjectVersions.save(version);
+        await persistence.storyProjects.save(savedProject);
+        await persistence.aiGenerationJobs.save(updatedJob);
+        ok(res, { item: savedProject, job: updatedJob, version });
         return;
       }
 
@@ -1070,7 +1228,26 @@ export function createFlashBackendApp(options = {}) {
 
       if (requestUrl.pathname === "/flash/ai/create-draft" && req.method === "POST") {
         const body = await readJsonBody(req);
-        ok(res, await createAiDraftFromPrompt(body.prompt || "", body.template || "healing", body.options || {}));
+        const response = await createAiDraftFromPrompt(body.prompt || "", body.template || "healing", body.options || {});
+        if (response.storyProject) {
+          const timestamp = Date.now();
+          const project = normalizeStoryProjectForPersistence(response.storyProject, {
+            session: requestSession,
+            timestamp,
+          });
+          const errors = validateStoryProject(project);
+          if (errors.length) {
+            validationFailed(res, "story_project_invalid", errors);
+            return;
+          }
+          await persistence.storyProjects.save(project);
+          response.storyProject = project;
+          if (response.item) {
+            response.item.sourceProjectId = project.id;
+            response.item.storyProjectId = project.id;
+          }
+        }
+        ok(res, response);
         return;
       }
 

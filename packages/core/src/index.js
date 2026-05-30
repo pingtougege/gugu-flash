@@ -82,6 +82,7 @@ export {
   GUGU_STORY_PROJECT_STATUSES,
   compileStoryProjectToH5Pack,
   createStoryProjectFromH5Pack,
+  createStoryProjectFromPrompt,
   createStoryProjectPlayabilityReport,
   validateStoryProject,
 } from "./gugu-story-project.js";

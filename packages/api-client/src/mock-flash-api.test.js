@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { GUGU_H5_SCHEMA_VERSION, GUGU_IP_POOL, ROLE_PERSONAS, validateDeviceSyncEvidence } from "../../core/src/index.js";
+import {
+  GUGU_H5_SCHEMA_VERSION,
+  GUGU_IP_POOL,
+  GUGU_STORY_PROJECT_SCHEMA_VERSION,
+  ROLE_PERSONAS,
+  validateDeviceSyncEvidence,
+  validateStoryProject,
+} from "../../core/src/index.js";
 import { createMockFlashApi } from "./mock-flash-api.js";
 
 function makePack(id, overrides = {}) {
@@ -75,6 +82,16 @@ function createMemoryApi(seedPacks, options = {}) {
     },
   };
 }
+
+test("mock AI draft generation also returns a StoryProject", async () => {
+  const { api } = createMemoryApi([]);
+  const response = await api.createAiDraft("一个雨夜便利店分支故事", "adventure");
+
+  assert.equal(response.item.storyProjectId, response.storyProject.id);
+  assert.equal(response.storyProject.schemaVersion, GUGU_STORY_PROJECT_SCHEMA_VERSION);
+  assert.equal(response.storyProject.status, "ready_to_preview");
+  assert.deepEqual(validateStoryProject(response.storyProject), []);
+});
 
 test("applyStoreListing requires the rights acknowledgement", async () => {
   const { api, getStored } = createMemoryApi([makePack("h5_terms")]);

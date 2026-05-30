@@ -147,6 +147,32 @@ function makeStoryProject(overrides = {}) {
   };
 }
 
+function makePublishableStoryProject(overrides = {}) {
+  return makeStoryProject({
+    assets: [
+      {
+        id: "asset_cover_background",
+        type: "background",
+        name: "Studio door cover",
+        usage: "Cover and scene background",
+        source: "original",
+        prompt: "A warm mystery studio door with a folded note on the floor.",
+      },
+    ],
+    characters: [
+      {
+        id: "field_editor",
+        name: "Field Editor",
+        role: "社区分身 / 主角",
+        motivation: "Keep every branch playable.",
+        voice: "Calm and curious.",
+        avatar: "F",
+      },
+    ],
+    ...overrides,
+  });
+}
+
 test("StoryProject HTTP slice creates, fetches, snapshots, records jobs, and compiles H5", async () => {
   await withStoryProjectBackend(async (api) => {
     const created = await api.createStoryProject(makeStoryProject());
@@ -188,6 +214,107 @@ test("StoryProject HTTP slice creates, fetches, snapshots, records jobs, and com
     assert.equal(compiled.h5Pack.scenes.length, 5);
     assert.deepEqual(compiled.report.errors, []);
     assert.equal(["blocked", "warning", "passed"].includes(compiled.item.publishStatus), true);
+  });
+});
+
+test("StoryProject HTTP slice publishes a playable project as a public H5 Work", async () => {
+  await withStoryProjectBackend(async (api) => {
+    const created = await api.createStoryProject(makePublishableStoryProject({
+      id: "story_project_publish_success",
+    }));
+
+    const published = await api.publishStoryProject(created.item.id, {
+      label: "Release candidate",
+      reason: "Creator approved H5 release.",
+    });
+
+    assert.equal(published.item.status, "public_h5");
+    assert.equal(published.item.sourceProjectId, created.item.id);
+    assert.equal(published.project.status, "published");
+    assert.equal(published.project.outputWorkId, published.item.id);
+    assert.equal(published.version.status, "published");
+    assert.equal(published.version.storyProjectId, created.item.id);
+    assert.equal(published.report.errors.length, 0);
+    assert.notEqual(published.report.publishChecklist.status, "blocked");
+
+    const fetchedProject = await api.getStoryProject(created.item.id);
+    assert.equal(fetchedProject.item.status, "published");
+    assert.equal(fetchedProject.item.versionId, published.version.id);
+    const fetchedWork = await api.getWork(published.item.id);
+    assert.equal(fetchedWork.item.id, published.item.id);
+  });
+});
+
+test("StoryProject HTTP slice blocks publishing projects that fail publish checks", async () => {
+  await withStoryProjectBackend(async (api, baseUrl) => {
+    const created = await api.createStoryProject(makeStoryProject({
+      id: "story_project_publish_blocked",
+      assets: [],
+    }));
+
+    const blocked = await postRaw(baseUrl, `/flash/story-projects/${created.item.id}/publish`);
+
+    assert.equal(blocked.code, 400);
+    assert.equal(blocked.message, "story_project_publish_blocked");
+    assert.ok(blocked.data.errors.some((error) => error.includes("asset_sources")));
+    const fetchedProject = await api.getStoryProject(created.item.id);
+    assert.equal(fetchedProject.item.status, "draft");
+  });
+});
+
+test("StoryProject HTTP slice applies an AI job output project", async () => {
+  await withStoryProjectBackend(async (api) => {
+    const created = await api.createStoryProject(makePublishableStoryProject({
+      id: "story_project_ai_apply",
+    }));
+    const outputProject = makePublishableStoryProject({
+      ...created.item,
+      title: "Backend Slice Mystery: Clearer AI Cut",
+      brief: {
+        ...created.item.brief,
+        logline: "A clearer branch structure after AI revision.",
+      },
+    });
+    const job = await api.createStoryProjectAiJob(created.item.id, {
+      id: "ai_job_apply_story_project",
+      stage: "rewrite",
+      prompt: "Make the middle branch clearer.",
+      status: "succeeded",
+      result: { project: outputProject },
+    });
+
+    const applied = await api.applyAiGenerationJob(job.item.id);
+
+    assert.equal(applied.item.id, created.item.id);
+    assert.equal(applied.item.title, "Backend Slice Mystery: Clearer AI Cut");
+    assert.equal(applied.job.status, "applied");
+    assert.equal(applied.job.outputSnapshotId, applied.version.id);
+    assert.equal(applied.version.storyProjectId, created.item.id);
+    assert.equal(applied.version.projectSnapshot.title, "Backend Slice Mystery: Clearer AI Cut");
+
+    const fetchedProject = await api.getStoryProject(created.item.id);
+    assert.equal(fetchedProject.item.title, "Backend Slice Mystery: Clearer AI Cut");
+    assert.equal(fetchedProject.item.versionId, applied.version.id);
+  });
+});
+
+test("AI draft creation persists the generated StoryProject in HTTP mode", async () => {
+  await withStoryProjectBackend(async (api) => {
+    const previousAiDisabled = process.env.GUGU_FLASH_AI_DISABLED;
+    process.env.GUGU_FLASH_AI_DISABLED = "1";
+    let generated;
+    try {
+      generated = await api.createAiDraft("A lighthouse assistant finds a note from tomorrow.", "healing");
+    } finally {
+      if (previousAiDisabled === undefined) delete process.env.GUGU_FLASH_AI_DISABLED;
+      else process.env.GUGU_FLASH_AI_DISABLED = previousAiDisabled;
+    }
+
+    assert.ok(generated.storyProject?.id);
+    assert.equal(generated.item.storyProjectId, generated.storyProject.id);
+    const fetchedProject = await api.getStoryProject(generated.storyProject.id);
+    assert.equal(fetchedProject.item.id, generated.storyProject.id);
+    assert.equal(fetchedProject.item.title, generated.storyProject.title);
   });
 });
 
