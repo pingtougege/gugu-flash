@@ -51,6 +51,11 @@ test("mock facade methods map to future backend routes", () => {
   assert.equal(routeForMockMethod("collectAnimeIpPool").path, "/flash/operator/anime-ip-collection");
   assert.equal(routeForMockMethod("collectAnimeIpCharacters").path, "/flash/operator/anime-ip-characters/:id/collect");
   assert.equal(routeForMockMethod("restoreStoryProjectVersion").path, "/flash/story-projects/:id/versions/:versionId/restore");
+  assert.equal(routeForMockMethod("listStoryProjectAssets").path, "/flash/story-projects/:id/assets");
+  assert.equal(routeForMockMethod("listAssets").path, "/flash/assets");
+  assert.equal(routeForMockMethod("createAsset").requestEntity, "Asset");
+  assert.equal(routeForMockMethod("getAsset").responseEntity, "Asset");
+  assert.equal(routeForMockMethod("submitAssetReview").responseEntity, "ReviewTask");
 });
 
 test("story project API routes are reserved for Creator Studio", () => {

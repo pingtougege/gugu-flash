@@ -7,6 +7,8 @@ const moduleDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(moduleDir, "../../..");
 const generatedImageDir = join(repoRoot, ".gugu-flash-api/generated-images");
 const generatedImages = new Map();
+const ASSET_SECURITY_POLICY_VERSION = "gugu_flash_asset_security_v1";
+const FALLBACK_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
 let envLoaded = false;
 
@@ -68,19 +70,81 @@ function storeGeneratedImage(id, b64Json, outputFormat = "jpeg") {
   return `/flash/ai/generated-images/${id}`;
 }
 
-function fallbackImage(prompt, reason = "missing_api_key") {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0ea5e9"/><stop offset="0.58" stop-color="#8b5cf6"/><stop offset="1" stop-color="#fb7185"/></linearGradient></defs><rect width="1024" height="1024" rx="96" fill="url(#g)"/><circle cx="780" cy="220" r="130" fill="rgba(255,255,255,.22)"/><circle cx="220" cy="780" r="180" fill="rgba(255,255,255,.16)"/><text x="96" y="476" fill="white" font-family="Arial, sans-serif" font-size="62" font-weight="800">素材预览</text><text x="96" y="560" fill="rgba(255,255,255,.86)" font-family="Arial, sans-serif" font-size="34">${String(prompt || "AI image").slice(0, 24)}</text></svg>`;
+function makeAssetId(asset = {}, fallbackPrefix = "asset_ai_image") {
+  const candidate = String(asset.assetId || asset.id || "");
+  if (candidate.startsWith("asset_")) return candidate;
+  return `${fallbackPrefix}_${Date.now()}`;
+}
+
+function generatedImageAsset(asset = {}, {
+  id = makeAssetId(asset),
+  status = "used",
+  provider = "seedream",
+  model = "",
+  prompt = "",
+  imageUrl = "",
+  mediaType = "image/png",
+  filename = "",
+  sizeBytes = 68,
+  reason = "",
+  revisedPrompt = "",
+} = {}) {
+  const now = Date.now();
   return {
     item: {
-      id: `ai_image_${Date.now()}`,
-      status: "fallback",
-      provider: "local_preview",
-      reason,
+      id,
+      assetId: id,
+      targetType: "Asset",
+      kind: "image",
+      usage: asset.usage || "comic_panel_visual",
+      status,
+      provider,
+      model,
       prompt,
-      imageUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
-      generatedAt: Date.now(),
+      reason: reason || undefined,
+      storyProjectId: asset.storyProjectId || asset.projectId || null,
+      storyProjectVersionId: asset.storyProjectVersionId || asset.projectVersionId || null,
+      panelId: asset.panelId || null,
+      sceneId: asset.sceneId || null,
+      renderJobId: asset.renderJobId || asset.jobId || null,
+      filename: filename || `${id}.png`,
+      mediaType,
+      sizeBytes,
+      imageUrl,
+      revisedPrompt,
+      securityPolicyVersion: ASSET_SECURITY_POLICY_VERSION,
+      sourceStatement: {
+        sourceType: "ai_generated",
+        provider,
+        model: model || provider,
+        prompt,
+        rightsAcknowledged: true,
+        policyVersion: ASSET_SECURITY_POLICY_VERSION,
+        generatedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+      generatedAt: now,
     },
   };
+}
+
+function fallbackImage(assetOrPrompt = {}, reason = "missing_api_key") {
+  const asset = typeof assetOrPrompt === "object" ? assetOrPrompt : { prompt: assetOrPrompt };
+  const prompt = String(asset.prompt || asset.usage || asset.name || "").trim();
+  const id = makeAssetId(asset, "asset_ai_fallback");
+  return generatedImageAsset(asset, {
+    id,
+    status: "fallback",
+    provider: "local_preview",
+    model: "local_preview",
+    prompt,
+    reason,
+    imageUrl: `data:image/png;base64,${FALLBACK_PNG_BASE64}`,
+    mediaType: "image/png",
+    filename: asset.filename || `${id}.png`,
+    sizeBytes: 68,
+  });
 }
 
 function extractImage(data = {}, outputFormat = "jpeg") {
@@ -113,11 +177,11 @@ export function getGeneratedAiImage(id = "") {
 
 export async function generateAiImage(asset = {}) {
   ensureImageEnvLoaded();
-  if (process.env.GUGU_FLASH_IMAGE_AI_DISABLED === "1") return fallbackImage(asset.prompt || asset.usage || "", "disabled");
-  if (!process.env.SEEDREAM_API_KEY) return fallbackImage(asset.prompt || asset.usage || "", "missing_api_key");
+  if (process.env.GUGU_FLASH_IMAGE_AI_DISABLED === "1") return fallbackImage(asset, "disabled");
+  if (!process.env.SEEDREAM_API_KEY) return fallbackImage(asset, "missing_api_key");
 
   const prompt = String(asset.prompt || asset.usage || asset.name || "").trim();
-  if (!prompt) return fallbackImage("", "empty_prompt");
+  if (!prompt) return fallbackImage(asset, "empty_prompt");
 
   const model = process.env.SEEDREAM_MODEL || "doubao-seedream-5-0-260128";
   const outputFormat = process.env.SEEDREAM_OUTPUT_FORMAT || "jpeg";
@@ -147,30 +211,27 @@ export async function generateAiImage(asset = {}) {
   });
   const data = await response.json();
   if (!response.ok) {
-    return fallbackImage(prompt, data?.error?.message || response.statusText || "provider_failed");
+    return fallbackImage({ ...asset, prompt }, data?.error?.message || response.statusText || "provider_failed");
   }
   const image = extractImage(data, outputFormat);
-  const id = `ai_image_${Date.now()}`;
+  const id = makeAssetId(asset);
   const imageUrl = image.imageUrl || storeGeneratedImage(id, image.b64Json, outputFormat);
-  if (!imageUrl) return fallbackImage(prompt, "empty_provider_image");
+  if (!imageUrl) return fallbackImage({ ...asset, prompt }, "empty_provider_image");
+  const mediaType = mimeForFormat(outputFormat);
+  const sizeBytes = image.b64Json
+    ? Buffer.byteLength(image.b64Json, "base64")
+    : Number(asset.sizeBytes || 1);
 
-  return {
-    item: {
-      id,
-      status: "used",
-      provider: "seedream",
-      model,
-      prompt,
-      imageUrl,
-      revisedPrompt: image.revisedPrompt,
-      sourceStatement: {
-        sourceType: "ai_generated",
-        provider: "seedream",
-        model,
-        prompt,
-        generatedAt: Date.now(),
-      },
-      generatedAt: Date.now(),
-    },
-  };
+  return generatedImageAsset(asset, {
+    id,
+    status: "used",
+    provider: "seedream",
+    model,
+    prompt,
+    imageUrl,
+    revisedPrompt: image.revisedPrompt,
+    mediaType,
+    filename: asset.filename || `${id}.${extensionForFormat(outputFormat)}`,
+    sizeBytes,
+  });
 }

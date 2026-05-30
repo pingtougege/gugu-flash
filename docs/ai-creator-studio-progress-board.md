@@ -53,6 +53,9 @@ Allowed statuses:
 | Core Contract Round 6 | Bernoulli | Editable ComicEpisode panel fields | verified | Panel metadata + image binding contract |
 | Frontend Experience Round 6 | Darwin | Panel inspector and visual asset binding | verified | Editable storyboard panel workflow |
 | QA And Release Round 6 | Feynman | Panel-edit risk review | verified | Read-only risk checklist |
+| API Platform Round 7 | Curie | StoryProject visual asset library and render job trace | verified | Asset library contract + tests |
+| Frontend Experience Round 7 | Franklin | Creator Studio asset library and render queue UI | verified | Professional visual production panel |
+| QA And Release Round 7 | Bacon | Asset library/render queue risk review | verified | Read-only risk checklist |
 
 ## 3. Phase 0 Board
 
@@ -104,7 +107,7 @@ Next 24h:
 
 Date: 2026-05-31
 
-Overall status: `verified_round_6`
+Overall status: `verified_round_7`
 
 Verified since last update:
 
@@ -122,6 +125,10 @@ Verified since last update:
 - Creator Studio can select a storyboard panel, edit panel production fields, save them back to StoryProject, and create version snapshots.
 - Creator Studio can generate and bind a PNG visual asset to the selected comic panel while retaining AI source/provenance fields.
 - Mock AI image generation now returns a safe PNG preview with source statement metadata instead of SVG.
+- Shared API, HTTP client, and mock facade now expose StoryProject-scoped visual asset library operations.
+- Comic panel visual generation now registers a traceable `Asset` and `comic_panel_visual_render` job.
+- Creator Studio now shows a professional visual asset library and render queue after panel generation.
+- Real HTTP image fallback now returns a safe PNG `Asset` with source statement metadata.
 
 Tests run:
 
@@ -131,16 +138,61 @@ npm run check:content
 npm run check:ai-creation-maturity
 node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js packages/core/src/gugu-story-project.test.js
 node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js apps/backend/src/asset-security.test.js
+node --test apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/flash-api-contract.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/http-flash-api.test.js apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/alpha-route-coverage.test.js
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio switches back|creator studio scene inspector|creator studio opens|mobile guide defaults"
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
-browser smoke: example prompt -> draft -> Creator Studio -> select panel -> save snapshot -> bind PNG visual
+browser smoke: example prompt -> draft -> Creator Studio -> select panel -> save snapshot -> bind PNG visual -> verify asset library and render queue
 ```
 
 Next 24h:
 
-- Add production asset library and render queue for generated panel visuals.
+- Build the production asset table and asynchronous render worker behind the current alpha stubs.
 - Add production storage/auth hardening for StoryProject and StoryProjectVersion.
 - Add version diff UI and restore audit filters.
+
+### 2026-05-31 Agent Execution Round 7 Started
+
+Goal:
+
+- Move panel visual generation from one-off mock image binding into a traceable asset library and render queue.
+- Persist enough production metadata for each generated panel visual: asset ID, usage, provider, prompt, source statement, review/security status, and render job history.
+- Surface the professional asset library in Creator Studio while keeping mobile guided creation simple by default.
+
+Assignments:
+
+- Curie owns API/mock asset library and render job contract.
+- Franklin owns Creator Studio visual asset library and render queue UI.
+- Bacon owns read-only QA risk review.
+- Codex owns integration, final verification, progress reporting, commit, and push.
+
+### 2026-05-31 Agent Execution Round 7 Completed
+
+Completed by Codex and assigned agents:
+
+- Curie added asset library and render job traceability across the shared API contract, HTTP client, mock facade, backend route coverage, and tests.
+- Franklin added the Creator Studio visual production surface with a project asset library, render queue, panel binding refresh, and focused e2e coverage.
+- Bacon completed read-only QA review and flagged real HTTP fallback provenance plus project-scoped generation payload gaps before final integration.
+- Codex integrated the round by making real HTTP image fallback return safe PNG `Asset` records, sending StoryProject/render job context from web generation, standardizing `comic_panel_visual` usage, and removing duplicate frontend asset helpers.
+- Mobile creation remains the simple guided route; professional asset and render controls stay behind advanced editing.
+
+Verification:
+
+```text
+node --check apps/web/src/app.js
+node --check apps/backend/src/ai-image-generator.js
+node --check packages/api-client/src/mock-flash-api.js
+node --test apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/flash-api-contract.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/http-flash-api.test.js apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/alpha-route-coverage.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
+npm run test:unit
+npm run check:content
+npm run check:ai-creation-maturity
+git diff --check
+browser smoke: example prompt -> draft -> Creator Studio -> select panel -> save snapshot -> bind PNG visual -> verify 1 Asset and 1 comic_panel_visual_render job
+```
+
+Remaining risk:
+
+- `/flash/assets` global listing is still an alpha stub. The next backend slice should add production asset persistence, project-scoped indexing, and an asynchronous render worker.
 
 ### 2026-05-31 Agent Execution Round 6 Started
 

@@ -916,6 +916,16 @@ export function createFlashBackendApp(options = {}) {
         return;
       }
 
+      if (parts[0] === "flash" && parts[1] === "story-projects" && parts[2] && parts[3] === "assets" && req.method === "GET") {
+        const project = await persistence.storyProjects.get(decodePart(parts[2]));
+        if (!project) {
+          notFound(res, "story_project_not_found");
+          return;
+        }
+        ok(res, { items: Array.isArray(project.assets) ? project.assets : [] });
+        return;
+      }
+
       if (parts[0] === "flash" && parts[1] === "story-projects" && parts[2] && parts[3] === "versions" && parts[4] && parts[5] === "restore" && req.method === "POST") {
         const projectId = decodePart(parts[2]);
         const versionId = decodePart(parts[4]);
@@ -1430,6 +1440,20 @@ export function createFlashBackendApp(options = {}) {
       if (parts[0] === "flash" && parts[1] === "drafts" && parts[2] && parts[3] === "preview" && req.method === "POST") {
         const body = await readJsonBody(req);
         ok(res, { item: { ...body, id: decodePart(parts[2]), status: "preview" } });
+        return;
+      }
+
+      if (requestUrl.pathname === "/flash/assets" && req.method === "GET") {
+        ok(res, {
+          items: [],
+          filters: {
+            storyProjectId: requestUrl.searchParams.get("storyProjectId") || null,
+            usage: requestUrl.searchParams.get("usage") || null,
+            kind: requestUrl.searchParams.get("kind") || null,
+            status: requestUrl.searchParams.get("status") || null,
+            panelId: requestUrl.searchParams.get("panelId") || null,
+          },
+        });
         return;
       }
 

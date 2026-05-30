@@ -63,6 +63,9 @@ const state = {
   storyProjectVersionStatus: "idle",
   storyProjectVersionMessage: "",
   storyProjectRestoringVersionId: null,
+  storyProjectAssets: [],
+  storyProjectAssetStatus: "idle",
+  storyProjectAssetMessage: "",
   comicStoryboard: null,
   comicStoryboardStatus: "idle",
   comicStoryboardMessage: "",
@@ -71,6 +74,7 @@ const state = {
   comicPanelSaveMessage: "",
   comicVisualStatus: "idle",
   comicVisualMessage: "",
+  comicRenderJobs: [],
   selectedStudioSceneId: null,
   storeApplyPackId: null,
   storeTermsAccepted: false,
@@ -1434,10 +1438,19 @@ function decorateComicStoryboardWithProjectScenes(episode, project = state.story
     const caption = comicPanel.caption ?? scene.caption ?? scene.stageDirection;
     const visualPrompt = comicPanel.visualPrompt || scene.visualPrompt;
     const generatedImage = scene.generatedImage || comicPanel.generatedImage || panel.generatedImage;
+    const imageAssetId = scene.visualAssetId
+      || scene.imageAssetId
+      || comicPanel.assetId
+      || comicPanel.imageAssetId
+      || generatedImage?.assetId
+      || generatedImage?.id
+      || panel.imageAssetId;
     if (shotType) nextPanel.shotType = shotType;
     if (caption !== undefined) nextPanel.caption = caption;
     if (visualPrompt) nextPanel.visualPrompt = visualPrompt;
     if (generatedImage) nextPanel.generatedImage = structuredClone(generatedImage);
+    if (imageAssetId) nextPanel.imageAssetId = imageAssetId;
+    if (comicPanel.renderJobId || scene.renderJobId) nextPanel.renderJobId = comicPanel.renderJobId || scene.renderJobId;
     if (scene.visualStatus || comicPanel.visualStatus) {
       nextPanel.visualStatus = scene.visualStatus || comicPanel.visualStatus;
     }
@@ -1541,11 +1554,19 @@ function resetStudioDerivedState({ keepVersions = false } = {}) {
   state.comicPanelSaveMessage = "";
   state.comicVisualStatus = "idle";
   state.comicVisualMessage = "";
+  state.storyProjectAssets = [];
+  state.storyProjectAssetStatus = "idle";
+  state.storyProjectAssetMessage = "";
+  state.comicRenderJobs = [];
 }
 
 function setCurrentStoryProject(project) {
   state.storyProject = project?.id ? structuredClone(project) : null;
-  if (state.storyProject) upsertStoryProject(state.storyProject);
+  if (state.storyProject) {
+    state.storyProjectAssets = projectComicVisualAssets(state.storyProject);
+    state.comicRenderJobs = projectComicRenderJobs(state.storyProject);
+    upsertStoryProject(state.storyProject);
+  }
 }
 
 function resetDraftScriptEditState() {
@@ -1877,6 +1898,35 @@ function ensureCreatorStudioDynamicSections() {
       </section>
     `);
   }
+  if (!$("studioComicProduction")) {
+    insertSection(`
+      <section class="studio-section studio-comic-production-section" id="studioComicProduction" aria-label="视觉素材库和渲染队列">
+        <div class="studio-section-title">
+          <strong>视觉素材库 / 渲染队列</strong>
+          <span id="studioComicProductionStatus">待登记</span>
+        </div>
+        <div class="studio-section-toolbar">
+          <p id="studioComicProductionMessage" class="studio-helper-text">生成分镜视觉后，会在这里追踪资产和渲染任务。</p>
+        </div>
+        <div class="studio-comic-production-grid">
+          <div class="studio-comic-production-pane">
+            <div class="studio-production-heading">
+              <strong>Panel visual assets</strong>
+              <span id="studioComicAssetCount">0 assets</span>
+            </div>
+            <div class="studio-comic-asset-library" id="studioComicAssetLibrary" data-testid="studio-comic-asset-library"></div>
+          </div>
+          <div class="studio-comic-production-pane">
+            <div class="studio-production-heading">
+              <strong>Render jobs</strong>
+              <span id="studioComicRenderJobCount">0 jobs</span>
+            </div>
+            <div class="studio-comic-render-queue" id="studioComicRenderQueue" data-testid="studio-comic-render-queue"></div>
+          </div>
+        </div>
+      </section>
+    `);
+  }
   if (!$("studioVersionHistory")) {
     insertSection(`
       <section class="studio-section studio-version-section" aria-label="版本历史">
@@ -1906,17 +1956,250 @@ function panelDialogueText(panel = {}) {
 }
 
 function comicPanelImage(panel = {}) {
-  if (panel.generatedImage) return panel.generatedImage;
+  if (panel.generatedImage) {
+    return {
+      ...panel.generatedImage,
+      assetId: panel.generatedImage.assetId || panel.imageAssetId || panel.visualAssetId || panel.generatedImage.id,
+      renderJobId: panel.generatedImage.renderJobId || panel.renderJobId || null,
+    };
+  }
   if (panel.imageUrl) {
     return {
       id: panel.imageAssetId || `${panel.id || panel.sceneId || "panel"}_image`,
+      assetId: panel.imageAssetId || panel.visualAssetId || `${panel.id || panel.sceneId || "panel"}_image`,
       imageUrl: panel.imageUrl,
       status: panel.visualStatus || "bound",
       provider: panel.imageProvider || "story_project",
       prompt: panel.visualPrompt || panel.caption || panel.sourceText || "",
+      renderJobId: panel.renderJobId || null,
     };
   }
   return null;
+}
+
+function comicAssetId(asset = {}) {
+  return asset.assetId || asset.visualAssetId || asset.imageAssetId || asset.id || "";
+}
+
+function comicAssetStatusText(status = "") {
+  const labels = {
+    ai_generated: "AI 已生成",
+    bound: "已绑定",
+    generated: "已生成",
+    local_saved: "本地保存",
+    pending_review: "待审核",
+    ready: "可用",
+    rejected: "已拒绝",
+    uploaded: "已上传",
+  };
+  return labels[status] || status || "已记录";
+}
+
+function comicRenderJobStatusText(status = "") {
+  const labels = {
+    queued: "排队中",
+    running: "渲染中",
+    local_running: "本地渲染中",
+    succeeded: "已完成",
+    completed: "已完成",
+    failed: "失败",
+    blocked: "阻塞",
+  };
+  return labels[status] || status || "待处理";
+}
+
+function comicAssetName(panel = {}, fallback = "") {
+  return `${state.storyProject?.title || state.draft?.title || "分镜"} - ${panel.title || panel.sceneId || fallback || "Panel"}`;
+}
+
+function normalizeComicVisualAssetRecord(image = {}, panel = {}, values = {}, extra = {}) {
+  const assetId = extra.assetId || extra.id || image.assetId || image.visualAssetId || image.imageAssetId || image.id || `asset_${panel.sceneId || panel.id || Date.now()}`;
+  const imageUrl = image.imageUrl || image.url || image.src || image.assetUrl || extra.imageUrl || extra.assetUrl || "";
+  const prompt = extra.prompt || image.prompt || values.visualPrompt || values.caption || values.sourceText || "";
+  const now = Date.now();
+  return {
+    id: assetId,
+    assetId,
+    targetType: extra.targetType || "Asset",
+    kind: extra.kind || "image",
+    type: extra.type || "comic_panel_visual",
+    usage: extra.usage || "comic_panel_visual",
+    name: extra.name || image.name || comicAssetName(panel, assetId),
+    status: extra.status || image.assetStatus || image.status || "bound",
+    provider: image.provider || extra.provider || image.sourceStatement?.provider || "local_preview",
+    prompt,
+    visualPrompt: values.visualPrompt || image.visualPrompt || prompt,
+    panelId: extra.panelId || image.panelId || panel.id || "",
+    sceneId: extra.sceneId || image.sceneId || panel.sceneId || "",
+    imageUrl,
+    mediaType: extra.mediaType || image.mediaType || "image/png",
+    filename: extra.filename || image.filename || `${panel.sceneId || panel.id || "comic-panel"}.png`,
+    sizeBytes: Number(extra.sizeBytes || image.sizeBytes || 96),
+    sourceStatement: {
+      ...(image.sourceStatement || extra.sourceStatement || {}),
+      sourceType: image.sourceStatement?.sourceType || extra.sourceStatement?.sourceType || "ai_generated",
+      provider: image.provider || image.sourceStatement?.provider || extra.sourceStatement?.provider || "local_preview",
+      model: image.model || image.sourceStatement?.model || extra.sourceStatement?.model || "mock_preview",
+      prompt,
+      rightsAcknowledged: true,
+      policyVersion: "gugu_flash_asset_security_v1",
+    },
+    generatedImageId: image.id || extra.generatedImageId || "",
+    renderJobId: extra.renderJobId || image.renderJobId || "",
+    securityPolicyVersion: extra.securityPolicyVersion || image.securityPolicyVersion || "gugu_flash_asset_security_v1",
+    syncMode: extra.syncMode || image.syncMode || "",
+    createdAt: extra.createdAt || image.createdAt || image.generatedAt || now,
+    updatedAt: extra.updatedAt || image.updatedAt || now,
+  };
+}
+
+function projectComicVisualAssets(project = state.storyProject) {
+  if (!project?.id) return [];
+  const byId = new Map();
+  const upsert = (asset = {}) => {
+    const id = comicAssetId(asset);
+    if (!id) return;
+    const existing = byId.get(id) || {};
+    byId.set(id, {
+      ...existing,
+      ...asset,
+      id,
+      assetId: id,
+      updatedAt: Math.max(Number(existing.updatedAt || 0), Number(asset.updatedAt || asset.createdAt || 0)) || asset.updatedAt || asset.createdAt || Date.now(),
+    });
+  };
+
+  (Array.isArray(project.assets) ? project.assets : []).forEach((asset) => {
+    if (!asset) return;
+    const isComicAsset = asset.usage === "comic_storyboard_panel"
+      || asset.type === "comic_panel_visual"
+      || asset.panelId
+      || asset.sceneId;
+    if (!isComicAsset) return;
+    upsert({
+      id: comicAssetId(asset),
+      assetId: comicAssetId(asset),
+      name: asset.name || "分镜视觉素材",
+      status: asset.status || asset.assetStatus || "registered",
+      provider: asset.provider || asset.sourceStatement?.provider || "asset_library",
+      prompt: asset.prompt || asset.visualPrompt || asset.sourceStatement?.prompt || "",
+      visualPrompt: asset.visualPrompt || asset.prompt || "",
+      panelId: asset.panelId || "",
+      sceneId: asset.sceneId || "",
+      imageUrl: asset.imageUrl || asset.assetUrl || asset.previewUrl || "",
+      mediaType: asset.mediaType || "image/png",
+      filename: asset.filename || "",
+      sizeBytes: asset.sizeBytes || 0,
+      sourceStatement: asset.sourceStatement || null,
+      renderJobId: asset.renderJobId || "",
+      syncMode: asset.syncMode || "",
+      createdAt: asset.createdAt || 0,
+      updatedAt: asset.updatedAt || asset.createdAt || 0,
+    });
+  });
+
+  projectScriptScenes(project).forEach((scene) => {
+    const comicPanel = scene.comicPanel || {};
+    const generatedImage = scene.generatedImage || comicPanel.generatedImage || null;
+    const assetId = scene.visualAssetId
+      || scene.imageAssetId
+      || comicPanel.assetId
+      || comicPanel.imageAssetId
+      || generatedImage?.assetId
+      || generatedImage?.id;
+    if (!assetId) return;
+    upsert({
+      id: assetId,
+      assetId,
+      name: comicPanel.name || scene.title || "分镜视觉素材",
+      status: scene.visualStatus || comicPanel.visualStatus || generatedImage?.assetStatus || generatedImage?.status || "bound",
+      provider: generatedImage?.provider || comicPanel.provider || "story_project",
+      prompt: generatedImage?.prompt || comicPanel.visualPrompt || scene.visualPrompt || scene.caption || "",
+      visualPrompt: comicPanel.visualPrompt || scene.visualPrompt || generatedImage?.prompt || "",
+      panelId: comicPanel.panelId || `panel_${scene.id || assetId}`,
+      sceneId: scene.id || "",
+      imageUrl: generatedImage?.imageUrl || comicPanel.imageUrl || scene.imageUrl || "",
+      mediaType: generatedImage?.mediaType || "image/png",
+      filename: generatedImage?.filename || "",
+      sizeBytes: generatedImage?.sizeBytes || 0,
+      sourceStatement: generatedImage?.sourceStatement || null,
+      renderJobId: scene.renderJobId || comicPanel.renderJobId || generatedImage?.renderJobId || "",
+      syncMode: generatedImage?.syncMode || "",
+      createdAt: generatedImage?.generatedAt || generatedImage?.createdAt || comicPanel.updatedAt || 0,
+      updatedAt: generatedImage?.updatedAt || comicPanel.updatedAt || scene.updatedAt || 0,
+    });
+  });
+
+  return Array.from(byId.values())
+    .sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
+}
+
+function makeComicRenderJob(panel = {}, values = {}, overrides = {}) {
+  const now = Date.now();
+  const prompt = values.visualPrompt || values.caption || values.sourceText || panel.visualPrompt || panel.caption || "";
+  return {
+    id: overrides.id || `render_job_${state.storyProject?.id || state.draft?.id || "draft"}_${panel.sceneId || panel.id || now}`,
+    storyProjectId: state.storyProject?.id || "",
+    stage: overrides.stage || "comic_panel_visual_render",
+    kind: overrides.kind || "comic_panel_visual",
+    status: overrides.status || "running",
+    provider: overrides.provider || apiRuntime.mode || "local",
+    prompt,
+    panelId: overrides.panelId || panel.id || "",
+    sceneId: overrides.sceneId || panel.sceneId || "",
+    assetId: overrides.assetId || "",
+    result: overrides.result || null,
+    message: overrides.message || "",
+    createdAt: overrides.createdAt || now,
+    updatedAt: overrides.updatedAt || now,
+  };
+}
+
+function upsertComicRenderJob(job = {}) {
+  if (!job.id) return job;
+  const existing = state.comicRenderJobs.find((item) => item.id === job.id) || {};
+  const nextJob = { ...existing, ...job, updatedAt: job.updatedAt || Date.now() };
+  state.comicRenderJobs = [
+    nextJob,
+    ...state.comicRenderJobs.filter((item) => item.id !== job.id),
+  ].slice(0, 12);
+  return nextJob;
+}
+
+function updateComicRenderJob(jobId, patch = {}) {
+  const existing = state.comicRenderJobs.find((job) => job.id === jobId) || { id: jobId };
+  return upsertComicRenderJob({
+    ...existing,
+    ...patch,
+    updatedAt: Date.now(),
+  });
+}
+
+function projectComicRenderJobs(project = state.storyProject) {
+  const byId = new Map();
+  const ingest = (job = {}) => {
+    if (!job?.id) return;
+    const isComicJob = job.stage === "comic_panel_visual_render"
+      || job.kind === "comic_panel_visual"
+      || job.panelId
+      || job.sceneId;
+    if (!isComicJob) return;
+    byId.set(job.id, {
+      ...byId.get(job.id),
+      ...job,
+      updatedAt: job.updatedAt || job.createdAt || Date.now(),
+    });
+  };
+  [
+    ...(Array.isArray(project?.renderJobs) ? project.renderJobs : []),
+    ...(Array.isArray(project?.aiJobs) ? project.aiJobs : []),
+    ...(Array.isArray(project?.aiGenerationJobs) ? project.aiGenerationJobs : []),
+  ].forEach(ingest);
+  state.comicRenderJobs
+    .filter((job) => !project?.id || !job.storyProjectId || job.storyProjectId === project.id)
+    .forEach(ingest);
+  return Array.from(byId.values())
+    .sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
 }
 
 function comicPanelVisualStatusText(panel = {}) {
@@ -2069,6 +2352,72 @@ function renderStudioComicInspector() {
   `;
 }
 
+function studioComicProductionStatusText() {
+  const assets = projectComicVisualAssets();
+  const jobs = projectComicRenderJobs();
+  return `${assets.length} assets · ${jobs.length} jobs`;
+}
+
+function studioComicProductionMessageText() {
+  const latestJob = projectComicRenderJobs()[0];
+  if (latestJob) {
+    return `最近任务：${comicRenderJobStatusText(latestJob.status)} · ${latestJob.sceneId || latestJob.panelId || "panel"}`;
+  }
+  const assetCount = projectComicVisualAssets().length;
+  if (assetCount) return `已登记 ${assetCount} 个分镜视觉素材，可用于后续渲染和复用。`;
+  return "生成/绑定视觉后，会把 panel -> asset 链接写入 StoryProject。";
+}
+
+function renderStudioComicAssetLibrary() {
+  if (!state.storyProject?.id) {
+    return `<div class="empty-state compact-empty">当前草稿还未绑定 StoryProject。</div>`;
+  }
+  const assets = projectComicVisualAssets();
+  if (!assets.length) {
+    return `<div class="empty-state compact-empty">还没有分镜视觉素材。先在分镜 Inspector 里生成/绑定一张图片。</div>`;
+  }
+  return assets.slice(0, 8).map((asset) => {
+    const imageUrl = displayMediaUrl(asset.imageUrl || "");
+    const prompt = asset.prompt || asset.visualPrompt || "未记录提示词";
+    return `
+      <article class="studio-comic-asset-item" data-testid="studio-comic-asset-item">
+        ${imageUrl
+          ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(asset.name || "分镜视觉素材")}">`
+          : `<div class="studio-comic-asset-thumb">PNG</div>`}
+        <div>
+          <strong>${escapeHtml(asset.name || "分镜视觉素材")}</strong>
+          <small>Asset ID：${escapeHtml(comicAssetId(asset) || "local_asset")}</small>
+          <small>Panel：${escapeHtml(asset.panelId || asset.sceneId || "未关联")}</small>
+          <p>${escapeHtml(prompt)}</p>
+        </div>
+        <span>${escapeHtml(comicAssetStatusText(asset.status))}</span>
+        <em>${escapeHtml(asset.provider || "local")}</em>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderStudioComicRenderQueue() {
+  if (!state.storyProject?.id) {
+    return `<div class="empty-state compact-empty">当前草稿还未绑定 StoryProject。</div>`;
+  }
+  const jobs = projectComicRenderJobs();
+  if (!jobs.length) {
+    return `<div class="empty-state compact-empty">暂无渲染任务。生成视觉时会自动登记最近任务。</div>`;
+  }
+  return jobs.slice(0, 8).map((job) => `
+    <article class="studio-comic-render-job ${escapeHtml(job.status || "queued")}" data-testid="studio-comic-render-job">
+      <span>${escapeHtml(comicRenderJobStatusText(job.status))}</span>
+      <div>
+        <strong>${escapeHtml(job.stage || "comic_panel_visual_render")}</strong>
+        <small>Job ID：${escapeHtml(job.id)}</small>
+        <small>Panel：${escapeHtml(job.panelId || job.sceneId || "未关联")}${job.assetId ? ` · Asset：${escapeHtml(job.assetId)}` : ""}</small>
+        <p>${escapeHtml(job.prompt || job.message || "未记录提示词")}</p>
+      </div>
+    </article>
+  `).join("");
+}
+
 function studioVersionStatusText() {
   if (state.storyProjectVersionStatus === "loading") return "同步中";
   if (state.storyProjectVersionStatus === "restoring") return "恢复中";
@@ -2181,9 +2530,11 @@ function readComicPanelEditorValues(panel = {}) {
   };
 }
 
-function applyComicPanelEditToDraft(draft, panel, values = {}, generatedImage = null) {
+function applyComicPanelEditToDraft(draft, panel, values = {}, generatedImage = null, options = {}) {
   const scene = (draft.scenes || []).find((item) => item.id === panel.sceneId);
   if (!scene) return null;
+  const assetRecord = options.assetRecord || null;
+  const renderJob = options.renderJob || null;
   scene.text = values.sourceText;
   scene.stageDirection = values.caption;
   scene.caption = values.caption;
@@ -2197,7 +2548,22 @@ function applyComicPanelEditToDraft(draft, panel, values = {}, generatedImage = 
     sourceText: values.sourceText,
     updatedAt: Date.now(),
   };
-  if (generatedImage) scene.generatedImage = structuredClone(generatedImage);
+  if (assetRecord) {
+    scene.visualAssetId = comicAssetId(assetRecord);
+    scene.imageAssetId = comicAssetId(assetRecord);
+    scene.comicPanel.assetId = comicAssetId(assetRecord);
+    scene.comicPanel.imageAssetId = comicAssetId(assetRecord);
+  }
+  if (renderJob?.id) {
+    scene.renderJobId = renderJob.id;
+    scene.comicPanel.renderJobId = renderJob.id;
+  }
+  if (generatedImage) {
+    scene.generatedImage = structuredClone(generatedImage);
+    scene.visualStatus = generatedImage.status || assetRecord?.status || "bound";
+    scene.comicPanel.generatedImage = structuredClone(generatedImage);
+    scene.comicPanel.visualStatus = scene.visualStatus;
+  }
   updateSceneDialogueText(scene, values.sourceText);
   const sceneIndex = (draft.scenes || []).findIndex((item) => item.id === scene.id);
   scene.stageScriptText = makeSceneScriptText(draft, scene, sceneIndex);
@@ -2207,9 +2573,11 @@ function applyComicPanelEditToDraft(draft, panel, values = {}, generatedImage = 
   return scene;
 }
 
-function storyProjectWithComicPanelEdit(project, draft, panel, values = {}, generatedImage = null) {
+function storyProjectWithComicPanelEdit(project, draft, panel, values = {}, generatedImage = null, options = {}) {
   const nextProject = structuredClone(project);
   const sceneId = panel.sceneId;
+  const assetRecord = options.assetRecord || null;
+  const renderJob = options.renderJob || null;
   nextProject.title = draft.title || nextProject.title || "未命名项目";
   nextProject.updatedAt = draft.updatedAt || Date.now();
   nextProject.script = nextProject.script || {};
@@ -2249,11 +2617,55 @@ function storyProjectWithComicPanelEdit(project, draft, panel, values = {}, gene
       updatedAt: Date.now(),
     },
   });
+  if (assetRecord) {
+    const assetId = comicAssetId(assetRecord);
+    projectScene.visualAssetId = assetId;
+    projectScene.imageAssetId = assetId;
+    projectScene.comicPanel.assetId = assetId;
+    projectScene.comicPanel.imageAssetId = assetId;
+  }
+  if (renderJob?.id) {
+    projectScene.renderJobId = renderJob.id;
+    projectScene.comicPanel.renderJobId = renderJob.id;
+  }
   if (generatedImage) {
     projectScene.generatedImage = structuredClone(generatedImage);
-    projectScene.visualStatus = generatedImage.status || "generated";
+    projectScene.visualStatus = generatedImage.status || assetRecord?.status || "generated";
     projectScene.comicPanel.generatedImage = structuredClone(generatedImage);
     projectScene.comicPanel.visualStatus = projectScene.visualStatus;
+  }
+  if (assetRecord) {
+    nextProject.assets = Array.isArray(nextProject.assets) ? nextProject.assets : [];
+    const assetId = comicAssetId(assetRecord);
+    const assetIndex = nextProject.assets.findIndex((asset) => comicAssetId(asset) === assetId);
+    const nextAsset = {
+      ...(assetIndex >= 0 ? nextProject.assets[assetIndex] : {}),
+      ...assetRecord,
+      id: assetId,
+      assetId,
+      panelId: assetRecord.panelId || panel.id || "",
+      sceneId,
+      usage: "comic_panel_visual",
+      type: "comic_panel_visual",
+      updatedAt: Date.now(),
+    };
+    if (assetIndex >= 0) nextProject.assets[assetIndex] = nextAsset;
+    else nextProject.assets.unshift(nextAsset);
+  }
+  if (renderJob) {
+    nextProject.renderJobs = Array.isArray(nextProject.renderJobs) ? nextProject.renderJobs : [];
+    const jobIndex = nextProject.renderJobs.findIndex((job) => job.id === renderJob.id);
+    const nextJob = {
+      ...(jobIndex >= 0 ? nextProject.renderJobs[jobIndex] : {}),
+      ...renderJob,
+      storyProjectId: nextProject.id,
+      panelId: renderJob.panelId || panel.id || "",
+      sceneId,
+      updatedAt: Date.now(),
+    };
+    if (jobIndex >= 0) nextProject.renderJobs[jobIndex] = nextJob;
+    else nextProject.renderJobs.unshift(nextJob);
+    nextProject.renderJobs = nextProject.renderJobs.slice(0, 20);
   }
   const node = (nextProject.storyGraph?.nodes || []).find((item) => (
     item.sceneId === sceneId || item.id === sceneId || item.id === panel.nodeId
@@ -2273,9 +2685,11 @@ function normalizeComicGeneratedImage(rawImage = {}, panel = {}, values = {}) {
     String(imageUrl).startsWith("data:image/png") ? "image/png" : "image/png"
   );
   const filename = rawImage.filename || `${panel.sceneId || panel.id || "comic-panel"}.png`;
+  const generatedId = rawImage.id || `comic_visual_${panel.sceneId || panel.id || Date.now()}`;
   return {
     ...rawImage,
-    id: rawImage.id || `comic_visual_${panel.sceneId || panel.id || Date.now()}`,
+    id: generatedId,
+    assetId: rawImage.assetId || rawImage.visualAssetId || rawImage.imageAssetId || generatedId,
     imageUrl,
     mediaType,
     filename,
@@ -2294,6 +2708,107 @@ function normalizeComicGeneratedImage(rawImage = {}, panel = {}, values = {}) {
       policyVersion: "gugu_flash_asset_security_v1",
     },
   };
+}
+
+async function createComicRenderJob(panel = {}, values = {}) {
+  let job = upsertComicRenderJob(makeComicRenderJob(panel, values, {
+    status: flashApi.createStoryProjectAiJob ? "queued" : "local_running",
+    provider: flashApi.createStoryProjectAiJob ? "story_project_ai_job" : "local_fallback",
+  }));
+  if (!flashApi.createStoryProjectAiJob || !state.storyProject?.id) return job;
+  try {
+    const response = await flashApi.createStoryProjectAiJob(state.storyProject.id, {
+      id: job.id,
+      stage: job.stage,
+      kind: job.kind,
+      status: "running",
+      prompt: job.prompt,
+      panelId: job.panelId,
+      sceneId: job.sceneId,
+      target: "comic_panel_visual_asset",
+      request: {
+        panelId: job.panelId,
+        sceneId: job.sceneId,
+        visualPrompt: values.visualPrompt,
+        caption: values.caption,
+      },
+    });
+    const apiJob = response?.item || response?.job || null;
+    if (apiJob?.id) {
+      job = upsertComicRenderJob({
+        ...job,
+        ...apiJob,
+        id: apiJob.id,
+        panelId: apiJob.panelId || job.panelId,
+        sceneId: apiJob.sceneId || job.sceneId,
+        prompt: apiJob.prompt || job.prompt,
+        provider: "story_project_ai_job",
+      });
+    } else if (response?.reason) {
+      job = updateComicRenderJob(job.id, {
+        status: "local_running",
+        provider: "local_fallback",
+        message: `渲染队列暂未接收：${response.reason}`,
+      });
+    }
+  } catch (error) {
+    job = updateComicRenderJob(job.id, {
+      status: "local_running",
+      provider: "local_fallback",
+      message: "渲染队列 API 暂不可用，已记录为本地任务。",
+    });
+  }
+  return job;
+}
+
+async function createComicVisualAssetRecord(generatedImage = {}, panel = {}, values = {}, renderJob = {}) {
+  const localAsset = normalizeComicVisualAssetRecord(generatedImage, panel, values, {
+    renderJobId: renderJob.id || generatedImage.renderJobId || "",
+    status: flashApi.createAsset ? "ready" : "local_saved",
+    provider: generatedImage.provider || (flashApi.createAsset ? "asset_api" : "local_fallback"),
+  });
+  if (!flashApi.createAsset) {
+    return {
+      asset: {
+        ...localAsset,
+        syncMode: "local_fallback",
+      },
+      mode: "local",
+    };
+  }
+  try {
+    const response = await flashApi.createAsset({
+      ...localAsset,
+      filename: localAsset.filename || `${panel.sceneId || panel.id || "comic-panel"}.png`,
+      mediaType: localAsset.mediaType || "image/png",
+      sizeBytes: localAsset.sizeBytes || 96,
+      sourceStatement: localAsset.sourceStatement,
+    });
+    const createdAsset = response?.item || response?.asset || response || {};
+    return {
+      asset: normalizeComicVisualAssetRecord(generatedImage, panel, values, {
+        ...createdAsset,
+        id: createdAsset.id || createdAsset.assetId || localAsset.id,
+        assetId: createdAsset.assetId || createdAsset.id || localAsset.assetId,
+        imageUrl: localAsset.imageUrl,
+        prompt: localAsset.prompt,
+        renderJobId: renderJob.id || localAsset.renderJobId,
+        provider: createdAsset.provider || generatedImage.provider || "asset_api",
+        syncMode: "asset_api",
+      }),
+      mode: "asset_api",
+    };
+  } catch (error) {
+    return {
+      asset: {
+        ...localAsset,
+        status: "local_saved",
+        syncMode: "local_fallback",
+        message: "Asset API 暂不可用，已随 StoryProject 本地保存。",
+      },
+      mode: "local",
+    };
+  }
 }
 
 function selectStudioComicPanel(panelId) {
@@ -2411,28 +2926,30 @@ async function saveComicPanelInspector(options = {}) {
   if (!panel?.sceneId) return false;
   const values = options.values || readComicPanelEditorValues(panel);
   const generatedImage = options.generatedImage || null;
+  const assetRecord = options.assetRecord || null;
+  const renderJob = options.renderJob || null;
   if (!values.sourceText) {
     state.comicPanelSaveStatus = "error";
     state.comicPanelSaveMessage = "对白 / 原文不能为空。";
     renderCreatorStudio(state.draft);
     return false;
   }
-  const scene = applyComicPanelEditToDraft(state.draft, panel, values, generatedImage);
+  const scene = applyComicPanelEditToDraft(state.draft, panel, values, generatedImage, { assetRecord, renderJob });
   if (!scene) return false;
   if ($("draftScriptText")) {
     $("draftScriptText").dataset.userEdited = "true";
     $("draftScriptText").value = state.draft.stageScriptText || "";
   }
-  const project = storyProjectWithComicPanelEdit(state.storyProject, state.draft, panel, values, generatedImage);
+  const project = storyProjectWithComicPanelEdit(state.storyProject, state.draft, panel, values, generatedImage, { assetRecord, renderJob });
   setCurrentStoryProject(project);
   if (state.comicStoryboard) {
     state.comicStoryboard = decorateComicStoryboardWithProjectScenes(state.comicStoryboard, project);
   }
   state.comicPanelSaveStatus = "saving";
-  state.comicPanelSaveMessage = generatedImage ? "正在保存分镜并绑定视觉素材。" : "正在保存分镜到 StoryProject。";
+  state.comicPanelSaveMessage = generatedImage ? "正在保存分镜并登记视觉素材。" : "正在保存分镜到 StoryProject。";
   if (generatedImage) {
     state.comicVisualStatus = "binding";
-    state.comicVisualMessage = "图片已生成，正在绑定到项目。";
+    state.comicVisualMessage = assetRecord ? "图片已生成，正在写入素材库和项目绑定。" : "图片已生成，正在绑定到项目。";
   }
   renderCreatorStudio(state.draft);
   let saved = false;
@@ -2466,7 +2983,11 @@ async function saveComicPanelInspector(options = {}) {
         : "分镜保存成功，StoryProject 已更新。";
     if (generatedImage) {
       state.comicVisualStatus = "bound";
-      state.comicVisualMessage = generatedImage.imageUrl ? "视觉已绑定到当前分镜。" : "视觉生成状态已绑定到当前分镜。";
+      state.comicVisualMessage = assetRecord
+        ? `视觉已绑定到当前分镜，素材 ${comicAssetId(assetRecord)} 已登记。`
+        : generatedImage.imageUrl
+          ? "视觉已绑定到当前分镜。"
+          : "视觉生成状态已绑定到当前分镜。";
     }
     await loadStoryProjectVersionsForStudio({ render: false });
     state.comicStoryboard = null;
@@ -2502,17 +3023,22 @@ async function generateAndBindStudioComicVisual() {
   state.comicVisualStatus = "generating";
   state.comicVisualMessage = "正在生成视觉素材。";
   renderCreatorStudio(state.draft);
+  let renderJob = await createComicRenderJob(panel, values);
+  renderCreatorStudio(state.draft);
   try {
     const response = await flashApi.generateAiImage({
       id: `${state.storyProject?.id || state.draft?.id || "draft"}_${panel.sceneId}_comic_visual`,
       type: "comic_panel",
       name: `${state.storyProject?.title || state.draft?.title || "分镜"} - ${panel.title || panel.sceneId}`,
-      usage: "comic_storyboard_panel",
+      usage: "comic_panel_visual",
       prompt: values.visualPrompt || values.caption || values.sourceText,
       visualPrompt: values.visualPrompt,
       caption: values.caption,
+      storyProjectId: state.storyProject?.id,
+      storyProjectVersionId: state.storyProject?.versionId || state.draft?.storyProjectVersionId || null,
       sceneId: panel.sceneId,
       panelId: panel.id,
+      renderJobId: renderJob?.id || "",
       draftId: state.draft?.id,
       draftTitle: state.draft?.title,
       persona: state.draft?.persona,
@@ -2520,15 +3046,45 @@ async function generateAndBindStudioComicVisual() {
       contentOrigin: state.draft?.contentOrigin || state.storyProject?.origin?.contentOrigin,
       ipName: state.draft?.ipName || state.storyProject?.origin?.ipName,
     });
-    const generatedImage = normalizeComicGeneratedImage(response?.item || response?.image || response, panel, values);
+    let generatedImage = normalizeComicGeneratedImage(response?.item || response?.image || response, panel, values);
     if (!generatedImage?.imageUrl && !generatedImage?.id) throw new Error("image_generation_empty");
+    const assetResult = await createComicVisualAssetRecord(generatedImage, panel, values, renderJob);
+    const assetRecord = assetResult.asset;
+    generatedImage = {
+      ...generatedImage,
+      assetId: comicAssetId(assetRecord),
+      imageAssetId: comicAssetId(assetRecord),
+      assetStatus: assetRecord.status,
+      renderJobId: renderJob.id,
+      status: "bound",
+      syncMode: assetRecord.syncMode || assetResult.mode,
+    };
+    renderJob = updateComicRenderJob(renderJob.id, {
+      status: "succeeded",
+      assetId: comicAssetId(assetRecord),
+      result: {
+        assetId: comicAssetId(assetRecord),
+        imageUrl: generatedImage.imageUrl,
+      },
+      message: assetResult.mode === "asset_api"
+        ? "视觉素材已登记到资产库。"
+        : "Asset API 不可用，视觉素材已随项目本地保存。",
+    });
     await saveComicPanelInspector({
       values,
       generatedImage,
+      assetRecord,
+      renderJob,
       versionLabel: "视觉绑定",
       versionReason: "Creator Studio 视觉素材绑定",
     });
   } catch (error) {
+    if (renderJob?.id) {
+      updateComicRenderJob(renderJob.id, {
+        status: "failed",
+        message: "视觉生成或绑定失败。",
+      });
+    }
     state.comicVisualStatus = "error";
     state.comicVisualMessage = "视觉生成失败，请稍后重试。";
     renderCreatorStudio(state.draft);
@@ -2655,6 +3211,12 @@ function renderCreatorStudio(draft) {
   $("studioComicRefreshButton").disabled = state.comicStoryboardStatus === "loading" || !state.storyProject?.id || !flashApi.compileStoryProjectComic;
   $("studioComicStoryboard").innerHTML = renderStudioComicStoryboard();
   $("studioComicInspector").innerHTML = renderStudioComicInspector();
+  $("studioComicProductionStatus").textContent = studioComicProductionStatusText();
+  $("studioComicProductionMessage").textContent = studioComicProductionMessageText();
+  $("studioComicAssetCount").textContent = `${projectComicVisualAssets().length} assets`;
+  $("studioComicRenderJobCount").textContent = `${projectComicRenderJobs().length} jobs`;
+  $("studioComicAssetLibrary").innerHTML = renderStudioComicAssetLibrary();
+  $("studioComicRenderQueue").innerHTML = renderStudioComicRenderQueue();
   $("studioVersionStatus").textContent = studioVersionStatusText();
   $("studioVersionHistory").innerHTML = renderStudioVersionHistory();
   $("studioPublishStatus").textContent = publishStatus;

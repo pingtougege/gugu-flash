@@ -50,6 +50,8 @@ const SYNC_FAILURE_MESSAGES = {
 const PAYMENT_SUCCESS_STATUSES = new Set(["succeeded", "success", "paid"]);
 const PAYMENT_FAILURE_STATUSES = new Set(["failed", "cancelled", "canceled", "expired"]);
 const LIVE_IP_DISCOVERY_TIMEOUT_MS = 12000;
+const ASSET_SECURITY_POLICY_VERSION = "gugu_flash_asset_security_v1";
+const MOCK_AI_IMAGE_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
 export function createMockFlashApi({
   loadPacks,
@@ -80,9 +82,11 @@ export function createMockFlashApi({
   let storyProjectsCache = null;
   let storyProjectVersionsCache = null;
   let aiGenerationJobsCache = null;
+  let assetsCache = null;
   let storyProjectsDirty = false;
   let storyProjectVersionsDirty = false;
   let aiGenerationJobsDirty = false;
+  let assetsDirty = false;
   let activeDeviceId = "badge_s3_01";
 
   function importRuntimeState(state = {}) {
@@ -107,9 +111,11 @@ export function createMockFlashApi({
     storyProjectsCache = state.storyProjects ?? storyProjectsCache;
     storyProjectVersionsCache = state.storyProjectVersions ?? storyProjectVersionsCache;
     aiGenerationJobsCache = state.aiGenerationJobs ?? aiGenerationJobsCache;
+    assetsCache = state.assets ?? assetsCache;
     storyProjectsDirty = false;
     storyProjectVersionsDirty = false;
     aiGenerationJobsDirty = false;
+    assetsDirty = false;
     activeDeviceId = state.activeDeviceId ?? activeDeviceId;
   }
 
@@ -150,6 +156,7 @@ export function createMockFlashApi({
     if (storyProjectsDirty) state.storyProjects = storyProjectsCache;
     if (storyProjectVersionsDirty) state.storyProjectVersions = storyProjectVersionsCache;
     if (aiGenerationJobsDirty) state.aiGenerationJobs = aiGenerationJobsCache;
+    if (assetsDirty) state.assets = assetsCache;
     return structuredClone(state);
   }
 
@@ -366,6 +373,10 @@ export function createMockFlashApi({
     if (!aiGenerationJobsCache) aiGenerationJobsCache = [];
   }
 
+  function ensureAssetState() {
+    if (!assetsCache) assetsCache = [];
+  }
+
   function storyProjectFromPayload(payload = {}) {
     return payload.project || payload.item || payload.storyProject || payload;
   }
@@ -465,6 +476,206 @@ export function createMockFlashApi({
     else aiGenerationJobsCache.unshift(item);
     aiGenerationJobsDirty = true;
     return structuredClone(item);
+  }
+
+  function assetKindForMediaType(mediaType = "") {
+    const type = String(mediaType || "").toLowerCase();
+    if (type.startsWith("image/")) return "image";
+    if (type.startsWith("audio/")) return "audio";
+    if (type === "application/json") return "data";
+    return "file";
+  }
+
+  function mediaTypeForAsset(asset = {}, kind = "image") {
+    if (asset.mediaType || asset.contentType) return String(asset.mediaType || asset.contentType).toLowerCase();
+    if (kind === "audio") return "audio/mpeg";
+    if (kind === "data") return "application/json";
+    return "image/png";
+  }
+
+  function extensionForMediaType(mediaType = "image/png") {
+    return {
+      "image/png": "png",
+      "image/jpeg": "jpg",
+      "image/webp": "webp",
+      "image/gif": "gif",
+      "audio/mpeg": "mp3",
+      "audio/wav": "wav",
+      "audio/ogg": "ogg",
+      "application/json": "json",
+    }[mediaType] || "bin";
+  }
+
+  function assetIdFromPayload(asset = {}) {
+    if (asset.assetId) return asset.assetId;
+    if (String(asset.id || "").startsWith("asset_")) return asset.id;
+    return makeMockId("asset");
+  }
+
+  function createMockAssetSecurityReport(asset = {}) {
+    const mediaType = String(asset.mediaType || asset.contentType || "").toLowerCase();
+    const kind = assetKindForMediaType(mediaType);
+    return {
+      policyVersion: ASSET_SECURITY_POLICY_VERSION,
+      status: "passed",
+      mediaType,
+      mediaKind: kind,
+      sizeBytes: Number(asset.sizeBytes ?? asset.byteLength ?? asset.fileSizeBytes ?? 0),
+      storageIsolation: "mock_private_object_store",
+      malwareScan: "mock_passed",
+      sourceStatementRequired: true,
+      errors: [],
+    };
+  }
+
+  function normalizeAssetSourceStatement(asset = {}, {
+    prompt = "",
+    uploaderUserId = "user_local",
+  } = {}) {
+    const statement = structuredClone(asset.sourceStatement || {});
+    const sourceType = statement.sourceType || (asset.provider || prompt ? "ai_generated" : "original");
+    const normalized = {
+      ...statement,
+      sourceType,
+      rightsAcknowledged: statement.rightsAcknowledged ?? true,
+      policyVersion: statement.policyVersion || ASSET_SECURITY_POLICY_VERSION,
+    };
+    if (sourceType === "ai_generated") {
+      normalized.provider = statement.provider || asset.provider || "mock_preview";
+      normalized.model = statement.model || asset.model || "mock_preview";
+      normalized.prompt = statement.prompt || prompt || asset.prompt || "";
+    }
+    if (sourceType === "original" && !normalized.creatorUserId && !normalized.creatorName) {
+      normalized.creatorUserId = uploaderUserId;
+    }
+    return normalized;
+  }
+
+  function normalizeAssetForMock(asset = {}, {
+    existing = null,
+    timestamp = Date.now(),
+  } = {}) {
+    const source = structuredClone(asset || {});
+    const kind = source.kind || source.type || assetKindForMediaType(source.mediaType || source.contentType || "image/png");
+    const mediaType = mediaTypeForAsset(source, kind);
+    const id = assetIdFromPayload(source);
+    const uploaderUserId = source.uploaderUserId || existing?.uploaderUserId || source.authorUserId || "user_local";
+    const prompt = source.prompt || source.visualPrompt || existing?.prompt || "";
+    const filename = source.filename || source.name || `${source.id || id}.${extensionForMediaType(mediaType)}`;
+    const sizeBytes = Number(source.sizeBytes ?? source.byteLength ?? source.fileSizeBytes ?? existing?.sizeBytes ?? (mediaType === "image/png" ? 68 : 1));
+    const normalized = {
+      ...structuredClone(existing || {}),
+      ...source,
+      id,
+      targetType: "Asset",
+      kind,
+      usage: source.usage || source.purpose || existing?.usage || (kind === "image" ? "comic_panel_visual" : "project_asset"),
+      status: source.status || existing?.status || "uploaded",
+      uploaderUserId,
+      storyProjectId: source.storyProjectId || source.projectId || existing?.storyProjectId || null,
+      storyProjectVersionId: source.storyProjectVersionId || source.projectVersionId || existing?.storyProjectVersionId || null,
+      panelId: source.panelId || existing?.panelId || null,
+      sceneId: source.sceneId || existing?.sceneId || null,
+      provider: source.provider || existing?.provider || null,
+      model: source.model || existing?.model || null,
+      prompt,
+      filename,
+      mediaType,
+      sizeBytes,
+      imageUrl: source.imageUrl || source.previewUrl || existing?.imageUrl || null,
+      sourceUrl: source.sourceUrl || existing?.sourceUrl || null,
+      sourceStatement: normalizeAssetSourceStatement(source, { prompt, uploaderUserId }),
+      securityPolicyVersion: source.securityPolicyVersion || existing?.securityPolicyVersion || ASSET_SECURITY_POLICY_VERSION,
+      createdAt: existing?.createdAt || source.createdAt || timestamp,
+      updatedAt: timestamp,
+    };
+    normalized.securityReport = source.securityReport || existing?.securityReport || createMockAssetSecurityReport(normalized);
+    return normalized;
+  }
+
+  function saveAsset(asset = {}) {
+    ensureAssetState();
+    const item = structuredClone(asset);
+    const index = assetsCache.findIndex((candidate) => candidate.id === item.id);
+    if (index >= 0) assetsCache.splice(index, 1, item);
+    else assetsCache.unshift(item);
+    assetsDirty = true;
+    return structuredClone(item);
+  }
+
+  function findAsset(id) {
+    ensureAssetState();
+    const item = assetsCache.find((asset) => asset.id === id);
+    return item ? structuredClone(item) : null;
+  }
+
+  function listAssetsForMock(options = {}) {
+    ensureAssetState();
+    const storyProjectId = options.storyProjectId || options.projectId || null;
+    const usage = options.usage || null;
+    const kind = options.kind || null;
+    const status = options.status || null;
+    const panelId = options.panelId || null;
+    return assetsCache
+      .filter((asset) => !storyProjectId || asset.storyProjectId === storyProjectId)
+      .filter((asset) => !usage || asset.usage === usage)
+      .filter((asset) => !kind || asset.kind === kind)
+      .filter((asset) => !status || asset.status === status)
+      .filter((asset) => !panelId || asset.panelId === panelId)
+      .map((asset) => structuredClone(asset));
+  }
+
+  function createStoryProjectAssetRenderJob({
+    project,
+    asset,
+    payload = {},
+    timestamp = Date.now(),
+  } = {}) {
+    if (!project?.id) return null;
+    let inputSnapshotId = payload.inputSnapshotId || project.versionId || null;
+    let inputSnapshot = null;
+    if (!inputSnapshotId) {
+      inputSnapshot = saveStoryProjectVersion(createStoryProjectVersionSnapshot(project, {
+        status: "draft",
+        label: "Visual render input",
+        reason: payload.prompt || payload.stage || "Comic panel visual render input.",
+        timestamp,
+      }));
+      inputSnapshotId = inputSnapshot.id;
+    }
+    const job = saveAiGenerationJob({
+      id: payload.renderJobId || payload.jobId || makeMockId("ai_job"),
+      storyProjectId: project.id,
+      stage: payload.stage || "comic_panel_visual_render",
+      kind: payload.kind || "comic_panel_visual_render",
+      status: payload.jobStatus || "succeeded",
+      inputSnapshotId,
+      outputSnapshotId: payload.outputSnapshotId || null,
+      prompt: payload.prompt || asset.prompt || "",
+      request: {
+        ...structuredClone(payload),
+        assetId: asset.id,
+        panelId: asset.panelId || payload.panelId || null,
+        sceneId: asset.sceneId || payload.sceneId || null,
+      },
+      result: {
+        assetId: asset.id,
+        assetIds: [asset.id],
+        panelId: asset.panelId || payload.panelId || null,
+        sceneId: asset.sceneId || payload.sceneId || null,
+        provider: asset.provider || payload.provider || "mock_preview",
+        imageUrl: asset.imageUrl,
+      },
+      errors: Array.isArray(payload.errors) ? payload.errors : [],
+      authorUserId: project.authorUserId || project.author?.id || asset.uploaderUserId || "user_local",
+      inputSnapshot,
+      queuedAt: timestamp,
+      startedAt: timestamp,
+      completedAt: timestamp,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    return job;
   }
 
   function storyProjectPackId(project = {}, payload = {}) {
@@ -1627,6 +1838,12 @@ export function createMockFlashApi({
       };
     },
 
+    async listStoryProjectAssets(id) {
+      return {
+        items: listAssetsForMock({ storyProjectId: id }),
+      };
+    },
+
     async createStoryProjectVersion(id, payload = {}) {
       const existing = findStoryProject(id);
       if (!existing) return { item: null, project: null, reason: "not_found" };
@@ -1946,27 +2163,44 @@ export function createMockFlashApi({
 
     async generateAiImage(asset = {}) {
       const prompt = asset.prompt || asset.usage || asset.name || "素材预览";
-      const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
-      return {
-        item: {
-          id: `mock_ai_image_${Date.now()}`,
-          status: "fallback",
-          provider: "mock_preview",
+      const timestamp = Date.now();
+      const project = asset.storyProjectId ? findStoryProject(asset.storyProjectId) : null;
+      const generated = normalizeAssetForMock({
+        ...asset,
+        kind: "image",
+        usage: asset.usage || "comic_panel_visual",
+        status: asset.status || "uploaded",
+        provider: asset.provider || "mock_preview",
+        model: asset.model || "mock_preview",
+        prompt,
+        filename: asset.filename || `${asset.id || "mock_ai_image"}.png`,
+        mediaType: "image/png",
+        sizeBytes: asset.sizeBytes || 68,
+        imageUrl: asset.imageUrl || `data:image/png;base64,${MOCK_AI_IMAGE_PNG}`,
+        generatedAt: timestamp,
+        uploaderUserId: asset.uploaderUserId || project?.authorUserId || project?.author?.id || "user_local",
+      }, { timestamp });
+      const renderJob = createStoryProjectAssetRenderJob({
+        project,
+        asset: generated,
+        payload: {
+          ...asset,
           prompt,
-          filename: `${asset.id || "mock_ai_image"}.png`,
-          mediaType: "image/png",
-          sizeBytes: 68,
-          imageUrl: `data:image/png;base64,${png}`,
-          sourceStatement: {
-            sourceType: "ai_generated",
-            provider: "mock_preview",
-            model: "mock_preview",
-            prompt,
-            rightsAcknowledged: true,
-            policyVersion: "gugu_flash_asset_security_v1",
-          },
-          generatedAt: Date.now(),
+          stage: asset.stage || "comic_panel_visual_render",
         },
+        timestamp,
+      });
+      const item = saveAsset({
+        ...generated,
+        renderJobId: renderJob?.id || generated.renderJobId || null,
+        createdByJobId: renderJob?.id || generated.createdByJobId || null,
+        updatedAt: timestamp,
+      });
+      return {
+        item,
+        asset: item,
+        renderJob,
+        job: renderJob,
       };
     },
 
@@ -2691,6 +2925,68 @@ export function createMockFlashApi({
         detail: "用户提交 IP 入池申请，等待平台审核。",
       });
       return { accepted: true, item: task };
+    },
+
+    async listAssets(options = {}) {
+      return {
+        items: listAssetsForMock(options),
+        filters: {
+          storyProjectId: options.storyProjectId || options.projectId || null,
+          usage: options.usage || null,
+          kind: options.kind || null,
+          status: options.status || null,
+          panelId: options.panelId || null,
+        },
+      };
+    },
+
+    async createAsset(asset = {}) {
+      const timestamp = Date.now();
+      const project = asset.storyProjectId ? findStoryProject(asset.storyProjectId) : null;
+      const item = saveAsset(normalizeAssetForMock({
+        ...asset,
+        uploaderUserId: asset.uploaderUserId || project?.authorUserId || project?.author?.id || "user_local",
+      }, { timestamp }));
+      return { item, asset: item };
+    },
+
+    async getAsset(assetId) {
+      return { item: findAsset(assetId) };
+    },
+
+    async updateAssetSourceStatement(assetId, statement = {}) {
+      const existing = findAsset(assetId);
+      if (!existing) return { item: null, reason: "not_found" };
+      const timestamp = Date.now();
+      const item = saveAsset(normalizeAssetForMock({
+        ...existing,
+        sourceStatement: statement,
+        sourceStatementStatus: "accepted",
+      }, {
+        existing,
+        timestamp,
+      }));
+      return { item, asset: item };
+    },
+
+    async submitAssetReview(assetId) {
+      const asset = findAsset(assetId);
+      if (!asset) return { item: null, asset: null, reason: "not_found" };
+      const timestamp = Date.now();
+      return {
+        item: {
+          id: `review_asset_${assetId}`,
+          targetType: "Asset",
+          targetId: assetId,
+          reviewType: "asset_safety",
+          status: "open",
+          securityPolicyVersion: ASSET_SECURITY_POLICY_VERSION,
+          requiredChecks: ["malware_scan", "content_type_validation", "source_statement", "storage_isolation"],
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+        asset,
+      };
     },
 
     async searchAnimeIpCandidates(options = {}) {

@@ -213,6 +213,100 @@ test("mock AI image generation returns a safe PNG preview with source statement"
   assert.equal(generated.item.filename, "comic_panel_visual.png");
   assert.equal(generated.item.sourceStatement.sourceType, "ai_generated");
   assert.equal(generated.item.sourceStatement.rightsAcknowledged, true);
+  assert.match(generated.item.id, /^asset_/);
+  assert.equal(generated.item.kind, "image");
+  assert.equal(generated.item.usage, "comic_panel_visual");
+  assert.equal(generated.item.securityPolicyVersion, "gugu_flash_asset_security_v1");
+  assert.equal(generated.renderJob, null);
+});
+
+test("mock asset library registers and filters StoryProject assets", async () => {
+  const { api } = createMemoryApi([]);
+  const created = await api.createAiDraft("一间深夜修理铺遇到会说话的旧钟", "healing");
+  const asset = await api.createAsset({
+    storyProjectId: created.storyProject.id,
+    kind: "image",
+    usage: "comic_panel_visual",
+    filename: "panel-start.png",
+    mediaType: "image/png",
+    sizeBytes: 1024,
+    imageUrl: "https://cdn.example.test/panels/start.png",
+    sourceStatement: {
+      sourceType: "original",
+      creatorUserId: "user_local",
+      rightsAcknowledged: true,
+    },
+  });
+  const fetched = await api.getAsset(asset.item.id);
+  const updated = await api.updateAssetSourceStatement(asset.item.id, {
+    sourceType: "ai_generated",
+    provider: "mock_preview",
+    model: "mock_preview",
+    prompt: "panel repaint",
+    rightsAcknowledged: true,
+  });
+  const review = await api.submitAssetReview(asset.item.id);
+  const listed = await api.listAssets({ storyProjectId: created.storyProject.id });
+  const projectListed = await api.listStoryProjectAssets(created.storyProject.id);
+  const unrelated = await api.listAssets({ storyProjectId: "story_project_other" });
+
+  assert.match(asset.item.id, /^asset_/);
+  assert.equal(asset.item.storyProjectId, created.storyProject.id);
+  assert.equal(asset.item.kind, "image");
+  assert.equal(asset.item.usage, "comic_panel_visual");
+  assert.equal(asset.item.status, "uploaded");
+  assert.equal(asset.item.uploaderUserId, "user_local");
+  assert.equal(asset.item.securityPolicyVersion, "gugu_flash_asset_security_v1");
+  assert.equal(asset.item.securityReport.status, "passed");
+  assert.ok(asset.item.createdAt <= asset.item.updatedAt);
+  assert.equal(fetched.item.id, asset.item.id);
+  assert.equal(updated.item.sourceStatement.sourceType, "ai_generated");
+  assert.equal(updated.item.sourceStatementStatus, "accepted");
+  assert.equal(review.item.targetId, asset.item.id);
+  assert.ok(review.item.requiredChecks.includes("source_statement"));
+  assert.deepEqual(listed.items.map((item) => item.id), [asset.item.id]);
+  assert.deepEqual(projectListed.items.map((item) => item.id), [asset.item.id]);
+  assert.deepEqual(unrelated.items, []);
+});
+
+test("mock comic panel visual generation tracks render job and registered asset", async () => {
+  const { api } = createMemoryApi([]);
+  const created = await api.createAiDraft("一间深夜修理铺遇到会说话的旧钟", "healing");
+  const sceneId = created.storyProject.script.scenes[0].id;
+  const generated = await api.generateAiImage({
+    storyProjectId: created.storyProject.id,
+    panelId: "panel_start",
+    sceneId,
+    usage: "comic_panel_visual",
+    prompt: "rainy repair shop establishing shot",
+  });
+  const fetchedJob = await api.getAiGenerationJob(generated.renderJob.id);
+  const fetchedAsset = await api.getAsset(generated.item.id);
+  const listed = await api.listAssets({
+    storyProjectId: created.storyProject.id,
+    usage: "comic_panel_visual",
+  });
+  const projectListed = await api.listStoryProjectAssets(created.storyProject.id);
+  const runtime = api.exportRuntimeState();
+
+  assert.match(generated.item.id, /^asset_/);
+  assert.equal(generated.item.storyProjectId, created.storyProject.id);
+  assert.equal(generated.item.panelId, "panel_start");
+  assert.equal(generated.item.sceneId, sceneId);
+  assert.equal(generated.item.createdByJobId, generated.renderJob.id);
+  assert.equal(generated.item.renderJobId, generated.renderJob.id);
+  assert.equal(generated.renderJob.stage, "comic_panel_visual_render");
+  assert.equal(generated.renderJob.status, "succeeded");
+  assert.equal(generated.renderJob.result.assetId, generated.item.id);
+  assert.equal(generated.renderJob.result.panelId, "panel_start");
+  assert.equal(fetchedJob.item.id, generated.renderJob.id);
+  assert.equal(fetchedJob.item.result.assetId, generated.item.id);
+  assert.equal(fetchedAsset.item.id, generated.item.id);
+  assert.equal(fetchedAsset.item.sourceStatement.sourceType, "ai_generated");
+  assert.ok(listed.items.some((item) => item.id === generated.item.id));
+  assert.ok(projectListed.items.some((item) => item.id === generated.item.id));
+  assert.ok(runtime.assets.some((item) => item.id === generated.item.id));
+  assert.ok(runtime.aiGenerationJobs.some((item) => item.id === generated.renderJob.id));
 });
 
 test("applyStoreListing requires the rights acknowledgement", async () => {

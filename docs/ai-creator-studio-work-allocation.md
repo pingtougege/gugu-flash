@@ -660,3 +660,49 @@ Status:
 Round 6 closes the minimum usable professional comic storyboard loop: a generated StoryProject can now become an editable panel storyboard with saved production fields and bound visual assets.
 Next implementation slice should move from mock visual binding to a production asset library/render queue, then add version diff UI and stricter production auth/storage.
 ```
+
+### 2026-05-31 Phase 1 Asset Library And Render Queue Start
+
+Started by Codex and assigned agents:
+
+- Curie: add mock/API asset library behavior for StoryProject visual assets and render job traceability.
+- Franklin: add Creator Studio visual asset library and render queue surface for professional web users.
+- Bacon: review asset provenance, panel binding recovery, API parity, and mobile default-flow risks.
+- Codex: integrate, verify, and report.
+
+Acceptance target:
+
+```text
+Professional Creator Studio can generate a comic panel visual, register it as a traceable asset, show it in a project visual asset library, show the related render job state, bind it back to the panel, and keep mobile creation simple by default.
+```
+
+### 2026-05-31 Phase 1 Asset Library And Render Queue Complete
+
+Completed by Codex and assigned agents:
+
+- Curie completed the StoryProject asset library and render job traceability slice across contract, HTTP client, mock facade, backend route coverage, and tests.
+- Franklin completed the professional Creator Studio visual production panel: asset library, render queue, production status, panel binding refresh, and focused e2e checks.
+- Bacon completed read-only QA and identified the final integration risks around real HTTP fallback asset shape, generation context payloads, and alpha backend asset listing scope.
+- Codex completed integration by returning safe PNG `Asset` records from the real image fallback, passing StoryProject/render job context from the web generation flow, standardizing `comic_panel_visual` usage, and removing duplicate frontend asset helpers.
+
+Verification:
+
+```text
+node --check apps/web/src/app.js
+node --check apps/backend/src/ai-image-generator.js
+node --check packages/api-client/src/mock-flash-api.js
+node --test apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/flash-api-contract.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/http-flash-api.test.js apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/alpha-route-coverage.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
+npm run test:unit
+npm run check:content
+npm run check:ai-creation-maturity
+git diff --check
+browser smoke: example prompt -> draft -> Creator Studio -> select panel -> save snapshot -> bind PNG visual -> verify asset library and render queue
+```
+
+Status:
+
+```text
+Round 7 turns panel visuals into traceable production records: a generated comic panel image is now backed by an Asset, render job, source statement, project binding, and professional web UI visibility.
+Next implementation slice should replace the alpha global asset stub with production asset persistence and an asynchronous render worker.
+```

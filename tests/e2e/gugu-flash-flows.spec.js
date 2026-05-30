@@ -143,6 +143,9 @@ test("mobile guide defaults to idea role generation playtest and publish checks"
   await expect(page.locator('[data-create-step="views"]')).toBeHidden();
   await expect(page.locator('[data-create-step="assets"]')).toBeHidden();
   await expect(page.locator("#studioComicInspector")).toBeHidden();
+  await expect(page.locator("#studioComicProduction")).toBeHidden();
+  await expect(page.locator('[data-testid="studio-comic-asset-library"]')).toBeHidden();
+  await expect(page.locator('[data-testid="studio-comic-render-queue"]')).toBeHidden();
   await expect(page.locator('[data-testid="studio-comic-save"]')).toBeHidden();
   await expect(page.locator('[data-testid="studio-comic-generate-visual"]')).toBeHidden();
   await expect(page.locator("[data-create-advanced-toggle]")).toHaveText("高级编辑");
@@ -208,6 +211,15 @@ test("creator studio comic panel inspector edits and binds a visual asset", asyn
   await expect(page.locator("#studioComicVisualMessage")).toContainText(/视觉已绑定|视觉生成状态已绑定/);
   await expect(studio.locator('[data-testid="studio-comic-panel"].active')).toContainText("已绑定视觉");
   await expect(studio.locator('[data-testid="studio-comic-panel"].active .studio-comic-panel-image')).toHaveAttribute("src", /data:image/);
+  await expect(studio.locator("#studioComicProduction")).toBeVisible();
+  await expect(studio.locator("#studioComicProductionStatus")).toContainText(/assets .* jobs/);
+  const assetItem = studio.locator('[data-testid="studio-comic-asset-item"]').first();
+  await expect(assetItem).toContainText(/Asset ID/);
+  await expect(assetItem).toContainText(/已绑定|本地保存|待审核|可用/);
+  await expect(assetItem).toContainText(visualPrompt);
+  const renderJob = studio.locator('[data-testid="studio-comic-render-job"]').first();
+  await expect(renderJob).toContainText(/已完成|渲染中|排队中/);
+  await expect(renderJob).toContainText(/comic_panel_visual_render/);
 });
 
 test("creator studio scene inspector saves one scene back to the project", async ({ page }) => {

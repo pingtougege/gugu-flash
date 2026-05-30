@@ -12,8 +12,10 @@ test("Backend Alpha route coverage stays aligned with the shared API contract", 
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("feed.list"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("ai.createDraft"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("storyProjects.create"));
+  assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("storyProjects.assets.list"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("ai.storyProjectJobs.create"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("ai.generateImage"));
+  assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("assets.list"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("devices.sync"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("operator.supportDiagnostics.get"));
   assert.ok(BACKEND_ALPHA_ROUTE_IDS.has("operator.reviewSla.get"));
