@@ -706,3 +706,51 @@ Status:
 Round 7 turns panel visuals into traceable production records: a generated comic panel image is now backed by an Asset, render job, source statement, project binding, and professional web UI visibility.
 Next implementation slice should replace the alpha global asset stub with production asset persistence and an asynchronous render worker.
 ```
+
+### 2026-05-31 Phase 1 Base Visual Assets Start
+
+Started by Codex and assigned agents:
+
+- Descartes: extend mock/API behavior so `scene_background` and `character_portrait` assets can be generated, filtered, and traced like panel visuals.
+- Meitner: add professional Creator Studio controls for scene background generation and character portrait generation, while keeping mobile simple.
+- Einstein: review base visual asset provenance, restore behavior, real Seedream HTTP parity, and mobile-default hiding risks.
+- Codex: integrate, verify with real API mode, update docs, commit, and push.
+
+Acceptance target:
+
+```text
+Professional Creator Studio can generate a reusable background image for the selected scene, generate a reusable portrait image for a story character, register both as traceable Assets, bind them into StoryProject, and keep mobile creation simple by default.
+```
+
+### 2026-05-31 Phase 1 Base Visual Assets Complete
+
+Completed by Codex and assigned agents:
+
+- Descartes completed base visual asset support in the mock/API path, including `scene_background` and `character_portrait` generation, asset registration, render-stage naming, and filter coverage.
+- Meitner completed the professional Studio workflow for generating selected-scene backgrounds and character portraits, binding previews into StoryProject, and listing reusable base assets before comic panel rendering.
+- Einstein completed read-only QA review for provenance, Seedream parity, mobile default hiding, and restore-risk coverage.
+- Codex completed real API integration by preserving character metadata on generated image assets, sanitizing stored asset IDs, and making provider timeout/network/non-JSON failures fall back safely.
+
+Verification:
+
+```text
+node --check apps/web/src/app.js
+node --check apps/backend/src/ai-image-generator.js
+node --check apps/backend/src/flash-http-server.js
+node --check packages/api-client/src/mock-flash-api.js
+node --test apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/http-flash-api.test.js apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/alpha-route-coverage.test.js packages/api-client/src/flash-api-contract.test.js
+npm run test:unit
+npm run check:content
+npm run check:ai-creation-maturity
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "mobile guide defaults|creator studio generates scene background|creator studio comic panel"
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js
+git diff --check
+browser smoke in real API mode: draft -> Creator Studio -> generate scene background -> generate character portrait -> verify bound image previews and base visual library
+```
+
+Status:
+
+```text
+Round 8 closes the first usable visual pre-production loop: professional web users can now create reusable scene backgrounds and character portraits before rendering individual comic panels.
+Next implementation slice should move visual assets from alpha StoryProject-embedded storage into a production asset table with an asynchronous render worker and restore-focused e2e coverage.
+```

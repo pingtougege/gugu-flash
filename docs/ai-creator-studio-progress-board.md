@@ -56,6 +56,9 @@ Allowed statuses:
 | API Platform Round 7 | Curie | StoryProject visual asset library and render job trace | verified | Asset library contract + tests |
 | Frontend Experience Round 7 | Franklin | Creator Studio asset library and render queue UI | verified | Professional visual production panel |
 | QA And Release Round 7 | Bacon | Asset library/render queue risk review | verified | Read-only risk checklist |
+| API Platform Round 8 | Descartes | Scene background and character portrait asset filters | verified | Base visual asset contract |
+| Frontend Experience Round 8 | Meitner | Creator Studio background and portrait generation UI | verified | Base visual production panel |
+| QA And Release Round 8 | Einstein | Base visual asset risk review | verified | Read-only risk checklist |
 
 ## 3. Phase 0 Board
 
@@ -107,7 +110,7 @@ Next 24h:
 
 Date: 2026-05-31
 
-Overall status: `verified_round_7`
+Overall status: `verified_round_8`
 
 Verified since last update:
 
@@ -129,6 +132,10 @@ Verified since last update:
 - Comic panel visual generation now registers a traceable `Asset` and `comic_panel_visual_render` job.
 - Creator Studio now shows a professional visual asset library and render queue after panel generation.
 - Real HTTP image fallback now returns a safe PNG `Asset` with source statement metadata.
+- Professional Creator Studio now generates and binds reusable scene background and character portrait assets before panel rendering.
+- StoryProject scenes persist `backgroundAssetId`, `backgroundImageUrl`, and `backgroundVisualPrompt`; characters persist `portraitAssetId`, `portraitImageUrl`, and `portraitVisualPrompt`.
+- Mock and HTTP asset listing now support `usage`, `sceneId`, `characterId`, and `panelId` filters for project-scoped visual assets.
+- Real Seedream image success preserves character metadata and sanitized asset IDs; timeout, network, and non-JSON provider failures fall back safely.
 
 Tests run:
 
@@ -139,16 +146,73 @@ npm run check:ai-creation-maturity
 node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js packages/core/src/gugu-story-project.test.js
 node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js apps/backend/src/asset-security.test.js
 node --test apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/flash-api-contract.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/http-flash-api.test.js apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/alpha-route-coverage.test.js
+node --check apps/web/src/app.js
+node --check apps/backend/src/ai-image-generator.js
+node --check apps/backend/src/flash-http-server.js
+node --check packages/api-client/src/mock-flash-api.js
+node --test apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/http-flash-api.test.js apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/alpha-route-coverage.test.js packages/api-client/src/flash-api-contract.test.js
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio switches back|creator studio scene inspector|creator studio opens|mobile guide defaults"
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "mobile guide defaults|creator studio generates scene background|creator studio comic panel"
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js
 browser smoke: example prompt -> draft -> Creator Studio -> select panel -> save snapshot -> bind PNG visual -> verify asset library and render queue
+browser smoke in real API mode: draft -> Creator Studio -> generate scene background -> generate character portrait -> verify bound image previews and base visual library
 ```
 
 Next 24h:
 
 - Build the production asset table and asynchronous render worker behind the current alpha stubs.
 - Add production storage/auth hardening for StoryProject and StoryProjectVersion.
+- Add deeper version restore e2e coverage for base visual asset bindings.
 - Add version diff UI and restore audit filters.
+
+### 2026-05-31 Agent Execution Round 8 Started
+
+Goal:
+
+- Split visual production into reusable base assets before panel-level rendering.
+- Let professional web users generate and bind scene background images and character portrait images from Creator Studio.
+- Store base visual asset links in StoryProject so version restore and later panel rendering can reuse them.
+- Keep the mobile creation path simple and hide base visual production by default.
+
+Assignments:
+
+- Descartes owns mock/API support for `scene_background` and `character_portrait` filtering and tests.
+- Meitner owns Creator Studio background/portrait generation UI and e2e coverage.
+- Einstein owns read-only QA risk review.
+- Codex owns integration, real API smoke, progress reporting, commit, and push.
+
+### 2026-05-31 Agent Execution Round 8 Completed
+
+Completed by Codex and assigned agents:
+
+- Descartes extended the mock facade and HTTP asset listing path so base visual assets can be generated, registered, traced, and filtered by project, usage, scene, panel, or character.
+- Meitner added the professional Creator Studio base visual production workflow: selected-scene background generation, first-character portrait generation, preview binding, status feedback, and base asset library visibility.
+- Einstein completed read-only QA review against provenance, API parity, mobile hiding, and restore risks before final integration.
+- Codex integrated the real image generator path by preserving character metadata, sanitizing generated asset IDs, making provider failures fall back safely, and validating the feature in real API mode with the configured image key.
+- Mobile creation remains the simple guided path; background, portrait, panel visual, asset library, and render queue controls stay in the professional web Studio.
+
+Verification:
+
+```text
+node --check apps/web/src/app.js
+node --check apps/backend/src/ai-image-generator.js
+node --check apps/backend/src/flash-http-server.js
+node --check packages/api-client/src/mock-flash-api.js
+node --test apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/http-flash-api.test.js apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/alpha-route-coverage.test.js packages/api-client/src/flash-api-contract.test.js
+npm run test:unit
+npm run check:content
+npm run check:ai-creation-maturity
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "mobile guide defaults|creator studio generates scene background|creator studio comic panel"
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js
+git diff --check
+browser smoke in real API mode: draft -> Creator Studio -> generate scene background -> generate character portrait -> verify bound image previews and base visual library
+```
+
+Remaining risk:
+
+- The alpha backend still stores visual assets inside StoryProject records rather than a production asset table with a background worker.
+- Version restore behavior is covered by unit and API paths, but base visual binding restore deserves a dedicated web e2e before larger creator teams use it.
 
 ### 2026-05-31 Agent Execution Round 7 Started
 

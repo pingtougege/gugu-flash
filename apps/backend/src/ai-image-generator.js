@@ -9,6 +9,7 @@ const generatedImageDir = join(repoRoot, ".gugu-flash-api/generated-images");
 const generatedImages = new Map();
 const ASSET_SECURITY_POLICY_VERSION = "gugu_flash_asset_security_v1";
 const FALLBACK_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+const DEFAULT_IMAGE_FETCH_TIMEOUT_MS = 60000;
 
 let envLoaded = false;
 
@@ -70,9 +71,17 @@ function storeGeneratedImage(id, b64Json, outputFormat = "jpeg") {
   return `/flash/ai/generated-images/${id}`;
 }
 
+function sanitizeAssetId(value = "") {
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .replace(/_+/g, "_")
+    .slice(0, 96);
+}
+
 function makeAssetId(asset = {}, fallbackPrefix = "asset_ai_image") {
   const candidate = String(asset.assetId || asset.id || "");
-  if (candidate.startsWith("asset_")) return candidate;
+  const safeCandidate = sanitizeAssetId(candidate);
+  if (safeCandidate.startsWith("asset_") && safeCandidate.length > "asset_".length) return safeCandidate;
   return `${fallbackPrefix}_${Date.now()}`;
 }
 
@@ -106,6 +115,8 @@ function generatedImageAsset(asset = {}, {
       storyProjectVersionId: asset.storyProjectVersionId || asset.projectVersionId || null,
       panelId: asset.panelId || null,
       sceneId: asset.sceneId || null,
+      characterId: asset.characterId || asset.character?.id || null,
+      characterName: asset.characterName || asset.character?.name || null,
       renderJobId: asset.renderJobId || asset.jobId || null,
       filename: filename || `${id}.png`,
       mediaType,
@@ -158,6 +169,24 @@ function extractImage(data = {}, outputFormat = "jpeg") {
   };
 }
 
+function imageFetchTimeoutMs() {
+  const timeout = Number(process.env.SEEDREAM_TIMEOUT_MS || DEFAULT_IMAGE_FETCH_TIMEOUT_MS);
+  if (Number.isFinite(timeout) && timeout > 0) return timeout;
+  return DEFAULT_IMAGE_FETCH_TIMEOUT_MS;
+}
+
+async function readProviderJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    return {
+      error: {
+        message: "provider_non_json_response",
+      },
+    };
+  }
+}
+
 export function getGeneratedAiImage(id = "") {
   const memoryImage = generatedImages.get(id);
   if (memoryImage) return memoryImage;
@@ -201,15 +230,25 @@ export async function generateAiImage(asset = {}) {
     if (body[key] === undefined || body[key] === "") delete body[key];
   }
 
-  const response = await fetch(process.env.SEEDREAM_API_URL || SEEDREAM_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.SEEDREAM_API_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
-  const data = await response.json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), imageFetchTimeoutMs());
+  let response;
+  try {
+    response = await fetch(process.env.SEEDREAM_API_URL || SEEDREAM_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.SEEDREAM_API_KEY}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    return fallbackImage({ ...asset, prompt }, error?.name === "AbortError" ? "provider_timeout" : "provider_network_failed");
+  } finally {
+    clearTimeout(timeout);
+  }
+  const data = await readProviderJson(response);
   if (!response.ok) {
     return fallbackImage({ ...asset, prompt }, data?.error?.message || response.statusText || "provider_failed");
   }

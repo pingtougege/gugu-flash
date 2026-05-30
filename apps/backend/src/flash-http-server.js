@@ -120,6 +120,29 @@ function decodePart(value) {
   return decodeURIComponent(value || "");
 }
 
+function assetFiltersFromSearch(searchParams = new URLSearchParams()) {
+  return {
+    storyProjectId: searchParams.get("storyProjectId") || searchParams.get("projectId") || null,
+    usage: searchParams.get("usage") || null,
+    kind: searchParams.get("kind") || null,
+    status: searchParams.get("status") || null,
+    panelId: searchParams.get("panelId") || null,
+    sceneId: searchParams.get("sceneId") || null,
+    characterId: searchParams.get("characterId") || null,
+  };
+}
+
+function filterAssets(assets = [], filters = {}) {
+  return (Array.isArray(assets) ? assets : [])
+    .filter((asset) => !filters.storyProjectId || asset.storyProjectId === filters.storyProjectId || asset.projectId === filters.storyProjectId)
+    .filter((asset) => !filters.usage || asset.usage === filters.usage)
+    .filter((asset) => !filters.kind || asset.kind === filters.kind)
+    .filter((asset) => !filters.status || asset.status === filters.status)
+    .filter((asset) => !filters.panelId || asset.panelId === filters.panelId)
+    .filter((asset) => !filters.sceneId || asset.sceneId === filters.sceneId)
+    .filter((asset) => !filters.characterId || asset.characterId === filters.characterId);
+}
+
 function normalizeHeaderValue(value) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -922,7 +945,7 @@ export function createFlashBackendApp(options = {}) {
           notFound(res, "story_project_not_found");
           return;
         }
-        ok(res, { items: Array.isArray(project.assets) ? project.assets : [] });
+        ok(res, { items: filterAssets(project.assets, assetFiltersFromSearch(requestUrl.searchParams)) });
         return;
       }
 
@@ -1444,15 +1467,18 @@ export function createFlashBackendApp(options = {}) {
       }
 
       if (requestUrl.pathname === "/flash/assets" && req.method === "GET") {
+        const filters = assetFiltersFromSearch(requestUrl.searchParams);
+        let items = [];
+        if (filters.storyProjectId) {
+          const project = await persistence.storyProjects.get(filters.storyProjectId);
+          items = filterAssets(project?.assets || [], filters);
+        } else {
+          const projects = await persistence.storyProjects.list();
+          items = projects.flatMap((project) => filterAssets(project.assets || [], filters));
+        }
         ok(res, {
-          items: [],
-          filters: {
-            storyProjectId: requestUrl.searchParams.get("storyProjectId") || null,
-            usage: requestUrl.searchParams.get("usage") || null,
-            kind: requestUrl.searchParams.get("kind") || null,
-            status: requestUrl.searchParams.get("status") || null,
-            panelId: requestUrl.searchParams.get("panelId") || null,
-          },
+          items,
+          filters,
         });
         return;
       }

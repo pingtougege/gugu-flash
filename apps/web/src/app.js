@@ -66,6 +66,9 @@ const state = {
   storyProjectAssets: [],
   storyProjectAssetStatus: "idle",
   storyProjectAssetMessage: "",
+  basicVisualStatus: "idle",
+  basicVisualMessage: "",
+  basicVisualTarget: "",
   comicStoryboard: null,
   comicStoryboardStatus: "idle",
   comicStoryboardMessage: "",
@@ -157,6 +160,8 @@ const CREATE_STEP_AI_SCOPES = {
   playtest: "scene",
   publish: "work",
 };
+
+const BASIC_VISUAL_ASSET_TYPES = new Set(["scene_background", "character_portrait"]);
 
 const TEMPLATE_HINTS = {
   healing: "少分支 · 重对话 · 情绪收束",
@@ -500,6 +505,18 @@ function displayMediaUrl(url = "") {
   if (!url) return "";
   if (url.startsWith("/")) return `${apiRuntime.baseUrl || ""}${url}`;
   return url;
+}
+
+function cssBackgroundImage(url = "") {
+  const displayUrl = displayMediaUrl(url);
+  return displayUrl ? `url("${displayUrl}") center / cover no-repeat` : "";
+}
+
+function sceneBackgroundStyle(scene = {}, draft = {}) {
+  return cssBackgroundImage(scene.backgroundImageUrl || scene.backgroundImage?.imageUrl || "")
+    || scene.background
+    || draft.cover?.background
+    || "#111827";
 }
 
 function stripLargeInlineImages(value) {
@@ -1557,6 +1574,9 @@ function resetStudioDerivedState({ keepVersions = false } = {}) {
   state.storyProjectAssets = [];
   state.storyProjectAssetStatus = "idle";
   state.storyProjectAssetMessage = "";
+  state.basicVisualStatus = "idle";
+  state.basicVisualMessage = "";
+  state.basicVisualTarget = "";
   state.comicRenderJobs = [];
 }
 
@@ -1589,6 +1609,9 @@ function storyProjectScriptSceneToDraftScene(scene = {}, index = 0, draft = {}) 
     id,
     title: scene.title || id,
     background: scene.background || draft.cover?.background || "linear-gradient(160deg, #111827, #0e7490)",
+    backgroundAssetId: scene.backgroundAssetId || scene.backgroundImage?.assetId || scene.backgroundImage?.id || "",
+    backgroundImageUrl: scene.backgroundImageUrl || scene.backgroundImage?.imageUrl || "",
+    backgroundImage: scene.backgroundImage ? structuredClone(scene.backgroundImage) : null,
     character: scene.character || draft.persona?.avatar || "✨",
     speaker: scene.speaker || draft.persona?.name || "旁白",
     text: scene.text || scene.summary || "这一幕还没有正文。",
@@ -1622,12 +1645,26 @@ function compileStoryProjectForStudio(project = {}) {
   (draft.scenes || []).forEach((scene) => {
     const source = projectScenes.get(scene.id);
     if (!source) return;
+    scene.backgroundAssetId = source.backgroundAssetId || source.backgroundImage?.assetId || source.backgroundImage?.id || scene.backgroundAssetId || "";
+    scene.backgroundImageUrl = source.backgroundImageUrl || source.backgroundImage?.imageUrl || scene.backgroundImageUrl || "";
+    scene.backgroundImage = source.backgroundImage ? structuredClone(source.backgroundImage) : scene.backgroundImage || null;
     scene.visualPrompt = source.visualPrompt || source.comicPanel?.visualPrompt || scene.visualPrompt || "";
     scene.shotType = source.shotType || source.comicPanel?.shotType || scene.shotType || "";
     scene.caption = source.caption ?? source.comicPanel?.caption ?? source.stageDirection ?? scene.caption ?? "";
     scene.generatedImage = source.generatedImage ? structuredClone(source.generatedImage) : scene.generatedImage || null;
     scene.comicPanel = source.comicPanel ? structuredClone(source.comicPanel) : scene.comicPanel || null;
   });
+  const projectCharacters = Array.isArray(project.characters) ? project.characters : [];
+  if (projectCharacters.length) {
+    const characterByKey = new Map(projectCharacters.map((character) => [
+      draftCharacterKey(character) || character.name,
+      character,
+    ]));
+    draft.characters = (draft.characters || []).map((character) => {
+      const source = characterByKey.get(draftCharacterKey(character)) || characterByKey.get(character.name);
+      return source ? { ...character, ...structuredClone(source) } : character;
+    });
+  }
   draft.stageScriptText = makeStageScriptText(draft);
   (draft.scenes || []).forEach((scene, index) => {
     if (!scene.stageScriptText) scene.stageScriptText = makeSceneScriptText(draft, scene, index);
@@ -1849,6 +1886,9 @@ function renderStudioSceneInspector(draft) {
   if (!scene) return `<div class="empty-state compact-empty">还没有可编辑的场景。</div>`;
   const sceneIndex = (draft.scenes || []).findIndex((item) => item.id === scene.id);
   const message = state.storyProjectSaveMessage || defaultStudioSaveMessage();
+  const backgroundImageUrl = displayMediaUrl(scene.backgroundImageUrl || scene.backgroundImage?.imageUrl || "");
+  const backgroundTargetKey = basicVisualTargetKey("scene_background", scene.id);
+  const backgroundBusy = isBasicVisualBusyForTarget(backgroundTargetKey);
   return `
     <div class="studio-inspector-form" data-studio-inspector-scene="${escapeHtml(scene.id)}">
       <label>
@@ -1862,6 +1902,21 @@ function renderStudioSceneInspector(draft) {
       <div class="studio-inspector-preview">
         <strong>${escapeHtml(scene.speaker || draft.persona?.name || "旁白")}</strong>
         <p>${escapeHtml(scene.text || "空场景")}</p>
+      </div>
+      <div class="studio-basic-visual-inline" data-testid="studio-scene-background-control">
+        <div class="studio-basic-visual-preview" data-testid="studio-scene-background-preview">
+          ${backgroundImageUrl
+            ? `<img src="${escapeHtml(backgroundImageUrl)}" alt="${escapeHtml(scene.title || "场景背景图")}">`
+            : `<div style="background: ${escapeHtml(sceneBackgroundStyle(scene, draft))}"></div>`}
+        </div>
+        <div>
+          <strong>当前场景背景图</strong>
+          <small>${escapeHtml(scene.backgroundAssetId ? `Asset ID：${scene.backgroundAssetId}` : "scene_background · 尚未绑定")}</small>
+          <p id="studioSceneBackgroundMessage" class="studio-save-message ${escapeHtml(state.basicVisualStatus)}" aria-live="polite">${escapeHtml(basicVisualStatusText(backgroundTargetKey))}</p>
+          <button class="ghost-button compact" id="studioSceneGenerateBackgroundButton" data-testid="studio-scene-generate-background" type="button" ${backgroundBusy || !state.storyProject?.id || !flashApi.generateAiImage ? "disabled" : ""}>
+            ${backgroundBusy ? "生成中" : backgroundImageUrl ? "重新生成/绑定背景" : "生成/绑定背景"}
+          </button>
+        </div>
       </div>
       <div class="studio-inspector-actions">
         <p id="studioSceneSaveMessage" class="studio-save-message ${escapeHtml(state.storyProjectSaveStatus)}" aria-live="polite">${escapeHtml(message)}</p>
@@ -1882,6 +1937,35 @@ function ensureCreatorStudioDynamicSections() {
     if (publishSection) publishSection.insertAdjacentHTML("beforebegin", html);
     else body.insertAdjacentHTML("beforeend", html);
   };
+  if (!$("studioBasicVisualProduction")) {
+    insertSection(`
+      <section class="studio-section studio-basic-visual-section" id="studioBasicVisualProduction" data-testid="studio-basic-visual-production" aria-label="基础视觉素材">
+        <div class="studio-section-title">
+          <strong>基础视觉素材</strong>
+          <span id="studioBasicVisualStatus">scene_background · character_portrait</span>
+        </div>
+        <div class="studio-section-toolbar">
+          <p id="studioBasicVisualMessage" class="studio-helper-text" aria-live="polite">为当前场景和主要角色生成可复用图片资产。</p>
+        </div>
+        <div class="studio-basic-visual-grid">
+          <div class="studio-basic-visual-pane">
+            <div class="studio-production-heading">
+              <strong>Character portrait</strong>
+              <span id="studioCharacterPortraitStatus">character_portrait</span>
+            </div>
+            <div id="studioCharacterPortraitTarget" data-testid="studio-character-portrait-target"></div>
+          </div>
+          <div class="studio-basic-visual-pane">
+            <div class="studio-production-heading">
+              <strong>Scene / Character assets</strong>
+              <span id="studioBasicVisualAssetCount">0 assets</span>
+            </div>
+            <div class="studio-basic-asset-library" id="studioBasicAssetLibrary" data-testid="studio-basic-asset-library"></div>
+          </div>
+        </div>
+      </section>
+    `);
+  }
   if (!$("studioComicStoryboard")) {
     insertSection(`
       <section class="studio-section studio-comic-section" aria-label="漫剧分镜">
@@ -2071,10 +2155,11 @@ function projectComicVisualAssets(project = state.storyProject) {
 
   (Array.isArray(project.assets) ? project.assets : []).forEach((asset) => {
     if (!asset) return;
+    if (BASIC_VISUAL_ASSET_TYPES.has(asset.type) || BASIC_VISUAL_ASSET_TYPES.has(asset.usage)) return;
     const isComicAsset = asset.usage === "comic_storyboard_panel"
       || asset.type === "comic_panel_visual"
-      || asset.panelId
-      || asset.sceneId;
+      || asset.usage === "comic_panel_visual"
+      || asset.panelId;
     if (!isComicAsset) return;
     upsert({
       id: comicAssetId(asset),
@@ -2132,6 +2217,282 @@ function projectComicVisualAssets(project = state.storyProject) {
 
   return Array.from(byId.values())
     .sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
+}
+
+function basicVisualTypeLabel(type = "") {
+  const labels = {
+    scene_background: "场景背景图",
+    character_portrait: "人物立绘图",
+  };
+  return labels[type] || type || "基础视觉素材";
+}
+
+function basicVisualTargetKey(type = "", id = "") {
+  return `${type}:${id || "unknown"}`;
+}
+
+function isBasicVisualBusyForTarget(targetKey = "") {
+  return ["generating", "binding"].includes(state.basicVisualStatus) &&
+    (!targetKey || state.basicVisualTarget === targetKey);
+}
+
+function basicVisualStatusText(targetKey = "") {
+  if (targetKey && state.basicVisualTarget && state.basicVisualTarget !== targetKey) {
+    if (["generating", "binding"].includes(state.basicVisualStatus)) return "另一个基础视觉素材正在处理。";
+    return "可生成并绑定到当前 StoryProject。";
+  }
+  if (state.basicVisualStatus === "generating") return "正在生成基础视觉素材。";
+  if (state.basicVisualStatus === "binding") return "图片已生成，正在登记资产并绑定项目。";
+  if (state.basicVisualStatus === "bound") return state.basicVisualMessage || "基础视觉素材已绑定。";
+  if (state.basicVisualStatus === "unavailable") return "当前运行环境暂未开放 AI 图片生成。";
+  if (state.basicVisualStatus === "error") return state.basicVisualMessage || "基础视觉素材生成失败。";
+  return state.basicVisualMessage || "可生成并绑定到当前 StoryProject。";
+}
+
+function isBasicVisualAsset(asset = {}) {
+  return BASIC_VISUAL_ASSET_TYPES.has(asset.type) || BASIC_VISUAL_ASSET_TYPES.has(asset.usage);
+}
+
+function projectBasicVisualAssets(project = state.storyProject) {
+  if (!project?.id) return [];
+  const byId = new Map();
+  const upsert = (asset = {}) => {
+    const id = comicAssetId(asset);
+    if (!id) return;
+    const existing = byId.get(id) || {};
+    byId.set(id, {
+      ...existing,
+      ...asset,
+      id,
+      assetId: id,
+      type: asset.type || asset.usage || existing.type || "project_asset",
+      usage: asset.usage || asset.type || existing.usage || "project_asset",
+      updatedAt: Math.max(Number(existing.updatedAt || 0), Number(asset.updatedAt || asset.createdAt || 0)) || asset.updatedAt || asset.createdAt || Date.now(),
+    });
+  };
+
+  (Array.isArray(project.assets) ? project.assets : []).forEach((asset) => {
+    if (!asset || !isBasicVisualAsset(asset)) return;
+    upsert({
+      id: comicAssetId(asset),
+      assetId: comicAssetId(asset),
+      name: asset.name || basicVisualTypeLabel(asset.type || asset.usage),
+      status: asset.status || asset.assetStatus || "registered",
+      provider: asset.provider || asset.sourceStatement?.provider || "asset_library",
+      type: asset.type || asset.usage,
+      usage: asset.usage || asset.type,
+      prompt: asset.prompt || asset.visualPrompt || asset.sourceStatement?.prompt || "",
+      visualPrompt: asset.visualPrompt || asset.prompt || "",
+      sceneId: asset.sceneId || "",
+      characterId: asset.characterId || "",
+      characterName: asset.characterName || "",
+      imageUrl: asset.imageUrl || asset.assetUrl || asset.previewUrl || "",
+      mediaType: asset.mediaType || "image/png",
+      filename: asset.filename || "",
+      sizeBytes: asset.sizeBytes || 0,
+      sourceStatement: asset.sourceStatement || null,
+      syncMode: asset.syncMode || "",
+      createdAt: asset.createdAt || 0,
+      updatedAt: asset.updatedAt || asset.createdAt || 0,
+    });
+  });
+
+  projectScriptScenes(project).forEach((scene) => {
+    const image = scene.backgroundImage || null;
+    const assetId = scene.backgroundAssetId || image?.assetId || image?.id;
+    const imageUrl = scene.backgroundImageUrl || image?.imageUrl || "";
+    if (!assetId && !imageUrl) return;
+    upsert({
+      id: assetId || `scene_background_${scene.id}`,
+      assetId: assetId || `scene_background_${scene.id}`,
+      name: `${scene.title || scene.id || "场景"}背景图`,
+      status: image?.assetStatus || image?.status || "bound",
+      provider: image?.provider || "story_project",
+      type: "scene_background",
+      usage: "scene_background",
+      prompt: image?.prompt || scene.backgroundVisualPrompt || scene.visualPrompt || scene.text || "",
+      visualPrompt: scene.backgroundVisualPrompt || image?.prompt || "",
+      sceneId: scene.id || "",
+      imageUrl,
+      mediaType: image?.mediaType || "image/png",
+      filename: image?.filename || "",
+      sizeBytes: image?.sizeBytes || 0,
+      sourceStatement: image?.sourceStatement || null,
+      syncMode: image?.syncMode || "",
+      createdAt: image?.generatedAt || image?.createdAt || 0,
+      updatedAt: image?.updatedAt || scene.updatedAt || 0,
+    });
+  });
+
+  (Array.isArray(project.characters) ? project.characters : []).forEach((character) => {
+    const image = character.portraitImage || null;
+    const assetId = character.portraitAssetId || image?.assetId || image?.id;
+    const imageUrl = character.portraitImageUrl || image?.imageUrl || "";
+    if (!assetId && !imageUrl) return;
+    upsert({
+      id: assetId || `character_portrait_${draftCharacterKey(character) || character.name}`,
+      assetId: assetId || `character_portrait_${draftCharacterKey(character) || character.name}`,
+      name: `${character.name || "角色"}立绘图`,
+      status: image?.assetStatus || image?.status || "bound",
+      provider: image?.provider || "story_project",
+      type: "character_portrait",
+      usage: "character_portrait",
+      prompt: image?.prompt || character.portraitVisualPrompt || character.visualPrompt || character.voice || "",
+      visualPrompt: character.portraitVisualPrompt || image?.prompt || "",
+      characterId: draftCharacterKey(character),
+      characterName: character.name || "",
+      imageUrl,
+      mediaType: image?.mediaType || "image/png",
+      filename: image?.filename || "",
+      sizeBytes: image?.sizeBytes || 0,
+      sourceStatement: image?.sourceStatement || null,
+      syncMode: image?.syncMode || "",
+      createdAt: image?.generatedAt || image?.createdAt || 0,
+      updatedAt: image?.updatedAt || character.updatedAt || 0,
+    });
+  });
+
+  return Array.from(byId.values())
+    .filter((asset) => isBasicVisualAsset(asset))
+    .sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
+}
+
+function basicVisualAssetCounts() {
+  const assets = projectBasicVisualAssets();
+  return {
+    scene_background: assets.filter((asset) => asset.type === "scene_background" || asset.usage === "scene_background").length,
+    character_portrait: assets.filter((asset) => asset.type === "character_portrait" || asset.usage === "character_portrait").length,
+    total: assets.length,
+  };
+}
+
+function firstDisplayableStudioCharacter(draft = state.draft) {
+  const characters = filterDisplayableStoryCharacters(draft?.characters || []);
+  return characters.find((character) => character.enabled !== false) || characters[0] || null;
+}
+
+function sceneBackgroundPrompt(scene = {}, draft = state.draft) {
+  return [
+    `${draft?.title || "互动文字游戏"}的场景背景图`,
+    scene.title || scene.id || "未命名场景",
+    scene.text || "",
+    draft?.world?.visualMood || draft?.creationBrief?.tone || "手机端清晰、可读性强",
+    "无文字、无 UI、横向构图、适合作为 H5 场景背景",
+  ].filter(Boolean).join("，");
+}
+
+function characterPortraitPrompt(character = {}, draft = state.draft) {
+  return [
+    `${draft?.title || "互动文字游戏"}的人物立绘图`,
+    character.name || "未命名角色",
+    character.role || "",
+    character.visualPrompt || character.motivation || character.voice || "",
+    draft?.world?.visualMood || "电子吧唧风格，小屏清晰",
+    "透明或简洁背景，半身立绘，适合移动端剧情展示",
+  ].filter(Boolean).join("，");
+}
+
+function selectedSceneBackgroundTarget(draft = state.draft) {
+  const scene = selectedStudioScene(draft);
+  if (!scene) return null;
+  return {
+    type: "scene_background",
+    usage: "scene_background",
+    targetKey: basicVisualTargetKey("scene_background", scene.id),
+    id: scene.id,
+    sceneId: scene.id,
+    name: `${draft?.title || "作品"} - ${scene.title || scene.id || "场景"}背景图`,
+    filename: `${scene.id || "scene"}_background.png`,
+    prompt: sceneBackgroundPrompt(scene, draft),
+    scene,
+  };
+}
+
+function firstCharacterPortraitTarget(draft = state.draft) {
+  const character = firstDisplayableStudioCharacter(draft);
+  if (!character) return null;
+  const key = draftCharacterKey(character) || character.name || "character";
+  return {
+    type: "character_portrait",
+    usage: "character_portrait",
+    targetKey: basicVisualTargetKey("character_portrait", key),
+    id: key,
+    characterId: key,
+    characterName: character.name || "未命名角色",
+    name: `${draft?.title || "作品"} - ${character.name || "角色"}立绘图`,
+    filename: `${key}_portrait.png`,
+    prompt: characterPortraitPrompt(character, draft),
+    character,
+  };
+}
+
+function renderStudioCharacterPortraitTarget(draft = state.draft) {
+  if (!state.storyProject?.id) {
+    return `<div class="empty-state compact-empty">保存为 StoryProject 后可生成人物立绘。</div>`;
+  }
+  const target = firstCharacterPortraitTarget(draft);
+  if (!target) {
+    return `<div class="empty-state compact-empty">暂无可展示角色。先在角色步骤添加一个具体角色。</div>`;
+  }
+  const character = target.character;
+  const imageUrl = displayMediaUrl(character.portraitImageUrl || character.portraitImage?.imageUrl || "");
+  const busy = isBasicVisualBusyForTarget(target.targetKey);
+  return `
+    <article class="studio-character-portrait-card">
+      <div class="studio-character-portrait-preview">
+        ${imageUrl
+          ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(character.name || "人物立绘")}">`
+          : `<span>${escapeHtml(character.avatar || "角")}</span>`}
+      </div>
+      <div>
+        <strong>${escapeHtml(character.name || "未命名角色")}</strong>
+        <small>${escapeHtml(character.portraitAssetId ? `Asset ID：${character.portraitAssetId}` : "character_portrait · 尚未绑定")}</small>
+        <p>${escapeHtml(character.motivation || character.voice || "用于后续立绘、表情和设备展示。")}</p>
+        <button class="ghost-button compact" id="studioCharacterGeneratePortraitButton" data-testid="studio-character-generate-portrait" type="button" ${busy || !flashApi.generateAiImage ? "disabled" : ""}>
+          ${busy ? "生成中" : imageUrl ? "重新生成/绑定立绘" : "生成/绑定立绘"}
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function renderStudioBasicAssetLibrary() {
+  if (!state.storyProject?.id) {
+    return `<div class="empty-state compact-empty">当前草稿还未绑定 StoryProject。</div>`;
+  }
+  const assets = projectBasicVisualAssets();
+  const groups = ["scene_background", "character_portrait"].map((type) => {
+    const items = assets.filter((asset) => asset.type === type || asset.usage === type);
+    const cards = items.length ? items.slice(0, 6).map((asset) => {
+      const imageUrl = displayMediaUrl(asset.imageUrl || "");
+      const prompt = asset.prompt || asset.visualPrompt || "未记录提示词";
+      return `
+        <article class="studio-basic-asset-item" data-testid="studio-basic-asset-item">
+          ${imageUrl
+            ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(asset.name || basicVisualTypeLabel(type))}">`
+            : `<div class="studio-basic-asset-thumb">PNG</div>`}
+          <div>
+            <strong>${escapeHtml(asset.name || basicVisualTypeLabel(type))}</strong>
+            <small>${escapeHtml(type)} · Asset ID：${escapeHtml(comicAssetId(asset) || "local_asset")}</small>
+            <small>${escapeHtml(asset.sceneId ? `Scene：${asset.sceneId}` : asset.characterName ? `Character：${asset.characterName}` : "未关联")}</small>
+            <p>${escapeHtml(prompt)}</p>
+          </div>
+          <span>${escapeHtml(comicAssetStatusText(asset.status))}</span>
+          <em>${escapeHtml(asset.provider || "local")}</em>
+        </article>
+      `;
+    }).join("") : `<div class="empty-state compact-empty">${escapeHtml(type)} 暂无资产。</div>`;
+    return `
+      <div class="studio-basic-asset-group" data-basic-asset-type="${escapeHtml(type)}">
+        <div class="studio-basic-asset-group-title">
+          <strong>${escapeHtml(type)}</strong>
+          <span>${items.length} assets</span>
+        </div>
+        ${cards}
+      </div>
+    `;
+  });
+  return groups.join("");
 }
 
 function makeComicRenderJob(panel = {}, values = {}, overrides = {}) {
@@ -2811,6 +3172,367 @@ async function createComicVisualAssetRecord(generatedImage = {}, panel = {}, val
   }
 }
 
+function normalizeBasicGeneratedImage(rawImage = {}, target = {}) {
+  const imageUrl = rawImage.imageUrl || rawImage.url || rawImage.src || rawImage.assetUrl || "";
+  const mediaType = rawImage.mediaType || rawImage.contentType || (
+    String(imageUrl).startsWith("data:image/png") ? "image/png" : "image/png"
+  );
+  const generatedId = rawImage.id || `basic_visual_${target.type || "asset"}_${target.id || Date.now()}`;
+  return {
+    ...rawImage,
+    id: generatedId,
+    assetId: rawImage.assetId || rawImage.visualAssetId || rawImage.imageAssetId || generatedId,
+    imageUrl,
+    mediaType,
+    filename: rawImage.filename || target.filename || `${target.id || "basic-visual"}.png`,
+    sizeBytes: Number(rawImage.sizeBytes || rawImage.byteLength || 96),
+    status: rawImage.status || "ai_generated",
+    provider: rawImage.provider || "mock_preview",
+    prompt: rawImage.prompt || target.prompt || "",
+    generatedAt: rawImage.generatedAt || Date.now(),
+    sourceStatement: {
+      ...(rawImage.sourceStatement || {}),
+      sourceType: "ai_generated",
+      provider: rawImage.provider || rawImage.sourceStatement?.provider || "mock_preview",
+      model: rawImage.model || rawImage.sourceStatement?.model || "mock_preview",
+      prompt: rawImage.prompt || target.prompt || "",
+      rightsAcknowledged: true,
+      policyVersion: "gugu_flash_asset_security_v1",
+    },
+  };
+}
+
+function normalizeBasicVisualAssetRecord(image = {}, target = {}, extra = {}) {
+  const assetId = extra.assetId || extra.id || image.assetId || image.imageAssetId || image.id || `asset_${target.type || "basic"}_${target.id || Date.now()}`;
+  const imageUrl = image.imageUrl || image.url || image.src || image.assetUrl || extra.imageUrl || extra.assetUrl || "";
+  const prompt = extra.prompt || image.prompt || target.prompt || "";
+  const now = Date.now();
+  return {
+    id: assetId,
+    assetId,
+    targetType: extra.targetType || "Asset",
+    kind: extra.kind || "image",
+    type: target.type,
+    usage: target.usage || target.type,
+    name: extra.name || image.name || target.name || basicVisualTypeLabel(target.type),
+    status: extra.status || image.assetStatus || image.status || "bound",
+    provider: image.provider || extra.provider || image.sourceStatement?.provider || "local_preview",
+    prompt,
+    visualPrompt: image.visualPrompt || prompt,
+    sceneId: target.sceneId || image.sceneId || extra.sceneId || "",
+    characterId: target.characterId || image.characterId || extra.characterId || "",
+    characterName: target.characterName || image.characterName || extra.characterName || "",
+    imageUrl,
+    mediaType: extra.mediaType || image.mediaType || "image/png",
+    filename: extra.filename || image.filename || target.filename || "basic-visual.png",
+    sizeBytes: Number(extra.sizeBytes || image.sizeBytes || 96),
+    sourceStatement: {
+      ...(image.sourceStatement || extra.sourceStatement || {}),
+      sourceType: image.sourceStatement?.sourceType || extra.sourceStatement?.sourceType || "ai_generated",
+      provider: image.provider || image.sourceStatement?.provider || extra.sourceStatement?.provider || "local_preview",
+      model: image.model || image.sourceStatement?.model || extra.sourceStatement?.model || "mock_preview",
+      prompt,
+      rightsAcknowledged: true,
+      policyVersion: "gugu_flash_asset_security_v1",
+    },
+    generatedImageId: image.id || extra.generatedImageId || "",
+    securityPolicyVersion: extra.securityPolicyVersion || image.securityPolicyVersion || "gugu_flash_asset_security_v1",
+    syncMode: extra.syncMode || image.syncMode || "",
+    createdAt: extra.createdAt || image.createdAt || image.generatedAt || now,
+    updatedAt: extra.updatedAt || image.updatedAt || now,
+  };
+}
+
+async function createBasicVisualAssetRecord(generatedImage = {}, target = {}) {
+  const localAsset = normalizeBasicVisualAssetRecord(generatedImage, target, {
+    status: flashApi.createAsset ? "ready" : "local_saved",
+    provider: generatedImage.provider || (flashApi.createAsset ? "asset_api" : "local_fallback"),
+  });
+  if (!flashApi.createAsset) {
+    return {
+      asset: {
+        ...localAsset,
+        syncMode: "local_fallback",
+      },
+      mode: "local",
+    };
+  }
+  try {
+    const response = await flashApi.createAsset({
+      ...localAsset,
+      storyProjectId: state.storyProject?.id || null,
+      storyProjectVersionId: state.storyProject?.versionId || state.draft?.storyProjectVersionId || null,
+      filename: localAsset.filename || target.filename || "basic-visual.png",
+      mediaType: localAsset.mediaType || "image/png",
+      sizeBytes: localAsset.sizeBytes || 96,
+      sourceStatement: localAsset.sourceStatement,
+    });
+    const createdAsset = response?.item || response?.asset || response || {};
+    return {
+      asset: normalizeBasicVisualAssetRecord(generatedImage, target, {
+        ...createdAsset,
+        id: createdAsset.id || createdAsset.assetId || localAsset.id,
+        assetId: createdAsset.assetId || createdAsset.id || localAsset.assetId,
+        imageUrl: localAsset.imageUrl,
+        prompt: localAsset.prompt,
+        provider: createdAsset.provider || generatedImage.provider || "asset_api",
+        syncMode: "asset_api",
+      }),
+      mode: "asset_api",
+    };
+  } catch (error) {
+    return {
+      asset: {
+        ...localAsset,
+        status: "local_saved",
+        syncMode: "local_fallback",
+        message: "Asset API 暂不可用，已随 StoryProject 本地保存。",
+      },
+      mode: "local",
+    };
+  }
+}
+
+function applyBasicVisualAssetToDraft(draft, target, generatedImage = {}, assetRecord = {}) {
+  const assetId = comicAssetId(assetRecord) || generatedImage.assetId || generatedImage.id || "";
+  const imageUrl = generatedImage.imageUrl || assetRecord.imageUrl || "";
+  if (target.type === "scene_background") {
+    const scene = (draft.scenes || []).find((item) => item.id === target.sceneId);
+    if (!scene) return false;
+    scene.backgroundAssetId = assetId;
+    scene.backgroundImageUrl = imageUrl;
+    scene.backgroundVisualPrompt = target.prompt || assetRecord.prompt || generatedImage.prompt || "";
+    scene.backgroundImage = {
+      ...structuredClone(generatedImage),
+      assetId,
+      imageUrl,
+      status: "bound",
+      syncMode: assetRecord.syncMode || generatedImage.syncMode || "",
+    };
+    draft.updatedAt = Date.now();
+    return true;
+  }
+  if (target.type === "character_portrait") {
+    const character = (draft.characters || []).find((item) => (
+      draftCharacterKey(item) === target.characterId || item.name === target.characterName
+    ));
+    if (!character) return false;
+    character.portraitAssetId = assetId;
+    character.portraitImageUrl = imageUrl;
+    character.portraitVisualPrompt = target.prompt || assetRecord.prompt || generatedImage.prompt || "";
+    character.portraitImage = {
+      ...structuredClone(generatedImage),
+      assetId,
+      imageUrl,
+      status: "bound",
+      syncMode: assetRecord.syncMode || generatedImage.syncMode || "",
+    };
+    character.updatedAt = Date.now();
+    draft.updatedAt = Date.now();
+    return true;
+  }
+  return false;
+}
+
+function storyProjectWithBasicVisualAsset(project, draft, target, generatedImage = {}, assetRecord = {}) {
+  const nextProject = structuredClone(project);
+  const assetId = comicAssetId(assetRecord) || generatedImage.assetId || generatedImage.id || "";
+  const imageUrl = generatedImage.imageUrl || assetRecord.imageUrl || "";
+  nextProject.title = draft.title || nextProject.title || "未命名项目";
+  nextProject.updatedAt = draft.updatedAt || Date.now();
+  nextProject.assets = Array.isArray(nextProject.assets) ? nextProject.assets : [];
+  const assetIndex = nextProject.assets.findIndex((asset) => comicAssetId(asset) === assetId);
+  const nextAsset = {
+    ...(assetIndex >= 0 ? nextProject.assets[assetIndex] : {}),
+    ...assetRecord,
+    id: assetId,
+    assetId,
+    storyProjectId: nextProject.id,
+    storyProjectVersionId: nextProject.versionId || draft.storyProjectVersionId || null,
+    type: target.type,
+    usage: target.usage || target.type,
+    sceneId: target.sceneId || assetRecord.sceneId || "",
+    characterId: target.characterId || assetRecord.characterId || "",
+    characterName: target.characterName || assetRecord.characterName || "",
+    imageUrl,
+    prompt: assetRecord.prompt || target.prompt || generatedImage.prompt || "",
+    updatedAt: Date.now(),
+  };
+  if (assetIndex >= 0) nextProject.assets[assetIndex] = nextAsset;
+  else nextProject.assets.unshift(nextAsset);
+
+  if (target.type === "scene_background") {
+    nextProject.script = nextProject.script || {};
+    nextProject.script.scenes = Array.isArray(nextProject.script.scenes)
+      ? nextProject.script.scenes
+      : [];
+    let projectScene = nextProject.script.scenes.find((item) => item.id === target.sceneId);
+    const draftScene = (draft.scenes || []).find((item) => item.id === target.sceneId) || target.scene || {};
+    if (!projectScene) {
+      projectScene = { id: target.sceneId, title: draftScene.title || target.sceneId };
+      nextProject.script.scenes.push(projectScene);
+    }
+    Object.assign(projectScene, {
+      id: target.sceneId,
+      title: draftScene.title || projectScene.title || target.sceneId,
+      background: draftScene.background || projectScene.background,
+      backgroundAssetId: assetId,
+      backgroundImageUrl: imageUrl,
+      backgroundVisualPrompt: target.prompt || assetRecord.prompt || generatedImage.prompt || "",
+      backgroundImage: {
+        ...structuredClone(generatedImage),
+        assetId,
+        imageUrl,
+        status: "bound",
+        syncMode: assetRecord.syncMode || generatedImage.syncMode || "",
+      },
+      updatedAt: Date.now(),
+    });
+  }
+
+  if (target.type === "character_portrait") {
+    nextProject.characters = Array.isArray(nextProject.characters)
+      ? nextProject.characters
+      : structuredClone(draft.characters || []);
+    let character = nextProject.characters.find((item) => (
+      draftCharacterKey(item) === target.characterId || item.name === target.characterName
+    ));
+    if (!character) {
+      character = structuredClone(target.character || {
+        id: target.characterId,
+        name: target.characterName || "未命名角色",
+      });
+      nextProject.characters.push(character);
+    }
+    Object.assign(character, {
+      portraitAssetId: assetId,
+      portraitImageUrl: imageUrl,
+      portraitVisualPrompt: target.prompt || assetRecord.prompt || generatedImage.prompt || "",
+      portraitImage: {
+        ...structuredClone(generatedImage),
+        assetId,
+        imageUrl,
+        status: "bound",
+        syncMode: assetRecord.syncMode || generatedImage.syncMode || "",
+      },
+      updatedAt: Date.now(),
+    });
+  }
+
+  nextProject.qualityReports = createDraftQualityChecks(draft);
+  return nextProject;
+}
+
+async function saveBasicVisualBinding(target, generatedImage = {}, assetRecord = {}) {
+  if (!state.draft || !state.storyProject?.id) return false;
+  const applied = applyBasicVisualAssetToDraft(state.draft, target, generatedImage, assetRecord);
+  if (!applied) return false;
+  const project = storyProjectWithBasicVisualAsset(state.storyProject, state.draft, target, generatedImage, assetRecord);
+  setCurrentStoryProject(project);
+  state.basicVisualStatus = "binding";
+  state.basicVisualMessage = "正在保存基础视觉素材绑定。";
+  state.basicVisualTarget = target.targetKey;
+  renderCreatorStudio(state.draft);
+  let saved = false;
+  try {
+    const response = await flashApi.updateStoryProject(project.id, project);
+    let savedProject = response?.item || response?.project || project;
+    let snapshotCreated = false;
+    let snapshotFailed = false;
+    if (flashApi.createStoryProjectVersion && savedProject?.id) {
+      try {
+        const versionResponse = await flashApi.createStoryProjectVersion(savedProject.id, {
+          project: savedProject,
+          label: "基础视觉素材",
+          reason: `Creator Studio ${basicVisualTypeLabel(target.type)}绑定`,
+          status: "locked",
+        });
+        snapshotCreated = Boolean(versionResponse?.item?.id);
+        savedProject = versionResponse?.project || savedProject;
+      } catch (snapshotError) {
+        snapshotFailed = true;
+      }
+    }
+    setCurrentStoryProject(savedProject);
+    state.draft.storyProjectVersionId = savedProject?.versionId || state.draft.storyProjectVersionId || null;
+    state.draft.sourceProjectVersionId = savedProject?.versionId || state.draft.sourceProjectVersionId || null;
+    state.basicVisualStatus = "bound";
+    state.basicVisualMessage = snapshotCreated
+      ? `${basicVisualTypeLabel(target.type)}已绑定，已生成版本快照。`
+      : snapshotFailed
+        ? `${basicVisualTypeLabel(target.type)}已绑定，版本快照创建失败。`
+        : `${basicVisualTypeLabel(target.type)}已绑定到 StoryProject。`;
+    await loadStoryProjectVersionsForStudio({ render: false });
+    saved = true;
+  } catch (error) {
+    state.basicVisualStatus = "error";
+    state.basicVisualMessage = `${basicVisualTypeLabel(target.type)}保存绑定失败，本地修改已保留。`;
+  }
+  renderDraft(state.draft);
+  return saved;
+}
+
+async function generateAndBindStudioBasicVisual(type) {
+  if (["generating", "binding"].includes(state.basicVisualStatus)) return;
+  const target = type === "scene_background"
+    ? selectedSceneBackgroundTarget(state.draft)
+    : firstCharacterPortraitTarget(state.draft);
+  if (!target) return;
+  if (!flashApi.generateAiImage) {
+    state.basicVisualStatus = "unavailable";
+    state.basicVisualMessage = "当前运行环境暂未开放 AI 图片生成。";
+    state.basicVisualTarget = target.targetKey;
+    renderCreatorStudio(state.draft);
+    return;
+  }
+  state.basicVisualStatus = "generating";
+  state.basicVisualMessage = `正在生成${basicVisualTypeLabel(target.type)}。`;
+  state.basicVisualTarget = target.targetKey;
+  renderCreatorStudio(state.draft);
+  try {
+    const response = await flashApi.generateAiImage({
+      id: `${state.storyProject?.id || state.draft?.id || "draft"}_${target.id}_${target.type}`,
+      type: target.type,
+      kind: "image",
+      usage: target.usage || target.type,
+      name: target.name,
+      filename: target.filename,
+      prompt: target.prompt,
+      visualPrompt: target.prompt,
+      storyProjectId: state.storyProject?.id,
+      storyProjectVersionId: state.storyProject?.versionId || state.draft?.storyProjectVersionId || null,
+      sceneId: target.sceneId || null,
+      characterId: target.characterId || null,
+      characterName: target.characterName || null,
+      draftId: state.draft?.id,
+      draftTitle: state.draft?.title,
+      persona: state.draft?.persona,
+      world: state.draft?.world,
+      contentOrigin: state.draft?.contentOrigin || state.storyProject?.origin?.contentOrigin,
+      ipName: state.draft?.ipName || state.storyProject?.origin?.ipName,
+      stage: `${target.type}_render`,
+    });
+    let generatedImage = normalizeBasicGeneratedImage(response?.item || response?.image || response, target);
+    if (!generatedImage?.imageUrl && !generatedImage?.id) throw new Error("image_generation_empty");
+    const assetResult = await createBasicVisualAssetRecord(generatedImage, target);
+    const assetRecord = assetResult.asset;
+    generatedImage = {
+      ...generatedImage,
+      assetId: comicAssetId(assetRecord),
+      imageAssetId: comicAssetId(assetRecord),
+      assetStatus: assetRecord.status,
+      status: "bound",
+      syncMode: assetRecord.syncMode || assetResult.mode,
+    };
+    await saveBasicVisualBinding(target, generatedImage, assetRecord);
+  } catch (error) {
+    state.basicVisualStatus = "error";
+    state.basicVisualMessage = `${basicVisualTypeLabel(target.type)}生成或绑定失败，请稍后重试。`;
+    state.basicVisualTarget = target.targetKey;
+    renderCreatorStudio(state.draft);
+  }
+}
+
 function selectStudioComicPanel(panelId) {
   const panel = (state.comicStoryboard?.panels || []).find((item) => item.id === panelId);
   if (!panel) return;
@@ -3206,6 +3928,14 @@ function renderCreatorStudio(draft) {
   }).join("") : `<div class="empty-state compact-empty">还没有场景。</div>`;
   $("studioSceneSaveStatus").textContent = studioSaveStatusText();
   $("studioSceneInspector").innerHTML = renderStudioSceneInspector(draft);
+  const basicVisualCounts = basicVisualAssetCounts();
+  $("studioBasicVisualStatus").textContent = `scene_background ${basicVisualCounts.scene_background} · character_portrait ${basicVisualCounts.character_portrait}`;
+  $("studioBasicVisualMessage").textContent = basicVisualStatusText();
+  $("studioBasicVisualMessage").className = `studio-helper-text ${state.basicVisualStatus}`;
+  $("studioCharacterPortraitStatus").textContent = `${basicVisualCounts.character_portrait} character_portrait`;
+  $("studioBasicVisualAssetCount").textContent = `${basicVisualCounts.total} assets`;
+  $("studioCharacterPortraitTarget").innerHTML = renderStudioCharacterPortraitTarget(draft);
+  $("studioBasicAssetLibrary").innerHTML = renderStudioBasicAssetLibrary();
   $("studioComicStatus").textContent = studioComicStatusText();
   $("studioComicMessage").textContent = state.comicStoryboardMessage || "点击生成可把 StoryProject 编译成漫剧分镜。";
   $("studioComicRefreshButton").disabled = state.comicStoryboardStatus === "loading" || !state.storyProject?.id || !flashApi.compileStoryProjectComic;
@@ -3406,7 +4136,7 @@ function renderDraftPlaytest(draft) {
   const index = scenes.findIndex((item) => item.id === scene.id);
   $("draftPlayPosition").textContent = `${index + 1} / ${scenes.length}`;
   $("draftPlaytestPanel").innerHTML = `
-    <div class="draft-play-scene" style="background: ${escapeHtml(scene.background || draft.cover?.background || "#111827")}">
+    <div class="draft-play-scene" style="background: ${escapeHtml(sceneBackgroundStyle(scene, draft))}">
       <div class="draft-play-character">${escapeHtml(scene.character || draft.persona?.avatar || "✨")}</div>
       <div class="draft-play-copy">
         <strong>${escapeHtml(scene.speaker || draft.persona?.name || "旁白")}</strong>
@@ -3458,7 +4188,7 @@ function renderDraftSceneEditor(draft) {
         ${!unreachableIds.has(scene.id) && !deadEndIds.has(scene.id) ? `<span>可玩</span>` : ""}
       </div>
       <div class="scene-background-row">
-        <div class="scene-background-preview" style="background: ${escapeHtml(scene.background || draft.cover?.background || "#f8fafc")}"></div>
+        <div class="scene-background-preview" style="background: ${escapeHtml(sceneBackgroundStyle(scene, draft))}"></div>
         <label><small>背景图 / 背景提示</small><input data-scene-field="background" value="${escapeHtml(scene.background || "")}" placeholder="可填图片 URL、渐变或背景提示词" /></label>
       </div>
       <div class="scene-editor-grid">
@@ -6082,6 +6812,14 @@ function wireEvents() {
     }
     if (event.target.closest("#studioComicGenerateVisualButton")) {
       await generateAndBindStudioComicVisual();
+      return;
+    }
+    if (event.target.closest("#studioSceneGenerateBackgroundButton")) {
+      await generateAndBindStudioBasicVisual("scene_background");
+      return;
+    }
+    if (event.target.closest("#studioCharacterGeneratePortraitButton")) {
+      await generateAndBindStudioBasicVisual("character_portrait");
       return;
     }
     const studioVersionRestoreButton = event.target.closest("[data-studio-version-restore]");

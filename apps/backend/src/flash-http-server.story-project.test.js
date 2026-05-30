@@ -226,6 +226,68 @@ test("StoryProject HTTP slice creates, fetches, snapshots, records jobs, and com
   });
 });
 
+test("StoryProject HTTP slice filters base visual assets by usage scene and character", async () => {
+  await withStoryProjectBackend(async (api) => {
+    const created = await api.createStoryProject(makeStoryProject({
+      id: "story_project_asset_filters",
+    }));
+    const project = structuredClone(created.item);
+    project.assets = [
+      {
+        id: "asset_scene_background_start",
+        assetId: "asset_scene_background_start",
+        kind: "image",
+        usage: "scene_background",
+        storyProjectId: project.id,
+        sceneId: "start",
+        imageUrl: "https://cdn.example.test/background/start.png",
+        sourceStatement: { sourceType: "ai_generated", rightsAcknowledged: true },
+      },
+      {
+        id: "asset_character_portrait_detective",
+        assetId: "asset_character_portrait_detective",
+        kind: "image",
+        usage: "character_portrait",
+        storyProjectId: project.id,
+        characterId: "char_detective",
+        characterName: "Detective",
+        imageUrl: "https://cdn.example.test/character/detective.png",
+        sourceStatement: { sourceType: "ai_generated", rightsAcknowledged: true },
+      },
+      {
+        id: "asset_panel_visual_start",
+        assetId: "asset_panel_visual_start",
+        kind: "image",
+        usage: "comic_panel_visual",
+        storyProjectId: project.id,
+        sceneId: "start",
+        panelId: "panel_start",
+        imageUrl: "https://cdn.example.test/panel/start.png",
+        sourceStatement: { sourceType: "ai_generated", rightsAcknowledged: true },
+      },
+    ];
+    await api.updateStoryProject(project.id, project);
+
+    const sceneBackgrounds = await api.listStoryProjectAssets(project.id, {
+      usage: "scene_background",
+      sceneId: "start",
+    });
+    const portraits = await api.listAssets({
+      storyProjectId: project.id,
+      usage: "character_portrait",
+      characterId: "char_detective",
+    });
+    const panelAssets = await api.listAssets({
+      storyProjectId: project.id,
+      panelId: "panel_start",
+    });
+
+    assert.deepEqual(sceneBackgrounds.items.map((item) => item.id), ["asset_scene_background_start"]);
+    assert.deepEqual(portraits.items.map((item) => item.id), ["asset_character_portrait_detective"]);
+    assert.deepEqual(panelAssets.items.map((item) => item.id), ["asset_panel_visual_start"]);
+  });
+});
+
 test("StoryProject HTTP slice publishes a playable project as a public H5 Work", async () => {
   await withStoryProjectBackend(async (api) => {
     const created = await api.createStoryProject(makePublishableStoryProject({

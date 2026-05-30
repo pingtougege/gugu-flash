@@ -148,6 +148,10 @@ test("mobile guide defaults to idea role generation playtest and publish checks"
   await expect(page.locator('[data-testid="studio-comic-render-queue"]')).toBeHidden();
   await expect(page.locator('[data-testid="studio-comic-save"]')).toBeHidden();
   await expect(page.locator('[data-testid="studio-comic-generate-visual"]')).toBeHidden();
+  await expect(page.locator('[data-testid="studio-basic-visual-production"]')).toBeHidden();
+  await expect(page.locator('[data-testid="studio-basic-asset-library"]')).toBeHidden();
+  await expect(page.locator('[data-testid="studio-scene-generate-background"]')).toBeHidden();
+  await expect(page.locator('[data-testid="studio-character-generate-portrait"]')).toBeHidden();
   await expect(page.locator("[data-create-advanced-toggle]")).toHaveText("高级编辑");
 
   await page.locator("#createWizardNextButton").click();
@@ -220,6 +224,38 @@ test("creator studio comic panel inspector edits and binds a visual asset", asyn
   const renderJob = studio.locator('[data-testid="studio-comic-render-job"]').first();
   await expect(renderJob).toContainText(/已完成|渲染中|排队中/);
   await expect(renderJob).toContainText(/comic_panel_visual_render/);
+});
+
+test("creator studio generates scene background and character portrait basic visual assets", async ({ page }) => {
+  await openCreate(page);
+  await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill("雨夜便利店里，夜班店员和临时目击者调查预言硬币");
+  await generateDraft(page);
+
+  await page.locator("[data-create-advanced-toggle]").click();
+
+  const studio = page.locator("#creatorStudioPanel");
+  await expect(studio).toBeVisible();
+  await expect(studio.locator('[data-testid="studio-basic-visual-production"]')).toBeVisible();
+  const library = studio.locator('[data-testid="studio-basic-asset-library"]');
+  await expect(library).toContainText("scene_background");
+  await expect(library).toContainText("character_portrait");
+
+  await studio.locator("[data-studio-scene-select]").first().click();
+  await page.locator('[data-testid="studio-scene-generate-background"]').click();
+  await expect(page.locator("#studioBasicVisualMessage")).toContainText(/场景背景图已绑定|版本快照/);
+  await expect(studio.locator('[data-testid="studio-scene-background-preview"] img')).toHaveAttribute("src", /data:image/);
+  const sceneAsset = library.locator('[data-testid="studio-basic-asset-item"]').filter({ hasText: "scene_background" }).first();
+  await expect(sceneAsset).toContainText(/Asset ID/);
+  await expect(sceneAsset).toContainText(/可用|本地保存|已绑定|AI 已生成/);
+
+  const portraitButton = page.locator('[data-testid="studio-character-generate-portrait"]');
+  await expect(portraitButton).toBeVisible();
+  await portraitButton.click();
+  await expect(page.locator("#studioBasicVisualMessage")).toContainText(/人物立绘图已绑定|版本快照/);
+  await expect(studio.locator("#studioCharacterPortraitTarget img")).toHaveAttribute("src", /data:image/);
+  const portraitAsset = library.locator('[data-testid="studio-basic-asset-item"]').filter({ hasText: "character_portrait" }).first();
+  await expect(portraitAsset).toContainText(/Asset ID/);
+  await expect(portraitAsset).toContainText(/可用|本地保存|已绑定|AI 已生成/);
 });
 
 test("creator studio scene inspector saves one scene back to the project", async ({ page }) => {

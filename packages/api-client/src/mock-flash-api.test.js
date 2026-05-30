@@ -309,6 +309,74 @@ test("mock comic panel visual generation tracks render job and registered asset"
   assert.ok(runtime.aiGenerationJobs.some((item) => item.id === generated.renderJob.id));
 });
 
+test("mock visual asset generation registers scene backgrounds and character portraits", async () => {
+  const { api } = createMemoryApi([]);
+  const created = await api.createAiDraft("一间深夜修理铺遇到会说话的旧钟", "healing");
+  const sceneId = created.storyProject.script.scenes[0].id;
+  const background = await api.generateAiImage({
+    storyProjectId: created.storyProject.id,
+    sceneId,
+    usage: "scene_background",
+    prompt: "rainy repair shop wide background",
+    renderJobId: "ai_job_scene_background_seed",
+  });
+  const portrait = await api.generateAiImage({
+    storyProjectId: created.storyProject.id,
+    sceneId,
+    characterId: "char_clockmaker",
+    characterName: "旧钟匠",
+    usage: "character_portrait",
+    prompt: "gentle clockmaker portrait",
+  });
+  const backgroundByUsage = await api.listAssets({
+    storyProjectId: created.storyProject.id,
+    usage: "scene_background",
+  });
+  const sceneAssets = await api.listAssets({
+    storyProjectId: created.storyProject.id,
+    sceneId,
+  });
+  const characterAssets = await api.listAssets({
+    storyProjectId: created.storyProject.id,
+    characterId: "char_clockmaker",
+  });
+  const projectBackgrounds = await api.listStoryProjectAssets(created.storyProject.id, {
+    usage: "scene_background",
+    sceneId,
+  });
+  const projectPortraits = await api.listStoryProjectAssets(created.storyProject.id, {
+    usage: "character_portrait",
+    characterId: "char_clockmaker",
+  });
+
+  assert.equal(background.item.usage, "scene_background");
+  assert.equal(background.item.storyProjectId, created.storyProject.id);
+  assert.equal(background.item.sceneId, sceneId);
+  assert.equal(background.item.renderJobId, "ai_job_scene_background_seed");
+  assert.equal(background.renderJob.id, "ai_job_scene_background_seed");
+  assert.equal(background.renderJob.stage, "scene_background_render");
+  assert.equal(background.item.sourceStatement.sourceType, "ai_generated");
+  assert.equal(background.item.sourceStatement.prompt, "rainy repair shop wide background");
+
+  assert.equal(portrait.item.usage, "character_portrait");
+  assert.equal(portrait.item.storyProjectId, created.storyProject.id);
+  assert.equal(portrait.item.sceneId, sceneId);
+  assert.equal(portrait.item.characterId, "char_clockmaker");
+  assert.equal(portrait.item.characterName, "旧钟匠");
+  assert.equal(portrait.item.renderJobId, portrait.renderJob.id);
+  assert.equal(portrait.renderJob.stage, "character_portrait_render");
+  assert.equal(portrait.renderJob.result.characterId, "char_clockmaker");
+  assert.equal(portrait.renderJob.result.characterName, "旧钟匠");
+  assert.equal(portrait.item.sourceStatement.sourceType, "ai_generated");
+  assert.equal(portrait.item.sourceStatement.prompt, "gentle clockmaker portrait");
+
+  assert.deepEqual(backgroundByUsage.items.map((item) => item.id), [background.item.id]);
+  assert.deepEqual(sceneAssets.items.map((item) => item.id).sort(), [background.item.id, portrait.item.id].sort());
+  assert.deepEqual(characterAssets.items.map((item) => item.id), [portrait.item.id]);
+  assert.deepEqual(projectBackgrounds.items.map((item) => item.id), [background.item.id]);
+  assert.deepEqual(projectPortraits.items.map((item) => item.id), [portrait.item.id]);
+});
+
 test("applyStoreListing requires the rights acknowledgement", async () => {
   const { api, getStored } = createMemoryApi([makePack("h5_terms")]);
 

@@ -506,6 +506,14 @@ export function createMockFlashApi({
     }[mediaType] || "bin";
   }
 
+  function renderStageForAssetUsage(usage = "comic_panel_visual") {
+    return {
+      comic_panel_visual: "comic_panel_visual_render",
+      scene_background: "scene_background_render",
+      character_portrait: "character_portrait_render",
+    }[usage] || `${usage || "asset"}_render`;
+  }
+
   function assetIdFromPayload(asset = {}) {
     if (asset.assetId) return asset.assetId;
     if (String(asset.id || "").startsWith("asset_")) return asset.id;
@@ -576,6 +584,8 @@ export function createMockFlashApi({
       storyProjectVersionId: source.storyProjectVersionId || source.projectVersionId || existing?.storyProjectVersionId || null,
       panelId: source.panelId || existing?.panelId || null,
       sceneId: source.sceneId || existing?.sceneId || null,
+      characterId: source.characterId || existing?.characterId || null,
+      characterName: source.characterName || existing?.characterName || null,
       provider: source.provider || existing?.provider || null,
       model: source.model || existing?.model || null,
       prompt,
@@ -616,12 +626,16 @@ export function createMockFlashApi({
     const kind = options.kind || null;
     const status = options.status || null;
     const panelId = options.panelId || null;
+    const sceneId = options.sceneId || null;
+    const characterId = options.characterId || null;
     return assetsCache
       .filter((asset) => !storyProjectId || asset.storyProjectId === storyProjectId)
       .filter((asset) => !usage || asset.usage === usage)
       .filter((asset) => !kind || asset.kind === kind)
       .filter((asset) => !status || asset.status === status)
       .filter((asset) => !panelId || asset.panelId === panelId)
+      .filter((asset) => !sceneId || asset.sceneId === sceneId)
+      .filter((asset) => !characterId || asset.characterId === characterId)
       .map((asset) => structuredClone(asset));
   }
 
@@ -632,6 +646,7 @@ export function createMockFlashApi({
     timestamp = Date.now(),
   } = {}) {
     if (!project?.id) return null;
+    const stage = payload.stage || renderStageForAssetUsage(asset.usage);
     let inputSnapshotId = payload.inputSnapshotId || project.versionId || null;
     let inputSnapshot = null;
     if (!inputSnapshotId) {
@@ -646,8 +661,8 @@ export function createMockFlashApi({
     const job = saveAiGenerationJob({
       id: payload.renderJobId || payload.jobId || makeMockId("ai_job"),
       storyProjectId: project.id,
-      stage: payload.stage || "comic_panel_visual_render",
-      kind: payload.kind || "comic_panel_visual_render",
+      stage,
+      kind: payload.kind || stage,
       status: payload.jobStatus || "succeeded",
       inputSnapshotId,
       outputSnapshotId: payload.outputSnapshotId || null,
@@ -657,12 +672,16 @@ export function createMockFlashApi({
         assetId: asset.id,
         panelId: asset.panelId || payload.panelId || null,
         sceneId: asset.sceneId || payload.sceneId || null,
+        characterId: asset.characterId || payload.characterId || null,
+        characterName: asset.characterName || payload.characterName || null,
       },
       result: {
         assetId: asset.id,
         assetIds: [asset.id],
         panelId: asset.panelId || payload.panelId || null,
         sceneId: asset.sceneId || payload.sceneId || null,
+        characterId: asset.characterId || payload.characterId || null,
+        characterName: asset.characterName || payload.characterName || null,
         provider: asset.provider || payload.provider || "mock_preview",
         imageUrl: asset.imageUrl,
       },
@@ -1838,9 +1857,22 @@ export function createMockFlashApi({
       };
     },
 
-    async listStoryProjectAssets(id) {
+    async listStoryProjectAssets(id, options = {}) {
+      const filters = {
+        ...options,
+        storyProjectId: id,
+      };
       return {
-        items: listAssetsForMock({ storyProjectId: id }),
+        items: listAssetsForMock(filters),
+        filters: {
+          storyProjectId: id,
+          usage: filters.usage || null,
+          kind: filters.kind || null,
+          status: filters.status || null,
+          panelId: filters.panelId || null,
+          sceneId: filters.sceneId || null,
+          characterId: filters.characterId || null,
+        },
       };
     },
 
@@ -2162,18 +2194,19 @@ export function createMockFlashApi({
     },
 
     async generateAiImage(asset = {}) {
-      const prompt = asset.prompt || asset.usage || asset.name || "素材预览";
+      const usage = asset.usage || "comic_panel_visual";
+      const prompt = asset.prompt || usage || asset.name || "素材预览";
       const timestamp = Date.now();
       const project = asset.storyProjectId ? findStoryProject(asset.storyProjectId) : null;
       const generated = normalizeAssetForMock({
         ...asset,
         kind: "image",
-        usage: asset.usage || "comic_panel_visual",
+        usage,
         status: asset.status || "uploaded",
         provider: asset.provider || "mock_preview",
         model: asset.model || "mock_preview",
         prompt,
-        filename: asset.filename || `${asset.id || "mock_ai_image"}.png`,
+        filename: asset.filename || `${asset.id || usage || "mock_ai_image"}.png`,
         mediaType: "image/png",
         sizeBytes: asset.sizeBytes || 68,
         imageUrl: asset.imageUrl || `data:image/png;base64,${MOCK_AI_IMAGE_PNG}`,
@@ -2186,7 +2219,7 @@ export function createMockFlashApi({
         payload: {
           ...asset,
           prompt,
-          stage: asset.stage || "comic_panel_visual_render",
+          stage: asset.stage || renderStageForAssetUsage(usage),
         },
         timestamp,
       });
@@ -2936,6 +2969,8 @@ export function createMockFlashApi({
           kind: options.kind || null,
           status: options.status || null,
           panelId: options.panelId || null,
+          sceneId: options.sceneId || null,
+          characterId: options.characterId || null,
         },
       };
     },
