@@ -1,0 +1,265 @@
+{
+  "version": "2026.05.closed-beta-support-readiness",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_real_staffing",
+  "documents": [
+    {
+      "id": "closed_beta_support_playbook",
+      "file": "docs/support-playbook.md",
+      "requiredHeadings": [
+        "## Operating Rules",
+        "## Severity",
+        "## Device Sync",
+        "## Refunds",
+        "## Takedowns And Store Freezes",
+        "## Rights Claims",
+        "## Appeals",
+        "## Closed-Beta Staffing Acceptance Criteria"
+      ],
+      "requiredClauses": [
+        "diagnosticCode",
+        "providerEventId",
+        "operation log",
+        "Daily beta review"
+      ]
+    },
+    {
+      "id": "closed_beta_ticket_macros",
+      "file": "docs/support-ticket-macros.md",
+      "requiredHeadings": [
+        "## `sync_low_battery`",
+        "## `sync_write_failed`",
+        "## `payment_no_entitlement`",
+        "## `refund_provider_mismatch`",
+        "## `takedown_legacy_use`",
+        "## `rights_claim_received`",
+        "## `appeal_received`",
+        "## `operator_reason_missing`"
+      ],
+      "requiredClauses": [
+        "Trigger",
+        "Severity",
+        "Owner",
+        "User reply",
+        "Internal note",
+        "Required fields",
+        "Escalation rule"
+      ]
+    },
+    {
+      "id": "closed_beta_support_diagnostics",
+      "file": "docs/support-diagnostics-readiness.md",
+      "requiredHeadings": [
+        "## Endpoint",
+        "## Bundle Contents",
+        "## Macro Recommendation",
+        "## Closed-Beta Acceptance"
+      ],
+      "requiredClauses": [
+        "support-diagnostics",
+        "diagnosticCode",
+        "providerEventId",
+        "requestId"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "support_oncall_packet_gate",
+      "file": "scripts/check-support-oncall-packet.mjs",
+      "requiredMarkers": [
+        "gugu_support_oncall_packet_v1",
+        "REQUIRED_ROLE_SLOTS",
+        "REQUIRED_EXTERNAL_BLOCKERS",
+        "draft_pending_real_staffing"
+      ]
+    },
+    {
+      "id": "support_training_handoff_gate",
+      "file": "scripts/check-support-training-handoff.mjs",
+      "requiredMarkers": [
+        "gugu_support_training_handoff_drill_v1",
+        "REQUIRED_DRILLS",
+        "pending_named_staff",
+        "support_training_handoff_drill"
+      ]
+    },
+    {
+      "id": "beta_operations_launch_gate",
+      "file": "scripts/check-beta-operations-launch.mjs",
+      "requiredMarkers": [
+        "gugu_beta_operations_launch_packet_v1",
+        "REQUIRED_CHANNELS",
+        "dailyOperatingRhythm",
+        "beta_operations_launch_packet"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "support_oncall_packet",
+      "file": "data/support-oncall-packet.json",
+      "requiredMarkers": [
+        "gugu_support_oncall_packet_v1",
+        "closed_beta_support_queue",
+        "payment_no_entitlement",
+        "sync_write_failed",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "support_training_handoff_drill",
+      "file": "data/support-training-handoff-drill.json",
+      "requiredMarkers": [
+        "gugu_support_training_handoff_drill_v1",
+        "draft_ready_for_named_staff_replay",
+        "support_training_completion",
+        "support_handoff_drill",
+        "pending_named_staff"
+      ]
+    },
+    {
+      "id": "beta_operations_launch_packet",
+      "file": "data/beta-operations-launch-packet.json",
+      "requiredMarkers": [
+        "gugu_beta_operations_launch_packet_v1",
+        "closed_beta_operations",
+        "closed_beta_s0_room",
+        "launch_channels_created",
+        "draft_ready_for_named_launch_rehearsal"
+      ]
+    }
+  ],
+  "ticketMacros": [
+    {
+      "id": "sync_low_battery",
+      "severity": "S2",
+      "owner": "Support",
+      "requiredFields": ["diagnosticCode", "deviceId", "batteryLevel", "firmwareVersion", "storeId"]
+    },
+    {
+      "id": "sync_write_failed",
+      "severity": "S1",
+      "owner": "Hardware Lead",
+      "requiredFields": ["diagnosticCode", "failureReason", "rollbackStatus", "transport.events", "firmwareVersion", "previousStoreId"]
+    },
+    {
+      "id": "payment_no_entitlement",
+      "severity": "S1",
+      "owner": "Commerce Lead",
+      "requiredFields": ["orderId", "providerPaymentId", "providerEventId", "deviceId", "storeId"]
+    },
+    {
+      "id": "refund_provider_mismatch",
+      "severity": "S1",
+      "owner": "Commerce Lead",
+      "requiredFields": ["orderId", "providerEventId", "providerRefundId", "entitlementId", "settlementId"]
+    },
+    {
+      "id": "takedown_legacy_use",
+      "severity": "S2",
+      "owner": "Trust Lead",
+      "requiredFields": ["targetId", "storeStatus", "hardwarePack.status", "deviceInstall.status", "sourceCaseId"]
+    },
+    {
+      "id": "rights_claim_received",
+      "severity": "S1",
+      "owner": "Trust Lead",
+      "requiredFields": ["claimId", "targetType", "targetId", "claimType", "sourceEvidence", "settlementStatus"]
+    },
+    {
+      "id": "appeal_received",
+      "severity": "S2",
+      "owner": "Support Lead",
+      "requiredFields": ["appealId", "sourceActionId", "targetId", "appellantUserId", "supplementalEvidence"]
+    },
+    {
+      "id": "operator_reason_missing",
+      "severity": "S1",
+      "owner": "Operator Lead",
+      "requiredFields": ["operationLogId", "operatorId", "targetType", "targetId", "missingReason"]
+    }
+  ],
+  "escalationMatrix": [
+    {
+      "severity": "S0",
+      "responseTarget": "same_day",
+      "primaryOwner": "Product Owner",
+      "backupOwner": "Trust Lead",
+      "handoffChannel": "closed_beta_s0_room"
+    },
+    {
+      "severity": "S1",
+      "responseTarget": "24h",
+      "primaryOwner": "Support Lead",
+      "backupOwner": "On-call Operator",
+      "handoffChannel": "closed_beta_ops_room"
+    },
+    {
+      "severity": "S2",
+      "responseTarget": "48h",
+      "primaryOwner": "Support",
+      "backupOwner": "Support Lead",
+      "handoffChannel": "closed_beta_support_queue"
+    },
+    {
+      "severity": "S3",
+      "responseTarget": "5_business_days",
+      "primaryOwner": "Support",
+      "backupOwner": "Product Owner",
+      "handoffChannel": "closed_beta_support_queue"
+    }
+  ],
+  "dailyReviewChecklist": [
+    "open_reports",
+    "open_rights_claims",
+    "open_appeals",
+    "payment_callbacks",
+    "refund_callbacks",
+    "failed_sync_jobs",
+    "frozen_settlements",
+    "operator_actions_without_reason"
+  ],
+  "releaseCommands": [
+    "npm run check:support",
+    "npm run check:support-oncall",
+    "npm run check:support-training-handoff",
+    "npm run check:beta-operations",
+    "npm run check:support-diagnostics",
+    "node scripts/check-release-readiness.mjs --gate=closed_beta"
+  ],
+  "closedBetaAcceptance": [
+    {
+      "id": "support_playbook",
+      "status": "drafted",
+      "evidence": ["docs/support-playbook.md"]
+    },
+    {
+      "id": "ticket_macros",
+      "status": "drafted",
+      "evidence": ["docs/support-ticket-macros.md"]
+    },
+    {
+      "id": "escalation_matrix",
+      "status": "drafted",
+      "evidence": ["docs/support-readiness.json"]
+    },
+    {
+      "id": "support_diagnostic_bundle",
+      "status": "drafted",
+      "evidence": [
+        "docs/support-diagnostics-readiness.md",
+        "docs/support-diagnostics-readiness.json",
+        "apps/backend/src/support-diagnostics.js",
+        "apps/backend/src/support-diagnostics.test.js",
+        "scripts/check-support-diagnostics-readiness.mjs"
+      ]
+    },
+    {
+      "id": "real_staffing_assignment",
+      "status": "pending_external",
+      "evidence": ["data/support-oncall-packet.json", "data/support-training-handoff-drill.json", "data/beta-operations-launch-packet.json"],
+      "needed": "Support on-call packet, training/handoff drill packet, and beta operations launch packet exist; assign named humans for Support, Support Lead, Trust Lead, Operator Lead, Commerce Lead, Hardware Lead, and Product Owner beta coverage, create launch channels/calendar, then replay training and handoff drills."
+    }
+  ]
+}

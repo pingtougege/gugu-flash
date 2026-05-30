@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "gugu_device_sync_certification_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_real_device_certification",
+  "targetDeviceModel": "Circle 185",
+  "evidenceSchema": "gugu_device_sync_evidence_v1",
+  "minimumPhysicalDevices": 2,
+  "certificationMode": "public_mvp_hardware_sync",
+  "requiredDevices": [
+    {
+      "slot": "circle185_lab_a",
+      "model": "Circle 185",
+      "firmwareBand": "current_shipping",
+      "serialNumber": "pending_external",
+      "role": "nominal_and_retry_cases"
+    },
+    {
+      "slot": "circle185_lab_b",
+      "model": "Circle 185",
+      "firmwareBand": "previous_supported_or_nearest_available",
+      "serialNumber": "pending_external",
+      "role": "blocked_and_legacy_cases"
+    }
+  ],
+  "certificationCases": [
+    {
+      "id": "circle185_current_firmware_nominal",
+      "requiredOutcome": "installed",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "readback_current_package", "native_client_log", "test_operator"],
+      "passCriteria": ["checksum_matches_manifest", "readback_matches_current_package", "no_rollback_required"]
+    },
+    {
+      "id": "circle185_low_battery_block",
+      "requiredOutcome": "blocked",
+      "requiredFailureReason": "low_battery",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "GFS_diagnostic_code", "native_client_log", "test_operator"],
+      "passCriteria": ["no_write_attempt_after_preflight_block", "user_safe_diagnostic_present"]
+    },
+    {
+      "id": "circle185_low_storage_block",
+      "requiredOutcome": "blocked",
+      "requiredFailureReason": "insufficient_storage",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "GFS_diagnostic_code", "native_client_log", "test_operator"],
+      "passCriteria": ["no_partial_install", "user_safe_diagnostic_present"]
+    },
+    {
+      "id": "circle185_ble_disconnect_retry",
+      "requiredOutcome": "failed_then_retry_recorded",
+      "requiredFailureReason": "ble_disconnected",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "retryOf", "native_client_log", "test_operator"],
+      "passCriteria": ["retry_links_to_original_job", "previous_content_preserved"]
+    },
+    {
+      "id": "circle185_write_failed_rollback",
+      "requiredOutcome": "failed_or_rollback_required",
+      "requiredFailureReason": "write_failed",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "rollbackStatus", "native_client_log", "test_operator"],
+      "passCriteria": ["rollback_status_recorded", "previous_content_preserved_or_support_diagnostic_created"]
+    },
+    {
+      "id": "circle185_verify_success",
+      "requiredOutcome": "installed",
+      "requiredArtifacts": ["real_ble_session_capture", "verify_checksum", "readback_current_package", "native_client_log", "test_operator"],
+      "passCriteria": ["verify_checksum_matches_manifest", "readback_matches_current_package"]
+    },
+    {
+      "id": "circle185_legacy_delisted_use",
+      "requiredOutcome": "installed_content_runs_new_sync_blocked",
+      "requiredFailureReason": "hardware_pack_unavailable",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "legacy_use_readback", "native_client_log", "test_operator"],
+      "passCriteria": ["installed_content_still_runs", "new_download_or_sync_blocked", "support_disclosure_present"]
+    }
+  ],
+  "nativeClientCapture": {
+    "requiredLogFields": [
+      "deviceId",
+      "deviceModel",
+      "firmwareVersion",
+      "batteryPercent",
+      "availableStorageBytes",
+      "packId",
+      "hardwarePackId",
+      "syncJobId",
+      "transportSessionId",
+      "rollbackStatus",
+      "diagnosticCode"
+    ],
+    "redactionRules": ["no_personal_contact_data", "no_raw_auth_tokens", "no_payment_secrets", "hash_device_serial_in_support_exports"],
+    "transportEvents": ["connect", "preflight", "write_start", "write_progress", "verify", "rollback", "disconnect"]
+  },
+  "releaseAcceptance": {
+    "allCasesRequired": true,
+    "localRegressionDrill": "data/device-sync-regression-drill.json",
+    "criticalFailuresBlockRelease": [
+      "checksum_mismatch",
+      "rollback_missing_after_write_failed",
+      "previous_content_lost",
+      "new_sync_allowed_for_delisted_pack",
+      "missing_support_diagnostic"
+    ],
+    "requiredCommands": [
+      "npm run check:device-matrix",
+      "npm run check:device-lab-evidence",
+      "npm run check:device-sync-certification",
+      "npm run check:device-sync-regression",
+      "npm run test:e2e"
+    ]
+  },
+  "supportHandoff": {
+    "requiredMacros": ["device_sync_failed", "device_storage_or_battery_block", "delisted_pack_legacy_use"],
+    "diagnosticCodePattern": "GFS-*",
+    "bundleRequired": true,
+    "knownLimitationsRequired": true
+  },
+  "signoff": {
+    "nativeHardwareLead": "pending_external",
+    "qaLead": "pending_external",
+    "supportLead": "pending_external",
+    "releaseManager": "pending_external"
+  },
+  "externalBlockers": [
+    {
+      "id": "two_physical_devices",
+      "owner": "Native/Hardware Lead",
+      "status": "pending_external",
+      "exitCriteria": ["two Circle 185 units reserved", "serials recorded", "test window booked"]
+    },
+    {
+      "id": "firmware_spread",
+      "owner": "Native/Hardware Lead",
+      "status": "pending_external",
+      "exitCriteria": ["current shipping firmware", "previous supported or nearest available firmware", "firmware versions recorded"]
+    },
+    {
+      "id": "real_ble_session_capture",
+      "owner": "QA Lead",
+      "status": "pending_external",
+      "exitCriteria": ["BLE transcript per certification case", "native client log per certification case", "DeviceSyncEvidence replay pass"]
+    },
+    {
+      "id": "hardware_lead_signoff",
+      "owner": "Native/Hardware Lead",
+      "status": "pending_external",
+      "exitCriteria": ["critical failures resolved", "known limitations documented", "support handoff accepted", "release manager receives signed packet"]
+    }
+  ]
+}

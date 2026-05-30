@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "gugu_production_rollout_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_production_execution",
+  "releaseCandidate": {
+    "name": "Gugu Flash Public MVP Candidate",
+    "version": "0.1.0",
+    "gitRevision": "pending_release_commit",
+    "apiBaseUrl": "pending_production_api_host",
+    "webOrigin": "pending_public_web_origin",
+    "releaseMode": "free_only_until_payment_approval"
+  },
+  "owners": [
+    {
+      "role": "Release Manager",
+      "owner": "pending_external_named_owner",
+      "responsibilities": ["go_no_go", "rollback_decision", "release_notes"]
+    },
+    {
+      "role": "DevOps Lead",
+      "owner": "pending_external_named_owner",
+      "responsibilities": ["hosting", "secrets", "traffic_shift", "rollback"]
+    },
+    {
+      "role": "Backend Lead",
+      "owner": "pending_external_named_owner",
+      "responsibilities": ["database_migration", "readiness", "repository_contract"]
+    },
+    {
+      "role": "QA Lead",
+      "owner": "pending_external_named_owner",
+      "responsibilities": ["smoke_tests", "e2e_verification", "regression_signoff"]
+    },
+    {
+      "role": "Support Lead",
+      "owner": "pending_external_named_owner",
+      "responsibilities": ["support_coverage", "incident_handoff", "known_issues"]
+    }
+  ],
+  "preflightGates": [
+    "npm test",
+    "npm run test:e2e",
+    "npm run check:deployment",
+    "npm run check:production-preflight",
+    "npm run check:production-database",
+    "npm run check:production-monitoring",
+    "npm run check:security-review-packet",
+    "npm run check:payment-provider-packet",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ],
+  "deploymentStages": [
+    {
+      "id": "freeze_release_candidate",
+      "ownerRole": "Release Manager",
+      "requiredEvidence": ["git_revision", "version_match", "release_notes", "go_no_go_record"]
+    },
+    {
+      "id": "take_pre_deploy_backup",
+      "ownerRole": "DevOps Lead",
+      "requiredEvidence": ["backup_id", "checksum_or_db_verification", "restore_target", "retention_policy"]
+    },
+    {
+      "id": "apply_database_migration",
+      "ownerRole": "Backend Lead",
+      "requiredEvidence": ["migration_id", "schema_version", "repository_contract_result", "rollback_sql_or_restore_plan"]
+    },
+    {
+      "id": "deploy_api_without_traffic",
+      "ownerRole": "DevOps Lead",
+      "requiredEvidence": ["api_revision", "secrets_loaded", "health_ok", "readiness_ok"]
+    },
+    {
+      "id": "run_production_smoke",
+      "ownerRole": "QA Lead",
+      "requiredEvidence": ["web_http_publish_listing_claim_sync", "auth_required_flow", "support_diagnostics_lookup", "ops_metrics_probe"]
+    },
+    {
+      "id": "shift_canary_traffic",
+      "ownerRole": "Release Manager",
+      "requiredEvidence": ["canary_percentage", "error_budget_check", "latency_check", "support_queue_check"]
+    },
+    {
+      "id": "promote_full_traffic",
+      "ownerRole": "Release Manager",
+      "requiredEvidence": ["monitoring_green", "no_critical_support_incidents", "go_record"]
+    },
+    {
+      "id": "post_deploy_reconciliation",
+      "ownerRole": "DevOps Lead",
+      "requiredEvidence": ["ops_metrics_snapshot", "alert_delivery_result", "database_reconciliation", "release_summary"]
+    }
+  ],
+  "rollbackPlan": {
+    "triggerConditions": [
+      "health_probe_failure",
+      "readiness_probe_failure",
+      "critical_auth_failure",
+      "payment_callback_regression",
+      "database_migration_data_loss_risk",
+      "device_sync_critical_regression",
+      "support_severity_1_incident"
+    ],
+    "steps": [
+      "freeze_new_writes_if_data_integrity_is_at_risk",
+      "shift_traffic_to_previous_release",
+      "restore_or_repoint_database_when_required",
+      "verify_health_and_readiness",
+      "run_web_and_api_smoke",
+      "notify_support_and_release_channels",
+      "record_incident_and_followup_owner"
+    ],
+    "requiredEvidence": [
+      "previous_release_available",
+      "rollback_start_time",
+      "rollback_end_time",
+      "health_ready_after_rollback",
+      "data_integrity_decision",
+      "support_handoff_note"
+    ]
+  },
+  "smokeScenarios": [
+    {
+      "id": "web_http_publish_listing_claim_sync",
+      "surface": "web_api",
+      "expected": "creator can publish, listing can be approved, user can claim and sync"
+    },
+    {
+      "id": "required_auth_session_issue_refresh_revoke",
+      "surface": "auth",
+      "expected": "release auth mode rejects demo auth and accepts configured identity/session flow"
+    },
+    {
+      "id": "payment_callback_signature_idempotency",
+      "surface": "commerce",
+      "expected": "signed callback succeeds once and duplicate providerEventId stays idempotent"
+    },
+    {
+      "id": "support_diagnostics_lookup",
+      "surface": "support",
+      "expected": "support can locate payment, entitlement, sync, and governance evidence"
+    },
+    {
+      "id": "monitoring_alert_delivery",
+      "surface": "ops",
+      "expected": "ops metrics and alert delivery are visible to on-call"
+    },
+    {
+      "id": "rollback_to_previous_release",
+      "surface": "release",
+      "expected": "previous release can receive traffic and passes health/readiness"
+    }
+  ],
+  "externalBlockers": [
+    {
+      "id": "production_api_hosting",
+      "status": "pending_external",
+      "owner": "DevOps Lead",
+      "exitCriteria": ["TLS endpoint", "runtime logs", "health probe", "readiness probe", "traffic controls"]
+    },
+    {
+      "id": "production_database",
+      "status": "pending_external",
+      "owner": "Backend Lead",
+      "exitCriteria": ["database provisioned", "migration executed", "repository implementation wired", "PITR configured"]
+    },
+    {
+      "id": "secrets_management",
+      "status": "pending_external",
+      "owner": "Security",
+      "exitCriteria": ["secret manager configured", "auth secrets loaded", "payment callback secret loaded", "rotation owner recorded"]
+    },
+    {
+      "id": "backup_restore_drill",
+      "status": "pending_external",
+      "owner": "DevOps Lead",
+      "exitCriteria": ["production backup taken", "restore rehearsed", "verification recorded", "retention accepted"]
+    },
+    {
+      "id": "rollback_drill",
+      "status": "pending_external",
+      "owner": "Release Manager",
+      "exitCriteria": ["previous release deployed", "traffic rollback rehearsed", "smoke record captured", "support notified"]
+    }
+  ]
+}

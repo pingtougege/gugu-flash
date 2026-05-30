@@ -1,0 +1,160 @@
+{
+  "version": "2026.05.closed-beta-legal-draft",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_legal_approval",
+  "sourceRefs": [
+    {
+      "id": "copyright_law",
+      "name": "中华人民共和国著作权法",
+      "url": "https://www.npc.gov.cn/c2/c30834/202011/t20201119_308796.html"
+    },
+    {
+      "id": "ecommerce_law",
+      "name": "中华人民共和国电子商务法",
+      "url": "https://www.npc.gov.cn/npc/c1773/c1848/c21114/c31834/c31841/201905/t20190521_266893.html"
+    },
+    {
+      "id": "personal_information_protection_law",
+      "name": "中华人民共和国个人信息保护法",
+      "url": "https://www.cac.gov.cn/2021-08/20/c_1631050028355286.htm"
+    },
+    {
+      "id": "consumer_rights_law",
+      "name": "中华人民共和国消费者权益保护法",
+      "url": "https://www.samr.gov.cn/zfjcj/tzgg/art/2023/art_615af9ed6bcd4974bf853dd2e02bc663.html"
+    },
+    {
+      "id": "consumer_rights_regulation",
+      "name": "中华人民共和国消费者权益保护法实施条例",
+      "url": "https://www.gov.cn/gongbao/2024/issue_11266/202404/content_6944108.html"
+    },
+    {
+      "id": "online_return_rule",
+      "name": "网络购买商品七日无理由退货暂行办法",
+      "url": "https://www.moj.gov.cn/pub/sfbgw/flfggz/flfggzbmgz/202101/t20210104_146551.html"
+    }
+  ],
+  "documents": [
+    {
+      "id": "closed_beta_terms_draft",
+      "file": "docs/legal-terms-draft.md",
+      "requiredHeadings": [
+        "## 2. User Agreement Draft",
+        "## 3. Creator Terms Draft",
+        "## 4. Store Listing Terms Draft",
+        "## 5. Rights Claim And Appeal Policy Draft",
+        "## 6. Privacy Notice Draft Checklist",
+        "## 7. Legal Approval Checklist"
+      ],
+      "requiredClauses": [
+        "not legal advice",
+        "must be reviewed by qualified counsel",
+        "No creator cash payout",
+        "Fanwork must select an IP from the platform IP pool",
+        "Store items are HardwarePacks",
+        "DeviceEntitlement scoped to a specific device",
+        "Refunds revoke new download and new sync rights",
+        "providerEventId",
+        "Already installed device content may remain usable",
+        "Digital content and return notices",
+        "privacy notice",
+        "Legal counsel approves user agreement",
+        "Legal counsel approves creator terms",
+        "Legal counsel approves store listing and refund terms"
+      ],
+      "sourceRefs": [
+        "copyright_law",
+        "ecommerce_law",
+        "personal_information_protection_law",
+        "consumer_rights_law",
+        "consumer_rights_regulation",
+        "online_return_rule"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "legal_approval_packet_gate",
+      "file": "scripts/check-legal-approval-packet.mjs",
+      "requiredMarkers": [
+        "gugu_legal_approval_packet_v1",
+        "REQUIRED_RISK_DISCLOSURES",
+        "REQUIRED_EXTERNAL_BLOCKERS",
+        "draft_pending_legal_counsel_approval"
+      ]
+    },
+    {
+      "id": "legal_release_signoff_gate",
+      "file": "scripts/check-legal-release-signoff.mjs",
+      "requiredMarkers": [
+        "gugu_legal_release_signoff_packet_v1",
+        "REQUIRED_COPY_CHECKS",
+        "commerceSignoff",
+        "legal_release_signoff_packet"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "legal_approval_packet",
+      "file": "data/legal-approval-packet.json",
+      "requiredMarkers": [
+        "gugu_legal_approval_packet_v1",
+        "not legal advice",
+        "personal_information_protection_law",
+        "device_scoped_entitlement",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "legal_release_signoff_packet",
+      "file": "data/legal-release-signoff-packet.json",
+      "requiredMarkers": [
+        "gugu_legal_release_signoff_packet_v1",
+        "closed_beta_external_users",
+        "privacySignoff",
+        "commerceSignoff",
+        "pending_external"
+      ]
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:legal",
+    "npm run check:legal-approval",
+    "npm run check:legal-release-signoff",
+    "node scripts/check-release-readiness.mjs --gate=closed_beta"
+  ],
+  "closedBetaAcceptance": [
+    {
+      "id": "user_agreement_draft",
+      "status": "drafted",
+      "evidence": ["docs/legal-terms-draft.md"]
+    },
+    {
+      "id": "creator_terms_draft",
+      "status": "drafted",
+      "evidence": ["docs/legal-terms-draft.md"]
+    },
+    {
+      "id": "store_listing_terms_draft",
+      "status": "drafted",
+      "evidence": ["docs/legal-terms-draft.md"]
+    },
+    {
+      "id": "privacy_notice_checklist",
+      "status": "drafted",
+      "evidence": ["docs/legal-terms-draft.md"]
+    },
+    {
+      "id": "legal_counsel_approval",
+      "status": "pending_external",
+      "evidence": ["data/legal-approval-packet.json"],
+      "needed": "Legal approval packet exists; qualified legal counsel review, approval, or redlines still pending."
+    },
+    {
+      "id": "in_app_acceptance_ux",
+      "status": "drafted",
+      "evidence": ["apps/web/src/app.js", "apps/web/index.html", "tests/e2e/gugu-flash-flows.spec.js", "tests/e2e/gugu-flash-http-api.spec.js"]
+    }
+  ]
+}

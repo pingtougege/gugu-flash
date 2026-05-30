@@ -1,0 +1,167 @@
+{
+  "version": "2026.05.identity-provider-bridge",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_real_identity_provider",
+  "documents": [
+    {
+      "id": "identity_provider_readiness",
+      "file": "docs/identity-provider-readiness.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Token Contract",
+        "## Session Projection",
+        "## Failure Modes",
+        "## External Boundary"
+      ],
+      "requiredClauses": [
+        "gugu_flash_identity_token_v1",
+        "GUGU_FLASH_IDENTITY_TOKEN_SECRET",
+        "GUGU_FLASH_IDENTITY_ISSUER",
+        "GUGU_FLASH_IDENTITY_AUDIENCE",
+        "external_identity",
+        "X-Gugu-Role"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "identity_token_module",
+      "file": "apps/backend/src/flash-identity-token.js",
+      "requiredMarkers": [
+        "gugu_flash_identity_token_v1",
+        "createIdentityToken",
+        "verifyIdentityToken",
+        "identity_token_expired",
+        "identity_token_audience_invalid"
+      ]
+    },
+    {
+      "id": "identity_token_unit_tests",
+      "file": "apps/backend/src/flash-identity-token.test.js",
+      "requiredMarkers": [
+        "signed issuer",
+        "wrong audience",
+        "expired claims",
+        "bad signatures"
+      ]
+    },
+    {
+      "id": "identity_http_integration",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "GUGU_FLASH_IDENTITY_TOKEN_SECRET",
+        "GUGU_FLASH_IDENTITY_ISSUER",
+        "GUGU_FLASH_IDENTITY_AUDIENCE",
+        "verifyIdentityToken",
+        "identityBridge"
+      ]
+    },
+    {
+      "id": "identity_http_tests",
+      "file": "packages/api-client/src/http-flash-api.test.js",
+      "requiredMarkers": [
+        "accepts signed external identity tokens",
+        "external_identity",
+        "wrongAudienceToken",
+        "expiredToken"
+      ]
+    },
+    {
+      "id": "identity_provider_packet_gate",
+      "file": "scripts/check-identity-provider-packet.mjs",
+      "requiredMarkers": [
+        "gugu_identity_provider_integration_packet_v1",
+        "REQUIRED_EXTERNAL_BLOCKERS",
+        "FLASH_AUTH_ROLES",
+        "draft_pending_real_identity_provider"
+      ]
+    },
+    {
+      "id": "identity_operations_gate",
+      "file": "scripts/check-identity-operations.mjs",
+      "requiredMarkers": [
+        "gugu_identity_operations_certification_packet_v1",
+        "REQUIRED_OPERATOR_ROLES",
+        "credentialRecoveryPolicy",
+        "identity_operations_certification_packet"
+      ]
+    },
+    {
+      "id": "identity_access_recovery_gate",
+      "file": "scripts/check-identity-access-recovery.mjs",
+      "requiredMarkers": [
+        "gugu_identity_access_recovery_drill_v1",
+        "REQUIRED_DRILLS",
+        "provider_bound_account_recovery",
+        "identity_access_recovery_drill"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "identity_provider_integration_packet",
+      "file": "data/identity-provider-integration-packet.json",
+      "requiredMarkers": [
+        "gugu_identity_provider_integration_packet_v1",
+        "gugu_flash_identity_token_v1",
+        "gugu-flash-api",
+        "operator_roster_lifecycle",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "identity_operations_certification_packet",
+      "file": "data/identity-operations-certification-packet.json",
+      "requiredMarkers": [
+        "gugu_identity_operations_certification_packet_v1",
+        "closed_beta_production_auth",
+        "credential_recovery_policy",
+        "operator_roster_lifecycle",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "identity_access_recovery_drill",
+      "file": "data/identity-access-recovery-drill.json",
+      "requiredMarkers": [
+        "gugu_identity_access_recovery_drill_v1",
+        "credential_recovery_and_operator_lifecycle",
+        "defined_pending_provider_binding",
+        "provider_group_replay",
+        "pending_external"
+      ]
+    }
+  ],
+  "requiredClaims": ["iss", "aud", "sub", "displayName", "role", "iat", "exp", "jti"],
+  "externalAcceptance": [
+    {
+      "id": "identity_provider_selection",
+      "status": "pending_external",
+      "needed": "Select and configure the production identity provider or authenticated gateway."
+    },
+    {
+      "id": "credential_recovery_policy",
+      "status": "pending_external",
+      "needed": "Bind the drafted credential reset, account recovery, MFA, and support escalation rules to the selected provider and replay them with audit evidence."
+    },
+    {
+      "id": "operator_roster_lifecycle",
+      "status": "pending_external",
+      "needed": "Connect named human operators to provider groups, run joiner/mover/leaver and break-glass replay, and attach offboarding evidence."
+    },
+    {
+      "id": "security_privacy_review",
+      "status": "pending_external",
+      "needed": "Review provider logs, privacy disclosures, retention, and incident response."
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:identity-provider",
+    "npm run check:identity-provider-packet",
+    "npm run check:identity-operations",
+    "npm run check:identity-access-recovery",
+    "node --test apps/backend/src/flash-identity-token.test.js",
+    "node --test packages/api-client/src/http-flash-api.test.js",
+    "node scripts/check-release-readiness.mjs --gate=closed_beta"
+  ]
+}

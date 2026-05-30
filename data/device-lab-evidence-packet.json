@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "gugu_real_device_lab_evidence_packet_v1",
+  "updatedAt": "2026-05-28",
+  "status": "draft_pending_real_ble_captures",
+  "targetDeviceModel": "Circle 185",
+  "minimumPhysicalDevices": 2,
+  "evidenceSchema": "gugu_device_sync_evidence_v1",
+  "transportContract": "fake_ble_transport_v1",
+  "requiredFirmwareBands": ["current_shipping", "previous_supported_or_nearest_available"],
+  "deviceSlots": [
+    {
+      "id": "circle185_lab_a",
+      "model": "Circle 185",
+      "serialNumber": "pending_external",
+      "firmwareBand": "current_shipping",
+      "firmwareVersion": "pending_external",
+      "status": "pending_external"
+    },
+    {
+      "id": "circle185_lab_b",
+      "model": "Circle 185",
+      "serialNumber": "pending_external",
+      "firmwareBand": "previous_supported_or_nearest_available",
+      "firmwareVersion": "pending_external",
+      "status": "pending_external"
+    }
+  ],
+  "captureRequirements": [
+    {
+      "caseId": "circle185_current_firmware_nominal",
+      "owner": "Native/Hardware Lead",
+      "deviceSlot": "circle185_lab_a",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "readback_current_package", "native_client_log", "test_operator"]
+    },
+    {
+      "caseId": "circle185_low_battery_block",
+      "owner": "Native/Hardware Lead",
+      "deviceSlot": "circle185_lab_b",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "GFS_diagnostic_code", "native_client_log", "test_operator"]
+    },
+    {
+      "caseId": "circle185_low_storage_block",
+      "owner": "Native/Hardware Lead",
+      "deviceSlot": "circle185_lab_b",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "GFS_diagnostic_code", "native_client_log", "test_operator"]
+    },
+    {
+      "caseId": "circle185_ble_disconnect_retry",
+      "owner": "QA Lead",
+      "deviceSlot": "circle185_lab_a",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "retryOf", "native_client_log", "test_operator"]
+    },
+    {
+      "caseId": "circle185_write_failed_rollback",
+      "owner": "Native/Hardware Lead",
+      "deviceSlot": "circle185_lab_a",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "rollbackStatus", "native_client_log", "test_operator"]
+    },
+    {
+      "caseId": "circle185_verify_success",
+      "owner": "QA Lead",
+      "deviceSlot": "circle185_lab_a",
+      "requiredArtifacts": ["real_ble_session_capture", "verify_checksum", "readback_current_package", "native_client_log", "test_operator"]
+    },
+    {
+      "caseId": "circle185_legacy_delisted_use",
+      "owner": "Support Lead",
+      "deviceSlot": "circle185_lab_b",
+      "requiredArtifacts": ["real_ble_session_capture", "device_sync_evidence_v1", "legacy_use_readback", "native_client_log", "test_operator"]
+    }
+  ],
+  "qaReplay": {
+    "command": "npm run check:device-lab-evidence",
+    "requiredValidators": ["validateDeviceSyncEvidence", "validateFakeBleTransportContract", "DEVICE_SYNC_REAL_DEVICE_MATRIX_CASE_IDS"],
+    "status": "ready_for_real_capture"
+  },
+  "supportHandoff": {
+    "diagnosticCodePattern": "GFS-*",
+    "macroMappingRequired": true,
+    "supportDiagnosticBundleRequired": true,
+    "legacyUseDisclosureRequired": true
+  },
+  "signoff": {
+    "nativeHardwareLead": "pending_external",
+    "qaLead": "pending_external",
+    "supportLead": "pending_external",
+    "releaseManager": "pending_external"
+  },
+  "externalBlockers": [
+    {
+      "id": "two_physical_devices",
+      "owner": "Native/Hardware Lead",
+      "status": "pending_external",
+      "exitCriteria": ["two Circle 185 units reserved", "device IDs recorded", "test window booked"]
+    },
+    {
+      "id": "firmware_spread",
+      "owner": "Native/Hardware Lead",
+      "status": "pending_external",
+      "exitCriteria": ["current shipping firmware", "previous supported or nearest available firmware", "firmware versions recorded"]
+    },
+    {
+      "id": "real_ble_session_capture",
+      "owner": "QA Lead",
+      "status": "pending_external",
+      "exitCriteria": ["BLE transcript per case", "native client log per case", "DeviceSyncEvidence replay pass"]
+    },
+    {
+      "id": "hardware_lead_signoff",
+      "owner": "Native/Hardware Lead",
+      "status": "pending_external",
+      "exitCriteria": ["known limitations documented", "Support confirms diagnostics", "Release manager receives signed packet"]
+    }
+  ]
+}

@@ -1,5 +1,17 @@
 # Implementation Roadmap
 
+This is the high-level roadmap. The concrete MVP execution order is now tracked in [MVP Execution Roadmap](/Users/xulei/projects/gugu-flash/docs/mvp-execution-roadmap.md).
+
+Immediate next implementation target:
+
+```text
+P0-01 规则和测试底座
+  -> add schemaVersion / capabilities validation
+  -> add Node node:test scripts
+  -> add core and mock API tests
+  -> keep npm run check:content and npm run test passing
+```
+
 ## Milestone 0: Prototype
 
 Current repo state.
@@ -27,7 +39,7 @@ Add a backend with these domains:
 
 Recommended first implementation:
 
-- FastAPI or Spring Boot, whichever is easier to integrate with the current GuguClub deployment.
+- FastAPI or Spring Boot, chosen for the new Gugu Flash backend rather than legacy deployment compatibility.
 - PostgreSQL/MySQL for core entities.
 - OSS for image/video/audio assets.
 - Redis for feed ranking cache and rate limits.
@@ -82,25 +94,28 @@ Capabilities:
 
 The AI output must be JSON and validated against `GuguH5Pack` before saving.
 
-## Milestone 4: GuguClub Integration
+## Milestone 4: Legacy Migration And Native Capabilities
 
-Use existing `guguclub` capabilities:
+Gugu Flash replaces the deprecated guguclub project. Legacy code and data can be used only as migration references:
 
-- WeChat login and user identity
+- historical device identity fields
+- BLE binding/sync flow experience
+- friend graph and IM product references
+- resonance history ideas
+- reusable hardware packaging scripts
+
+Gugu Flash must own:
+
+- login and user identity
 - device binding
-- friend graph
-- IM
-- resonance history
-
-Integration options should be treated as channels, not mutually exclusive product directions:
-
-1. Native app uses GuguClub identity, social, and device APIs directly.
-2. Web/H5 uses public share pages plus login when the user wants to create, remix, comment, or install.
-3. Mini program embeds the same product loop where WeChat distribution matters.
+- BLE and device sync
+- payment/order
+- content download
+- social/community backend
 
 Preferred MVP path:
 
-Build the backend and shared domain layer first, then ship a native-app-shaped Web prototype before implementing client-specific shells. The mini program should reuse the same APIs and content schema instead of becoming the architectural center.
+Build the backend and shared domain layer first, then ship a native-app-shaped Web prototype before implementing client-specific shells. The mini program should reuse the same Gugu Flash APIs and content schema instead of becoming the architectural center.
 
 ## Milestone 5: Official Hardware Adaptation
 
@@ -109,11 +124,11 @@ Selected H5 packs enter official adaptation:
 ```text
 GuguH5Pack
   -> operator review
-  -> import into guguclub-ui
-  -> adapt into StoryPack
+  -> import into Gugu Flash Hardware Studio
+  -> adapt into HardwarePack / device story
   -> LVGL/device preview
   -> compile/export hardware story.json or bundle
-  -> publish to guguclub/backend
+  -> publish through Gugu Flash backend
 ```
 
 The ordinary user never generates device code directly.
@@ -131,14 +146,10 @@ In device-capable clients, add:
 Priority by client:
 
 1. Native app: full device management and download.
-2. Mini program: use existing GuguClub device routes where available.
+2. Mini program: use Gugu Flash device APIs where platform capabilities allow.
 3. Web/H5: show hardware-ready content and hand off to app or mini program for installation when browser capabilities are insufficient.
 
-Use `guguclub/backend` content delivery endpoints where possible:
-
-- `/content/check`
-- `/content/pull`
-- `/content/import`
+Gugu Flash should own the replacement content delivery endpoints for check, download, install, rollback, and status reporting.
 
 ## Ranking Signals
 

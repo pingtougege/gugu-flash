@@ -1,0 +1,169 @@
+{
+  "schemaVersion": "gugu_native_build_certification_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_signed_native_builds",
+  "releaseCandidate": {
+    "name": "Gugu Flash Public MVP Candidate",
+    "versionName": "0.1.0",
+    "buildNumber": "0.1.0-alpha.1",
+    "releaseMode": "free_only_until_payment_approval",
+    "apiBaseUrl": "pending_production_api"
+  },
+  "buildTargets": [
+    {
+      "id": "ios_testflight_internal",
+      "platform": "ios",
+      "bundleId": "app.gugu.flash",
+      "artifact": "signed_ipa_or_testflight_build",
+      "status": "pending_external",
+      "requiredEvidence": ["apple_developer_account", "bundle_id", "signing_certificate", "provisioning_profile", "build_number", "tester_group", "native_smoke_record"]
+    },
+    {
+      "id": "android_internal_testing",
+      "platform": "android",
+      "packageName": "app.gugu.flash",
+      "artifact": "signed_aab_or_apk",
+      "status": "pending_external",
+      "requiredEvidence": ["google_play_console_app", "package_name", "signing_key", "version_code", "tester_group", "native_smoke_record"]
+    },
+    {
+      "id": "web_h5_fallback",
+      "platform": "web",
+      "artifact": "pages_deploy",
+      "status": "available",
+      "requiredEvidence": ["pages_deploy", "web_smoke", "release_note"]
+    }
+  ],
+  "sharedRuntimeContract": {
+    "corePackage": "packages/core",
+    "apiClientPackage": "packages/api-client",
+    "requiredTargets": ["web", "native"],
+    "requiredFeatureFlags": {
+      "paidCheckout": false,
+      "paidContentEnabled": false,
+      "demoAuthEnabled": false,
+      "hardwareSync": true,
+      "externalIdentityProvider": true
+    }
+  },
+  "permissionsAndPrivacy": [
+    {
+      "id": "bluetooth",
+      "platforms": ["ios", "android"],
+      "storeDisclosureRequired": true,
+      "rationale": "Used to discover and sync supported Gugu badge devices."
+    },
+    {
+      "id": "notifications",
+      "platforms": ["ios", "android"],
+      "storeDisclosureRequired": true,
+      "rationale": "Used for review results, sync status, claims, appeals, and support updates."
+    },
+    {
+      "id": "photo_media",
+      "platforms": ["ios", "android"],
+      "storeDisclosureRequired": true,
+      "rationale": "Used only when a creator uploads artwork or audio assets."
+    },
+    {
+      "id": "camera",
+      "platforms": ["ios", "android"],
+      "storeDisclosureRequired": true,
+      "rationale": "Reserved for future device QR pairing; disabled for Public MVP unless implemented."
+    }
+  ],
+  "storeSubmissionMaterials": {
+    "storeAssetsPacket": "data/native-store-assets-packet.json",
+    "supportContact": "support@gugu-flash.example",
+    "privacyPolicyUrl": "https://gugu-flash.example/privacy",
+    "termsUrl": "https://gugu-flash.example/terms",
+    "paidContentCopy": "disabled_until_payment_provider_approval",
+    "ugcModerationDisclosure": true,
+    "rightsClaimDisclosure": true,
+    "refundSupportDisclosure": true,
+    "requiredScreenshots": ["feed", "creator", "store", "device_dashboard", "support_or_settings"],
+    "requiredAssets": ["app_icon", "feature_graphic_or_promo", "release_notes", "privacy_labels"]
+  },
+  "nativeSmokeScenarios": [
+    {
+      "id": "login_session",
+      "surface": "native_auth",
+      "requiredEvidence": ["identity_provider_or_session_flow", "demo_auth_disabled"]
+    },
+    {
+      "id": "feed_load",
+      "surface": "native_feed",
+      "requiredEvidence": ["feed_visible", "runtime_contract_matches_web"]
+    },
+    {
+      "id": "create_original_h5",
+      "surface": "native_creator",
+      "requiredEvidence": ["draft_created", "publish_result"]
+    },
+    {
+      "id": "store_claim_or_purchase",
+      "surface": "native_store",
+      "requiredEvidence": ["free_claim_available", "paid_checkout_disabled_until_approval"]
+    },
+    {
+      "id": "device_dashboard",
+      "surface": "native_device",
+      "requiredEvidence": ["device_persona_visible", "entitlement_state_visible"]
+    },
+    {
+      "id": "device_sync_handoff",
+      "surface": "native_ble",
+      "requiredEvidence": ["hardware_sync_entry", "device_sync_certification_packet"]
+    },
+    {
+      "id": "support_diagnostics",
+      "surface": "support",
+      "requiredEvidence": ["support_contact_visible", "diagnostic_lookup_ready"]
+    },
+    {
+      "id": "legal_links",
+      "surface": "settings",
+      "requiredEvidence": ["privacy_policy_url", "terms_url"]
+    }
+  ],
+  "releaseSignoff": {
+    "product": "pending_external",
+    "qa": "pending_external",
+    "legal": "pending_external",
+    "support": "pending_external",
+    "nativeLead": "pending_external",
+    "releaseManager": "pending_external"
+  },
+  "externalBlockers": [
+    {
+      "id": "apple_developer_access",
+      "owner": "Native Lead",
+      "status": "pending_external",
+      "exitCriteria": ["Apple Developer account", "bundle id", "signing certificate", "TestFlight access"]
+    },
+    {
+      "id": "google_play_console_access",
+      "owner": "Native Lead",
+      "status": "pending_external",
+      "exitCriteria": ["Google Play Console app", "package name", "signing setup", "internal testing access"]
+    },
+    {
+      "id": "native_shell_build",
+      "owner": "Native Lead",
+      "status": "pending_external",
+      "exitCriteria": ["signed iOS shell", "signed Android shell", "shared API contract wired", "native smoke record"]
+    },
+    {
+      "id": "store_review_packet",
+      "owner": "Product Owner",
+      "status": "pending_external",
+      "exitCriteria": ["screenshots", "icon", "privacy labels", "terms URL", "privacy policy URL", "support contact"]
+    },
+    {
+      "id": "release_manager_signoff",
+      "owner": "Release Manager",
+      "status": "pending_external",
+      "exitCriteria": ["QA pass", "legal approval", "support coverage", "rollout decision"]
+    }
+  ]
+}

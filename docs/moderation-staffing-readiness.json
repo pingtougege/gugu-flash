@@ -1,0 +1,211 @@
+{
+  "version": "2026.05.moderation-staffing-readiness",
+  "updatedAt": "2026-05-27",
+  "status": "draft_pending_named_human_rota",
+  "documents": [
+    {
+      "id": "moderation_staffing_plan",
+      "file": "docs/moderation-staffing-plan.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Roles",
+        "## Minimum Coverage",
+        "## Queue Coverage",
+        "## Escalation Matrix",
+        "## Operating Rules",
+        "## Launch Exit Criteria"
+      ],
+      "requiredClauses": [
+        "2 trained reviewers",
+        "Separation of duties",
+        "Daily queue health review",
+        "Named human owners"
+      ]
+    },
+    {
+      "id": "review_workflow_plan",
+      "file": "docs/review-workflow-plan.md",
+      "requiredHeadings": [
+        "## 审核对象",
+        "## 审核类型",
+        "## 风险分级",
+        "## 运营台需要的能力"
+      ],
+      "requiredClauses": [
+        "ReviewTask",
+        "StoreListing",
+        "HardwarePack",
+        "审核理由"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "moderation_rota_gate",
+      "file": "scripts/check-moderation-rota.mjs",
+      "requiredMarkers": [
+        "gugu_moderation_staffing_rota_v1",
+        "REQUIRED_ROLE_SLOTS",
+        "REQUIRED_EXTERNAL_BLOCKERS",
+        "draft_pending_named_human_rota"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "moderation_staffing_rota",
+      "file": "data/moderation-staffing-rota.json",
+      "requiredMarkers": [
+        "gugu_moderation_staffing_rota_v1",
+        "trust_lead",
+        "reviewer_l1",
+        "appeal_second_reviewer",
+        "pending_external"
+      ]
+    }
+  ],
+  "queueCoverage": [
+    {
+      "queueId": "h5_publish_review",
+      "primaryOwner": "Trust Lead",
+      "backupOwner": "Operator Lead",
+      "minimumReviewers": 2,
+      "requiredReviewerLevel": "L1",
+      "slaHours": 24,
+      "escalationOwner": "Trust Lead"
+    },
+    {
+      "queueId": "store_listing_review",
+      "primaryOwner": "Commerce Lead",
+      "backupOwner": "Trust Lead",
+      "minimumReviewers": 2,
+      "requiredReviewerLevel": "L2",
+      "slaHours": 48,
+      "escalationOwner": "Commerce Lead"
+    },
+    {
+      "queueId": "hardware_adaptation_review",
+      "primaryOwner": "Hardware Lead",
+      "backupOwner": "Operator Lead",
+      "minimumReviewers": 1,
+      "requiredReviewerLevel": "L2",
+      "slaHours": 72,
+      "escalationOwner": "Hardware Lead"
+    },
+    {
+      "queueId": "comment_report_governance",
+      "primaryOwner": "Trust Lead",
+      "backupOwner": "Operator Lead",
+      "minimumReviewers": 2,
+      "requiredReviewerLevel": "L1",
+      "slaHours": 24,
+      "escalationOwner": "Trust Lead"
+    },
+    {
+      "queueId": "rights_claim_governance",
+      "primaryOwner": "Trust Lead",
+      "backupOwner": "Commerce Lead",
+      "minimumReviewers": 2,
+      "requiredReviewerLevel": "L2",
+      "slaHours": 72,
+      "escalationOwner": "Trust Lead"
+    },
+    {
+      "queueId": "appeal_review",
+      "primaryOwner": "Trust Lead",
+      "backupOwner": "Product Owner",
+      "minimumReviewers": 2,
+      "requiredReviewerLevel": "L2",
+      "slaHours": 72,
+      "escalationOwner": "Product Owner",
+      "requiresSecondReviewer": true
+    }
+  ],
+  "escalationMatrix": [
+    {
+      "severity": "S0",
+      "responseTarget": "same_day",
+      "primaryOwner": "Product Owner",
+      "backupOwner": "Trust Lead",
+      "handoffRequired": true
+    },
+    {
+      "severity": "S1",
+      "responseTarget": "24h",
+      "primaryOwner": "Trust Lead",
+      "backupOwner": "Operator Lead",
+      "handoffRequired": true
+    },
+    {
+      "severity": "S2",
+      "responseTarget": "48h",
+      "primaryOwner": "Operator Lead",
+      "backupOwner": "Support Lead",
+      "handoffRequired": true
+    },
+    {
+      "severity": "S3",
+      "responseTarget": "5_business_days",
+      "primaryOwner": "Support Lead",
+      "backupOwner": "Product Owner",
+      "handoffRequired": false
+    }
+  ],
+  "dailyQueueReview": [
+    "review_tasks",
+    "open_reports",
+    "open_rights_claims",
+    "open_appeals",
+    "frozen_settlements",
+    "failed_sync_jobs",
+    "payment_callbacks",
+    "refund_callbacks",
+    "operator_actions_without_reason"
+  ],
+  "trainingModules": [
+    {
+      "id": "content_safety_basics",
+      "requiredFor": ["Reviewer L1", "Reviewer L2", "Trust Lead"]
+    },
+    {
+      "id": "ip_rights_and_store_freeze",
+      "requiredFor": ["Reviewer L2", "Trust Lead", "Commerce Lead"]
+    },
+    {
+      "id": "appeal_second_review",
+      "requiredFor": ["Reviewer L2", "Trust Lead", "Product Owner"]
+    },
+    {
+      "id": "hardware_device_safety",
+      "requiredFor": ["Hardware Lead", "Reviewer L2"]
+    }
+  ],
+  "externalAcceptance": [
+    {
+      "id": "named_human_rota",
+      "status": "pending_external",
+      "needed": "Assign named humans to Trust Lead, Operator Lead, Commerce Lead, Hardware Lead, Support Lead, Product Owner, Reviewer L1, and Reviewer L2 coverage."
+    },
+    {
+      "id": "training_completion",
+      "status": "pending_external",
+      "needed": "Record training completion for every named reviewer before public MVP."
+    },
+    {
+      "id": "escalation_drill",
+      "status": "pending_external",
+      "needed": "Run an S1 rights/store freeze escalation drill and record outcome."
+    },
+    {
+      "id": "queue_sla_dashboard",
+      "status": "pending_external",
+      "needed": "Alpha operator SLA endpoint and evaluator exist; connect the snapshot to the production dashboard and verify named humans review oldest-case age and SLA breach counters daily."
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:moderation-staffing",
+    "npm run check:moderation-rota",
+    "npm run check:review-sla",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ]
+}

@@ -39,16 +39,16 @@ apps/miniprogram
   future WeChat acquisition and device/account bridge
 
 apps/operator
-  future review, curation, hardware candidate, and guguclub-ui export console
+  future review, curation, hardware candidate, and Hardware Studio console
 ```
 
-## Current External References
+## Legacy References
 
-### Backend Reference
+`guguclub` is deprecated. Gugu Flash is the replacement system, not a frontend shell on top of the old project.
 
-Source: `/Users/xulei/projects/guguclub/backend`
+### Legacy Backend Reference
 
-Observed conventions:
+Old backend conventions can be studied for migration only:
 
 - Spring/Maven multi-service backend.
 - Controllers use `@RestController` and route prefixes such as `/user`, `/device`, `/content`.
@@ -62,13 +62,11 @@ Observed conventions:
   - `POST /content/import`
   - `POST /content/asset/upload`
 
-Gugu Flash backend APIs should be designed so they can later map into this response style instead of exposing one-off frontend-only shapes.
+Gugu Flash should define its own API and response shape. Do not keep old backend response wrappers as a product dependency.
 
-### Hardware Reference
+### Legacy Hardware Reference
 
-Source: `/Users/xulei/projects/guguclub/ESP32_S3_Circle_185`
-
-Observed constraints:
+Old hardware constraints can be used as reference:
 
 - Hardware story engine loads JSON and prefers `START_HOOK` as entry.
 - Stable root fields include `pack_id`, `version`, `min_ver`, `force`, `checksum`, `assets`, and `nodes`.
@@ -87,6 +85,10 @@ Content:
 
 - one full-screen `GuguH5Pack` at a time
 - author avatar/name
+- IP label from the platform IP pool, plus zone label when opened
+- role persona clone inside that IP: avatar, persona name, persona tagline later
+- genre/channel labels: emotional companion, workday, duo-sync, pixel adventure
+- rights label: original or derivative work, with selected IP for derivative works
 - title, one-line story hook, tags
 - hardware state: H5 only, hardware candidate, hardware ready
 - right-side actions: like, save, comment, remix, share
@@ -125,6 +127,11 @@ Purpose: keep creation reachable from the "Mine" page without occupying a bottom
 Content:
 
 - prompt input
+- original/derivative selector
+- IP pool selector when derivative is selected
+- original IP selector/creator when original is selected
+- role persona selector scoped to the selected IP
+- genre/template selector
 - template presets
 - AI draft preview
 - recent drafts later
@@ -134,7 +141,8 @@ Interactions:
 
 - open from Mine profile entry or Mine top action
 - prompt to structured H5 draft
-- publish to feed
+- publish to feed without store listing
+- derivative drafts cannot be generated/published until an IP is selected from the platform IP pool
 - future: edit title, cover, scenes, branches, tags, visibility, review status
 
 ### 4. Friends
@@ -154,6 +162,26 @@ Interactions:
 - open conversation later
 - quick reply later
 - accept co-creation later
+
+### 4a. IP Zones, Personas, And Genres
+
+Purpose: borrow the useful part of role-play social products without depending on real celebrities or unlicensed IP.
+
+Content:
+
+- platform IP pool: platform original, user original, authorized IP, community fan IP
+- IP zones as the later community container after threshold and user application
+- official and user-facing personas scoped to an IP
+- genre labels: emotional companion, workday, duo-sync, pixel adventure
+- derivative metadata: `contentOrigin=fanwork`, `ipId`, `ipName`
+
+Interactions:
+
+- creation starts by picking original/derivative, IP, persona, and genre/template
+- remix becomes a derivative work and preserves source ancestry
+- derivative works must select an IP from the platform IP pool
+- feed and friend activity expose IP and persona, plus IP zone when one has been opened
+- later: IP zone home pages, persona profile pages, co-creation rooms per IP/persona
 
 ### 5. Badge
 
@@ -179,12 +207,14 @@ Interactions:
 
 ### 6. Store
 
-Purpose: standalone official content store for hardware-downloadable packs.
+Purpose: commercial content distribution, separate from ordinary H5 publishing, for hardware-downloadable packs.
 
 Content:
 
 - current sync target device
-- official content packs adapted from selected H5 works
+- only `listed` works appear in the store
+- store item shows IP, zone if opened, persona, original/derivative label, and derivative IP when present
+- official content packs adapted from selected H5 works later
 - price/free label
 - ownership state
 - download state
@@ -192,6 +222,11 @@ Content:
 
 Interactions:
 
+- user applies from a published work in Mine/Profile
+- application requires a rights acknowledgement: original ownership or user responsibility for IP/material authorization
+- submitted works enter `rights_review`
+- operator approves listing before it appears in the store
+- derivative works should not become hardware candidates until listing/rights review has passed
 - purchase or claim content pack
 - download purchased content
 - sync downloaded content to the active device
@@ -231,7 +266,7 @@ Interactions:
 
 - mark H5 work as hardware candidate
 - mark adapted work as hardware ready
-- later export to `guguclub-ui`
+- later export to Gugu Flash Hardware Studio
 
 ## API Plan
 
@@ -283,16 +318,13 @@ POST   /flash/operator/hardware-candidates
 POST   /flash/operator/hardware-ready
 ```
 
-When implemented inside the current GuguClub backend style, each route should return:
+Gugu Flash backend should use a simple shared response shape:
 
 ```json
 {
-  "header": { "timestamp": 0 },
-  "body": {
-    "code": 200,
-    "message": "请求成功",
-    "data": {}
-  }
+  "code": 200,
+  "message": "ok",
+  "data": {}
 }
 ```
 
@@ -365,9 +397,8 @@ Status: planned.
 
 Status: planned after frontend API facade stabilizes.
 
-- implement Gugu Flash backend routes in a style compatible with `/Users/xulei/projects/guguclub/backend`
-- use `CommonHttpResponse`
-- include `Customer-Uuid`
+- implement Gugu Flash backend routes as the new source of truth
+- include first-party auth/session, user, device, order, entitlement, and content APIs
 - keep H5 publishing and hardware candidate review separate
 - only export selected works to hardware adaptation
 
@@ -375,8 +406,8 @@ Status: planned after frontend API facade stabilizes.
 
 Status: planned after backend persistence.
 
-- export selected `GuguH5Pack` to `guguclub-ui` as an adaptation draft
-- validate against hardware constraints before any `/content/import`
+- export selected `GuguH5Pack` to Gugu Flash Hardware Studio as an adaptation draft
+- validate against hardware constraints before publishing HardwarePack
 - never let ordinary users publish directly to device JSON
 
 ## Verification Policy

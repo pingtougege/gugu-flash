@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "gugu_review_operations_certification_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_named_review_ops",
+  "coverageMode": "closed_beta_to_public_mvp_review_ops",
+  "queues": [
+    {
+      "id": "h5_publish_review",
+      "ownerRole": "Trust Lead",
+      "minimumReviewers": 2,
+      "slaHours": 24,
+      "requiredEvidence": ["work_preview", "safety_scan", "ip_context", "operation_log"],
+      "releaseGateItems": ["h5_publish_review"]
+    },
+    {
+      "id": "store_listing_review",
+      "ownerRole": "Commerce Lead",
+      "minimumReviewers": 2,
+      "slaHours": 48,
+      "requiredEvidence": ["rights_acknowledgement", "material_source_note", "ip_pool_context", "store_preview", "operation_log"],
+      "releaseGateItems": ["store_listing_review"]
+    },
+    {
+      "id": "comment_report_governance",
+      "ownerRole": "Trust Lead",
+      "minimumReviewers": 2,
+      "slaHours": 24,
+      "requiredEvidence": ["report_reason", "target_snapshot", "moderation_action", "operation_log"],
+      "releaseGateItems": ["content_reports_rights_claims"]
+    },
+    {
+      "id": "rights_claim_governance",
+      "ownerRole": "Trust Lead",
+      "minimumReviewers": 2,
+      "slaHours": 72,
+      "requiredEvidence": ["claimant_summary", "source_evidence", "target_snapshot", "settlement_freeze_decision", "operation_log"],
+      "releaseGateItems": ["content_reports_rights_claims"]
+    },
+    {
+      "id": "appeal_review",
+      "ownerRole": "Product Owner",
+      "minimumReviewers": 2,
+      "slaHours": 72,
+      "requiresSecondReviewer": true,
+      "requiredEvidence": ["source_action", "appellant_statement", "second_reviewer", "decision_reason", "operation_log"],
+      "releaseGateItems": ["content_reports_rights_claims"]
+    }
+  ],
+  "dailyOperatingLoop": {
+    "timezone": "Asia/Shanghai",
+    "reviewWindow": "09:00-21:00",
+    "requiredChecks": [
+      "oldest_case_age",
+      "sla_breach_count",
+      "operator_actions_without_reason",
+      "appeals_with_reviewer_conflict",
+      "frozen_settlements",
+      "support_handoff_needed"
+    ],
+    "requiresDailySignoff": true,
+    "dashboardEndpoint": "/flash/operator/review-sla"
+  },
+  "separationOfDuties": {
+    "appealSecondReviewerRequired": true,
+    "sameReviewerCannotResolveOwnAppeal": true,
+    "rightsClaimPaidContentRequiresLeadReview": true,
+    "operatorReasonRequiredForSensitiveActions": true
+  },
+  "trainingAndDrills": [
+    {
+      "id": "content_safety_basics",
+      "requiredFor": ["Reviewer L1", "Reviewer L2", "Trust Lead"]
+    },
+    {
+      "id": "ip_rights_and_store_freeze",
+      "requiredFor": ["Reviewer L2", "Trust Lead", "Commerce Lead"]
+    },
+    {
+      "id": "appeal_second_review",
+      "requiredFor": ["Reviewer L2", "Trust Lead", "Product Owner"]
+    },
+    {
+      "id": "s1_rights_store_freeze",
+      "type": "drill",
+      "requiredEvidence": ["case_id", "freeze_action", "support_handoff", "lessons_recorded"]
+    },
+    {
+      "id": "queue_sla_dashboard_review",
+      "type": "drill",
+      "requiredEvidence": ["oldest_case_age", "breach_count", "reviewer_on_duty", "daily_signoff"]
+    }
+  ],
+  "supportHandoff": {
+    "macros": ["rights_claim_received", "appeal_received", "operator_reason_missing", "takedown_legacy_use"],
+    "diagnosticBundleRequired": true,
+    "paidContentEscalatesToCommerce": true,
+    "hardwareContentEscalatesToHardwareLead": true
+  },
+  "releasePolicy": {
+    "requiredCommands": [
+      "npm run check:governance",
+      "npm run check:review-sla",
+      "npm run check:review-operations-certification",
+      "npm run check:moderation-staffing",
+      "npm run check:moderation-rota"
+    ],
+    "mustRemainInProgressUntil": [
+      "named_human_rota",
+      "training_completion",
+      "escalation_drill",
+      "queue_sla_dashboard"
+    ]
+  },
+  "externalBlockers": [
+    {
+      "id": "named_human_rota",
+      "owner": "Ops Lead",
+      "status": "pending_external",
+      "exitCriteria": ["named reviewers assigned", "coverage calendar approved", "backup owners confirmed"]
+    },
+    {
+      "id": "training_completion",
+      "owner": "Trust Lead",
+      "status": "pending_external",
+      "exitCriteria": ["content safety training complete", "rights/store training complete", "appeal second-review training complete"]
+    },
+    {
+      "id": "escalation_drill",
+      "owner": "Trust Lead",
+      "status": "pending_external",
+      "exitCriteria": ["S1 rights/store freeze drill run", "support handoff captured", "lessons recorded"]
+    },
+    {
+      "id": "queue_sla_dashboard",
+      "owner": "Operator Lead",
+      "status": "pending_external",
+      "exitCriteria": ["production dashboard wired", "daily review signoff", "breach counters visible"]
+    }
+  ]
+}

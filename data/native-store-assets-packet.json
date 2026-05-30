@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "gugu_native_store_assets_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_ready_for_final_store_asset_capture",
+  "releaseCandidate": "Gugu Flash Public MVP Candidate",
+  "appIdentity": {
+    "appName": "Gugu Flash",
+    "bundleId": "app.gugu.flash",
+    "androidPackage": "app.gugu.flash",
+    "versionName": "0.1.0",
+    "releaseMode": "free_only_until_payment_approval"
+  },
+  "storeListingCopy": {
+    "subtitle": "Create and sync tiny interactive badge stories",
+    "shortDescription": "Build tiny H5 stories, claim launch packs, and sync them to supported Gugu badge devices.",
+    "paidContentCopy": "disabled_until_payment_provider_approval",
+    "ugcModerationDisclosure": true,
+    "rightsClaimDisclosure": true,
+    "refundSupportDisclosure": true,
+    "deviceScopedEntitlementDisclosure": true
+  },
+  "screenshots": [
+    {
+      "id": "feed",
+      "surface": "home_feed",
+      "requiredState": "launch content and creator entries visible",
+      "captureStatus": "pending_final_native_capture"
+    },
+    {
+      "id": "creator",
+      "surface": "creator_editor",
+      "requiredState": "original H5 creation flow visible",
+      "captureStatus": "pending_final_native_capture"
+    },
+    {
+      "id": "store",
+      "surface": "store_listing",
+      "requiredState": "free claim available and paid checkout disabled",
+      "captureStatus": "pending_final_native_capture"
+    },
+    {
+      "id": "device_dashboard",
+      "surface": "device_dashboard",
+      "requiredState": "device persona, entitlement, and sync handoff visible",
+      "captureStatus": "pending_final_native_capture"
+    },
+    {
+      "id": "support_or_settings",
+      "surface": "settings_support",
+      "requiredState": "support contact, privacy policy, terms, and diagnostics entry visible",
+      "captureStatus": "pending_final_native_capture"
+    }
+  ],
+  "privacyLabels": [
+    {
+      "id": "account_identity",
+      "dataTypes": ["user_id", "display_name", "session"],
+      "purpose": "app_functionality",
+      "linkedToUser": true,
+      "tracking": false
+    },
+    {
+      "id": "user_generated_content",
+      "dataTypes": ["h5_pack", "comments", "reports", "rights_claims", "appeals"],
+      "purpose": "app_functionality_and_moderation",
+      "linkedToUser": true,
+      "tracking": false
+    },
+    {
+      "id": "device_sync_diagnostics",
+      "dataTypes": ["device_id", "firmware_version", "battery", "storage", "diagnosticCode", "rollbackStatus"],
+      "purpose": "device_sync_support",
+      "linkedToUser": true,
+      "tracking": false
+    },
+    {
+      "id": "commerce_records",
+      "dataTypes": ["orderId", "providerEventId", "entitlementId", "refund_status"],
+      "purpose": "purchases_refunds_and_support",
+      "linkedToUser": true,
+      "tracking": false
+    }
+  ],
+  "permissionRationales": [
+    {
+      "id": "bluetooth",
+      "platforms": ["ios", "android"],
+      "storeDisclosureRequired": true,
+      "userFacingCopy": "Used to discover and sync supported Gugu badge devices."
+    },
+    {
+      "id": "notifications",
+      "platforms": ["ios", "android"],
+      "storeDisclosureRequired": true,
+      "userFacingCopy": "Used for review results, sync status, claims, appeals, and support updates."
+    },
+    {
+      "id": "photo_media",
+      "platforms": ["ios", "android"],
+      "storeDisclosureRequired": true,
+      "userFacingCopy": "Used only when a creator uploads artwork or audio assets."
+    },
+    {
+      "id": "camera",
+      "platforms": ["ios", "android"],
+      "storeDisclosureRequired": true,
+      "userFacingCopy": "Reserved for future device QR pairing; disabled for Public MVP unless implemented."
+    }
+  ],
+  "linksAndContacts": {
+    "supportContact": "support@gugu-flash.example",
+    "privacyPolicyUrl": "https://gugu-flash.example/privacy",
+    "termsUrl": "https://gugu-flash.example/terms",
+    "legalDraft": "docs/legal-terms-draft.md",
+    "supportPlaybook": "docs/support-playbook.md"
+  },
+  "reviewNotes": {
+    "paidCheckout": "disabled_until_payment_provider_approval",
+    "ugcModeration": "Reports, rights claims, appeals, and operator review are documented in support and legal packets.",
+    "hardwareSync": "Bluetooth is used only for supported Gugu badge device sync.",
+    "betaDisclosure": "Public MVP candidate remains gated until signed native builds and final store assets are approved."
+  },
+  "releasePolicy": {
+    "requiredCommands": [
+      "npm run check:app-distribution",
+      "npm run check:app-release-packet",
+      "npm run check:native-build-certification",
+      "npm run check:native-store-assets"
+    ],
+    "mustRemainInProgressUntil": [
+      "apple_developer_access",
+      "google_play_console_access",
+      "native_shell_build",
+      "store_review_packet",
+      "release_manager_signoff"
+    ]
+  },
+  "externalBlockers": [
+    {
+      "id": "apple_developer_access",
+      "owner": "Native Lead",
+      "status": "pending_external",
+      "exitCriteria": ["Apple Developer account", "bundle id", "signing certificate", "TestFlight access"]
+    },
+    {
+      "id": "google_play_console_access",
+      "owner": "Native Lead",
+      "status": "pending_external",
+      "exitCriteria": ["Google Play Console app", "package name", "signing setup", "internal testing access"]
+    },
+    {
+      "id": "native_shell_build",
+      "owner": "Native Lead",
+      "status": "pending_external",
+      "exitCriteria": ["signed iOS shell", "signed Android shell", "shared API contract wired", "native smoke record"]
+    },
+    {
+      "id": "store_review_packet",
+      "owner": "Product Owner",
+      "status": "pending_external",
+      "exitCriteria": ["screenshots", "icon", "privacy labels", "terms URL", "privacy policy URL", "support contact"]
+    },
+    {
+      "id": "release_manager_signoff",
+      "owner": "Release Manager",
+      "status": "pending_external",
+      "exitCriteria": ["QA pass", "legal approval", "support coverage", "rollout decision"]
+    }
+  ]
+}

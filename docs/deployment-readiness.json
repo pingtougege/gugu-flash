@@ -1,0 +1,189 @@
+{
+  "version": "2026.05.alpha-deployment-readiness",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_production_hosting",
+  "documents": [
+    {
+      "id": "production_deployment_runbook",
+      "file": "docs/production-deployment-runbook.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Runtime Configuration",
+        "## Probes",
+        "## Deploy Steps",
+        "## Backup And Restore",
+        "## Rollback",
+        "## External Work"
+      ],
+      "requiredClauses": [
+        "GET /flash/health",
+        "GET /flash/ready",
+        "GUGU_FLASH_REQUIRE_AUTH",
+        "GUGU_FLASH_CORS_ORIGIN",
+        "GUGU_FLASH_PAYMENT_CALLBACK_SECRET",
+        "pre-deploy backup",
+        "Rollback steps",
+        "npm run check:alpha-backup-restore",
+        "gugu_flash_json_backup_v1"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "api_server_entry",
+      "file": "apps/backend/src/server.js",
+      "requiredMarkers": [
+        "API_PORT",
+        "API_HOST",
+        "/flash/health"
+      ]
+    },
+    {
+      "id": "readiness_probe",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "/flash/ready",
+        "readinessSnapshot",
+        "runtimeStateLoaded",
+        "deploymentDataPath",
+        "deploymentStatePath"
+      ]
+    },
+    {
+      "id": "readiness_route_contract",
+      "file": "packages/api-client/src/flash-api-contract.js",
+      "requiredMarkers": [
+        "health.ready",
+        "/flash/ready"
+      ]
+    },
+    {
+      "id": "readiness_http_test",
+      "file": "packages/api-client/src/http-flash-api.test.js",
+      "requiredMarkers": [
+        "deployment readiness probe",
+        "/flash/ready",
+        "getReadiness"
+      ]
+    },
+    {
+      "id": "pages_deploy_gate",
+      "file": ".github/workflows/pages.yml",
+      "requiredMarkers": [
+        "npm test",
+        "npm run test:e2e"
+      ]
+    },
+    {
+      "id": "alpha_backup_restore_utility",
+      "file": "apps/backend/src/json-flash-store-backup.js",
+      "requiredMarkers": [
+        "gugu_flash_json_backup_v1",
+        "createJsonFlashStoreBackup",
+        "restoreJsonFlashStoreBackup",
+        "validateJsonFlashStoreBackup",
+        "checksum does not match payload"
+      ]
+    },
+    {
+      "id": "alpha_backup_restore_drill",
+      "file": "scripts/check-alpha-backup-restore.mjs",
+      "requiredMarkers": [
+        "createJsonFlashStoreBackup",
+        "restoreJsonFlashStoreBackup",
+        "Alpha backup/restore drill passed"
+      ]
+    },
+    {
+      "id": "alpha_backup_restore_test",
+      "file": "apps/backend/src/json-flash-store.test.js",
+      "requiredMarkers": [
+        "backup restores packs and runtime state",
+        "checksum does not match payload"
+      ]
+    },
+    {
+      "id": "production_environment_preflight_gate",
+      "file": "scripts/check-production-environment-preflight.mjs",
+      "requiredMarkers": [
+        "gugu_production_environment_preflight_v1",
+        "REQUIRED_ENV",
+        "REQUIRED_EXTERNAL_BLOCKERS",
+        "pending_production_api_host"
+      ]
+    },
+    {
+      "id": "production_rollout_packet_gate",
+      "file": "scripts/check-production-rollout-packet.mjs",
+      "requiredMarkers": [
+        "gugu_production_rollout_packet_v1",
+        "REQUIRED_STAGES",
+        "rollbackPlan",
+        "production_rollout_packet"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "production_environment_preflight",
+      "file": "data/production-environment-preflight.json",
+      "requiredMarkers": [
+        "gugu_production_environment_preflight_v1",
+        "GUGU_FLASH_REQUIRE_AUTH",
+        "GUGU_FLASH_ALLOW_DEMO_AUTH",
+        "GUGU_FLASH_PAYMENT_CALLBACK_SECRET",
+        "/flash/ready",
+        "rollback_to_previous_release",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "production_rollout_packet",
+      "file": "data/production-rollout-packet.json",
+      "requiredMarkers": [
+        "gugu_production_rollout_packet_v1",
+        "freeze_release_candidate",
+        "take_pre_deploy_backup",
+        "shift_canary_traffic",
+        "rollbackPlan",
+        "pending_external"
+      ]
+    }
+  ],
+  "releaseCommands": [
+    "npm test",
+    "npm run test:e2e",
+    "npm run check:alpha-backup-restore",
+    "npm run check:deployment",
+    "npm run check:production-preflight",
+    "npm run check:production-rollout",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ],
+  "externalAcceptance": [
+    {
+      "id": "production_api_hosting",
+      "status": "pending_external",
+      "needed": "Production preflight manifest exists; select and configure production API hosting with TLS and health/readiness probes."
+    },
+    {
+      "id": "production_database",
+      "status": "pending_external",
+      "needed": "Replace Alpha JSON persistence with production database repositories and backups."
+    },
+    {
+      "id": "secrets_management",
+      "status": "pending_external",
+      "needed": "Configure production secrets for auth, payment callback HMAC, and storage."
+    },
+    {
+      "id": "backup_restore_drill",
+      "status": "pending_external",
+      "needed": "Run and record a production database backup/restore drill before public MVP; Alpha JSON backup/restore drill is automated."
+    },
+    {
+      "id": "rollback_drill",
+      "status": "pending_external",
+      "needed": "Run and record a rollback drill with health, readiness, and Web smoke verification."
+    }
+  ]
+}

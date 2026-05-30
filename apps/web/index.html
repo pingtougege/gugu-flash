@@ -10,42 +10,74 @@
   <body>
     <main class="app-shell">
       <section class="phone-stage" data-screen="feedScreen" aria-label="Gugu Flash app prototype">
+        <div class="app-toast hidden" id="appToast" role="status" aria-live="polite"></div>
+        <section class="generation-workbench hidden" id="generationWorkbench" role="dialog" aria-modal="true" aria-live="polite" aria-label="AI 制作中">
+          <div class="generation-workbench-card">
+            <div class="generation-orbit" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="generation-copy">
+              <span id="generationWorkbenchEyebrow">AI 制作管线</span>
+              <h2 id="generationWorkbenchTitle">正在制作文字游戏草稿</h2>
+              <p id="generationWorkbenchDetail">正在理解你的故事。</p>
+            </div>
+            <div class="generation-progress">
+              <div id="generationProgressBar"></div>
+            </div>
+            <div class="generation-stage-list" id="generationStageList"></div>
+            <p class="generation-note" id="generationWorkbenchNote">请保持在本页，系统会完成企划、角色、剧本、素材和检查。</p>
+            <div class="generation-actions hidden" id="generationWorkbenchActions">
+              <button class="primary-button" id="generationRetryButton" type="button">重试生成</button>
+              <button class="ghost-light-button" id="generationBackButton" type="button">回到编辑</button>
+            </div>
+          </div>
+        </section>
         <header class="topbar">
-          <button class="icon-button" id="profileButton" type="button" title="我的">我</button>
+          <button class="icon-button" id="profileButton" data-testid="nav-profile" type="button" title="我的">我</button>
           <div class="brand">
             <span class="brand-mark">G</span>
             <span id="brandText">咕咕闪</span>
+            <span class="runtime-badge" id="runtimeBadge">Mock</span>
           </div>
-          <button class="icon-button" id="operatorButton" type="button" title="官方精选台">选</button>
+          <button class="icon-button" id="operatorButton" data-testid="nav-context-action" type="button" title="开始创作">创作</button>
         </header>
 
-        <section class="screen active" id="feedScreen" aria-label="内容流">
-          <div class="feed-card" id="feedCard">
+        <section class="screen active" id="feedScreen" data-testid="screen-feed" aria-label="内容流">
+          <div class="feed-card" id="feedCard" data-testid="feed-card">
             <div class="feed-visual" id="feedVisual">
               <div class="feed-character" id="feedCharacter">☔</div>
             </div>
-            <div class="feed-switch" aria-label="内容频道">
-              <button class="active" type="button">推荐</button>
-              <button type="button">关注</button>
-              <button type="button">同好</button>
-            </div>
             <div class="feed-copy">
               <div class="feed-tags" id="feedTags"></div>
-              <h1 id="feedTitle">雨天咕咕</h1>
+              <div class="persona-line" id="feedPersona"></div>
+              <h1 id="feedTitle" data-testid="feed-title">雨天咕咕</h1>
               <p id="feedText">今天的雨很轻，像有人在玻璃外面偷偷练习温柔。</p>
               <div class="author-line" id="feedAuthor"></div>
             </div>
             <div class="side-actions">
-              <button class="round-action" id="likeButton" type="button"><span>♡</span><small id="likeCount">0</small></button>
-              <button class="round-action" id="saveButton" type="button"><span>☆</span><small id="saveCount">0</small></button>
-              <button class="round-action" id="remixButton" type="button"><span>↻</span><small id="remixCount">0</small></button>
-              <button class="round-action" id="commentButton" type="button"><span>⋯</span><small id="commentCount">0</small></button>
+              <button class="round-action" id="likeButton" type="button" title="点赞" aria-label="点赞"><span aria-hidden="true">♡</span><small id="likeCount">0</small></button>
+              <button class="round-action" id="saveButton" type="button" title="收藏" aria-label="收藏"><span aria-hidden="true">☆</span><small id="saveCount">0</small></button>
+              <button class="round-action" id="commentButton" type="button" title="评论" aria-label="评论"><span aria-hidden="true">💬</span><small id="commentCount">0</small></button>
             </div>
             <div class="feed-controls">
-              <button class="ghost-button" id="prevButton" type="button">上一条</button>
-              <button class="primary-button" id="playButton" type="button">进入互动</button>
-              <button class="ghost-button" id="nextButton" type="button">下一条</button>
+              <div class="feed-main-actions">
+                <button class="primary-button" id="playButton" data-testid="feed-play" type="button">玩一下</button>
+                <button class="ghost-button" id="feedRemixButton" data-testid="feed-remix" type="button">用同款做</button>
+              </div>
             </div>
+            <section class="post-publish-panel hidden" id="postPublishPanel" aria-live="polite">
+              <div>
+                <span>刚发布</span>
+                <strong id="postPublishTitle">作品已在内容流</strong>
+                <small>已出现在首页，可以继续刷或回到我的查看。</small>
+              </div>
+              <div>
+                <button class="ghost-button" id="dismissPostPublishButton" type="button">继续刷</button>
+                <button class="ghost-button" id="viewPublishedWorkButton" type="button">我的作品</button>
+              </div>
+            </section>
           </div>
         </section>
 
@@ -59,11 +91,39 @@
                 <p id="sceneText"></p>
                 <div class="choice-list" id="choiceList"></div>
                 <div class="completion-actions hidden" id="completionActions">
+                  <div class="completion-summary" id="completionSummary">
+                    <strong>已完成互动</strong>
+                    <span>可以继续刷，或用这个作品做 Remix。</span>
+                  </div>
+                  <button id="continueFeedButton" type="button">继续刷</button>
                   <button id="playerSaveButton" type="button">收藏</button>
                   <button id="playerRemixButton" type="button">Remix</button>
+                  <button id="playerReportButton" type="button">举报</button>
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section class="screen" id="commentScreen" aria-label="评论">
+          <div class="panel-page comment-page">
+            <div class="panel-header">
+              <button class="back-button compact" id="closeCommentsButton" type="button">返回</button>
+              <div>
+                <h2>评论</h2>
+                <p>评论开放，但可以举报、隐藏、删除和拉黑。</p>
+              </div>
+            </div>
+            <div class="comment-context" id="commentContext"></div>
+            <label class="field compact">
+              <span>写评论</span>
+              <textarea id="commentInput" rows="3" maxlength="180" placeholder="不支持图片、音频和外链"></textarea>
+            </label>
+            <div class="comment-submit-row">
+              <p class="form-hint hidden" id="commentMessage"></p>
+              <button class="primary-button" id="postCommentButton" type="button">发布评论</button>
+            </div>
+            <div class="comment-list" id="commentList"></div>
           </div>
         </section>
 
@@ -77,6 +137,38 @@
             </div>
             <div class="quick-stats" id="friendStats"></div>
             <div class="message-list" id="friendList"></div>
+          </div>
+        </section>
+
+        <section class="screen" id="ipScreen" aria-label="IP 和专区">
+          <div class="panel-page ip-page">
+            <div class="panel-header">
+              <div>
+                <h2>IP / 专区</h2>
+                <p>浏览 IP 池、角色分身和专区开通资格。IP 入池不等于自动开专区。</p>
+              </div>
+            </div>
+            <div class="ip-toolbar">
+              <label class="field compact ip-search-field">
+                <span>搜索 IP 或分身</span>
+                <input id="ipSearchInput" type="search" placeholder="例如：雨天、汽水、列车" />
+              </label>
+              <button class="ghost-light-button" id="applyIpEntryButton" type="button">申请添加 IP</button>
+            </div>
+            <section class="anime-collector" aria-label="动漫 IP 自动采集">
+              <div>
+                <span>自动补池</span>
+                <strong>动漫 IP / 角色</strong>
+                <small id="animeCollectorHint">按当前搜索词筛选</small>
+              </div>
+              <button class="primary-button" id="collectAnimeIpButton" type="button">自动搜集</button>
+            </section>
+            <div class="collector-result hidden" id="animeCollectorResult"></div>
+            <p class="form-hint hidden" id="ipRequestMessage"></p>
+            <div class="ip-layout">
+              <div class="ip-pool-list" id="ipPoolList"></div>
+              <div class="ip-detail-panel" id="ipDetailPanel"></div>
+            </div>
           </div>
         </section>
 
@@ -111,36 +203,129 @@
               <span id="myWorkCount">0 个作品</span>
             </div>
             <div class="work-grid" id="myWorkGrid"></div>
+            <div class="listing-application hidden" id="listingApplication"></div>
           </div>
         </section>
 
-        <section class="screen" id="createScreen" aria-label="创作">
+        <section class="screen" id="createScreen" data-testid="screen-create" aria-label="创作">
           <div class="panel-page create-page">
             <div class="panel-header">
               <button class="back-button compact" id="closeCreateButton" type="button">返回</button>
               <div>
                 <h2>创作</h2>
-                <p>把一句设定变成可以刷、可以互动、可以被官方精选的 H5 吧唧作品。</p>
+                <p>一句话启动 AI 制作管线，产出完整可试玩文字游戏。</p>
               </div>
             </div>
             <div class="mine-create">
-              <div class="section-heading">
-                <h3>快速创作</h3>
-                <span>一句话生成 H5 吧唧</span>
-              </div>
+              <div class="create-flow" id="createWizardNav" aria-label="创作步骤"></div>
+              <div class="create-card-deck" id="createCardDeck" aria-label="创作步骤卡片">
+                <section class="create-step-card" data-create-step="prompt">
               <label class="field">
-                <span>主题</span>
-                <textarea id="promptInput" rows="4" placeholder="例如：做一个雨天陪伴感的电子吧唧小剧场"></textarea>
+                <span>你想做什么故事？</span>
+                <textarea id="promptInput" rows="8" maxlength="220" placeholder="例如：宝可梦中心雨夜值班，主角和皮卡丘一起找回走丢的伊布"></textarea>
               </label>
-              <div class="template-grid">
-                <button class="template active" data-template="healing" type="button">治愈陪伴</button>
-                <button class="template" data-template="adventure" type="button">轻冒险</button>
-                <button class="template" data-template="energy" type="button">元气日常</button>
+              <div class="field-meta prompt-example-row">
+                <div>
+                  <button class="text-action" id="promptExampleButton" type="button">原创示例</button>
+                  <button class="text-action" id="promptFanworkExampleButton" type="button">二创示例</button>
+                </div>
+                <span id="promptCount">0 / 220</span>
               </div>
-              <button class="primary-button wide" id="generateButton" type="button">生成 H5 草稿</button>
+              <div class="section-heading compact-heading">
+                <h3>玩法类型</h3>
+                <span>会影响剧本结构</span>
+              </div>
+              <div class="template-grid">
+                <button class="template active" data-template="healing" type="button">陪伴短剧</button>
+                <button class="template" data-template="adventure" type="button">分支冒险</button>
+                <button class="template" data-template="energy" type="button">快节奏挑战</button>
+              </div>
+              <p class="template-hint" id="templateHint">少分支 · 重对话 · 情绪收束</p>
+              <button class="ghost-light-button prompt-polish-launcher" id="promptPolishLauncher" data-prompt-polish-open type="button">AI 润色</button>
+              </section>
+              <section class="create-step-card hidden" data-create-step="making">
+                <div class="create-step-title">
+                  <span>AI 制作中</span>
+                  <h3>正在把创意做成文字游戏</h3>
+                  <p>制作台会锁住页面，避免误触中断当前生产任务。</p>
+                </div>
+              </section>
+              <section class="create-step-card hidden" data-create-step="settings">
+                <div class="create-step-title">
+                  <span>第 2 步</span>
+                  <h3>归属和主角</h3>
+                  <p>这里决定作品权利归属，并选择原创角色或 IP 角色作为故事主角。</p>
+                </div>
+              <div class="create-step-status ownership-status">
+                <span>当前归属</span>
+                <strong id="createSettingsSummary">原创 · 雨天咕咕</strong>
+              </div>
+              <div class="create-advanced create-ownership-card" id="createAdvanced">
+                <div class="section-heading compact-heading ownership-config">
+                  <h3>作品归属</h3>
+                  <span>发布前声明</span>
+                </div>
+                <div class="segmented-control ownership-config" id="originSelector"></div>
+                <div class="section-heading compact-heading ip-config">
+                  <h3 id="ipHeadingTitle">原创企划</h3>
+                  <span id="ipHeadingHint">从 IP 池选择归属</span>
+                </div>
+                <label class="field compact create-ip-search-field ip-config">
+                  <span>搜索 IP</span>
+                  <input id="createIpSearchInput" type="search" placeholder="输入 IP、角色或关键词" />
+                </label>
+                <div class="ip-grid ip-config" id="ipSelector"></div>
+                <button class="ghost-light-button wide ip-request-button ip-config" id="requestIpButton" type="button">申请添加 IP</button>
+                <label class="rights-notice hidden ip-config" id="createRightsNotice">
+                  <input id="createRightsAccepted" type="checkbox" />
+                  <span>
+                    <strong>二创权利声明</strong>
+                    <small id="createRightsNoticeText">二创仅用于归属和审核演示，不代表获得官方授权。</small>
+                  </span>
+                </label>
+                <p class="form-hint hidden" id="createError"></p>
+                <div class="section-heading compact-heading">
+                  <h3>主角设置</h3>
+                  <span>创建原创角色，或选取当前 IP 中的角色作为主角</span>
+                </div>
+                <div class="persona-grid" id="personaSelector"></div>
+                <div class="custom-persona-panel hidden" id="customPersonaPanel">
+                  <label class="field compact">
+                    <span>原创角色名</span>
+                    <input id="customPersonaNameInput" type="text" maxlength="12" placeholder="例如：便利店预言猫" />
+                  </label>
+                  <label class="field compact">
+                    <span>角色设定</span>
+                    <textarea id="customPersonaTaglineInput" rows="2" maxlength="48" placeholder="一句话描述外观、性格、口吻或故事定位"></textarea>
+                  </label>
+                  <button class="ghost-light-button" id="aiPolishPersonaButton" type="button">AI 修改角色设定</button>
+                  <button class="primary-button wide hidden" id="addCustomCharacterButton" type="button">添加到故事出场角色</button>
+                  <p class="form-hint hidden" id="customPersonaAiHint" aria-live="polite"></p>
+                </div>
+                <div class="generated-character-section hidden" id="generatedCharacterSection">
+                  <div class="section-heading compact-heading">
+                    <h3>故事出场角色</h3>
+                    <span>控制哪些角色进入故事</span>
+                  </div>
+                  <div class="creation-card-grid" id="characterCardGrid"></div>
+                </div>
+              </div>
+              <div class="create-action-dock">
+                <button class="primary-button wide" id="generateButton" data-testid="create-generate" type="button" disabled>启动 AI 制作</button>
+                <p class="form-hint create-readiness-hint" id="createReadinessHint" aria-live="polite">先写一句主题。</p>
+                <p class="create-progress hidden" id="createProgress" aria-live="polite"></p>
+              </div>
+              </section>
               <div class="draft-preview hidden" id="draftPreview">
+                <section class="create-step-card" data-create-step="preview">
+                  <div class="create-step-title">
+                    <span>作品总览</span>
+                    <h3>确认作品信息</h3>
+                    <p>这里只保留标题、标签、归属和主角。</p>
+                  </div>
                 <h3 id="draftTitle"></h3>
                 <p id="draftSummary"></p>
+                <div class="draft-meta" id="draftMeta"></div>
                 <div class="draft-fields">
                   <label class="field compact">
                     <span>标题</span>
@@ -151,9 +336,217 @@
                     <input id="draftTagsInput" type="text" />
                   </label>
                 </div>
-                <div class="scene-mini-list" id="draftSceneList"></div>
-                <button class="primary-button wide" id="publishDraftButton" type="button">发布到内容流</button>
+                <div class="overview-key-grid" id="draftOverviewGrid"></div>
+                </section>
+                <section class="create-step-card hidden" data-create-step="views">
+                  <div class="create-step-title">
+                    <span>分区编辑</span>
+                    <h3>角色多视图</h3>
+                    <p>为主角和出场角色准备立绘角度、表情和后续生图参考。</p>
+                  </div>
+                <div class="creation-section">
+                  <div class="section-heading compact-heading">
+                    <h3>多视图制作</h3>
+                    <span>用于立绘、表情和设备展示</span>
+                  </div>
+                  <div class="character-view-grid" id="characterViewGrid"></div>
+                </div>
+                <section class="step-ai-panel" data-step-ai-panel="views">
+                  <div>
+                    <strong>和 AI 修改本步</strong>
+                    <span>可以调整角色外观、表情方向和立绘风格。</span>
+                  </div>
+                  <textarea data-step-ai-input rows="2" maxlength="120" placeholder="例如：主角表情更冷静，配角增加紧张和沉默表情"></textarea>
+                  <button class="ghost-light-button" data-step-ai-apply="views" type="button">让 AI 修改角色多视图</button>
+                  <p class="step-ai-result hidden" data-step-ai-result></p>
+                </section>
+                </section>
+                <section class="create-step-card hidden" data-create-step="playtest">
+                  <div class="create-step-title">
+                    <span>试玩模式</span>
+                    <h3>像玩家一样走一遍</h3>
+                    <p>系统会自动跑全路径，检查不可达场景、死路和结局覆盖。</p>
+                  </div>
+                <div class="creation-section">
+                  <div class="section-heading compact-heading">
+                    <h3>试玩</h3>
+                    <span id="draftPlayPosition">从入口开始</span>
+                  </div>
+                  <div class="playtest-report" id="playtestReportPanel"></div>
+                  <div class="draft-playtest" id="draftPlaytestPanel"></div>
+                </div>
+                <section class="step-ai-panel" data-step-ai-panel="playtest">
+                  <div>
+                    <strong>和 AI 修改本步</strong>
+                    <span>也可以边试玩边进入剧本手动改。</span>
+                  </div>
+                  <textarea data-step-ai-input rows="2" maxlength="120" placeholder="例如：这个选项不够有趣，给当前幕加一点悬念"></textarea>
+                  <button class="ghost-light-button" data-step-ai-apply="playtest" type="button">让 AI 修改试玩体验</button>
+                  <p class="step-ai-result hidden" data-step-ai-result></p>
+                </section>
+                </section>
+                <section class="create-step-card hidden" data-create-step="script">
+                  <div class="create-step-title">
+                    <span>分区编辑</span>
+                    <h3>文字版剧本</h3>
+                    <p>AI 会根据前两张卡片生成一份可直接阅读和改写的剧本文字稿。</p>
+                  </div>
+                <div class="creation-section">
+                  <div class="section-heading compact-heading">
+                    <h3>剧本正文</h3>
+                    <span id="scriptSceneCountLabel">0 个场景</span>
+                  </div>
+                  <div class="script-scene-tabs" id="scriptSceneTabs"></div>
+                  <div class="script-scene-preview" id="scriptScenePreview"></div>
+                  <textarea class="stage-script-editor hidden" id="draftScriptText" rows="16" spellcheck="false"></textarea>
+                </div>
+                <section class="step-ai-panel" data-step-ai-panel="script">
+                  <div>
+                    <strong>和 AI 修改本步</strong>
+                    <span>也可以直接改文字剧本，再进入场景卡细化对话和选项。</span>
+                  </div>
+                  <textarea data-step-ai-input rows="2" maxlength="120" placeholder="例如：第二幕太长，缩短并补一个反转选项"></textarea>
+                  <button class="ghost-light-button" data-step-ai-apply="script" type="button">让 AI 修改剧本</button>
+                  <p class="step-ai-result hidden" data-step-ai-result></p>
+                </section>
+                </section>
+                <section class="script-scene-modal hidden" id="scriptSceneModal" aria-label="单场景剧本" aria-modal="true" role="dialog">
+                  <div class="script-scene-backdrop" data-script-scene-close></div>
+                  <div class="script-scene-card">
+                    <div class="script-scene-header">
+                      <div>
+                        <strong id="scriptSceneModalTitle">场景剧本</strong>
+                        <span id="scriptSceneModalMeta">地点 · 时间</span>
+                      </div>
+                      <button class="icon-button compact" data-script-scene-close type="button" aria-label="关闭场景剧本">×</button>
+                    </div>
+                    <div class="script-scene-readable" id="scriptSceneReadable"></div>
+                    <div class="script-scene-edit-label">
+                      <strong>编辑原文</strong>
+                      <span>保存后只覆盖本场。</span>
+                    </div>
+                    <textarea class="stage-script-editor scene-script-editor" id="scriptSceneEditor" rows="16" spellcheck="false"></textarea>
+                    <div class="script-scene-actions">
+                      <button class="primary-button" id="saveScriptSceneButton" type="button">保存本场</button>
+                      <button class="ghost-light-button" data-script-scene-close type="button">关闭</button>
+                    </div>
+                  </div>
+                </section>
+                <section class="create-step-card hidden" data-create-step="assets">
+                  <div class="create-step-title">
+                    <span>分区编辑</span>
+                    <h3>场景和背景</h3>
+                    <p>这里细化每个场景的具体对话、玩家选项、跳转和背景图。</p>
+                  </div>
+                <div class="creation-section">
+                  <div class="section-heading compact-heading">
+                    <h3>场景编辑</h3>
+                    <span id="sceneCountLabel">0 个场景</span>
+                  </div>
+                  <button class="ghost-light-button wide" id="addDraftSceneButton" type="button">新增场景</button>
+                  <div class="scene-mini-list" id="draftSceneList"></div>
+                </div>
+                <div class="creation-section">
+                  <div class="section-heading compact-heading">
+                    <h3>背景图和素材</h3>
+                    <span id="assetCountLabel">0 项素材</span>
+                  </div>
+                  <div class="asset-plan-list" id="assetPlanList"></div>
+                </div>
+                <section class="step-ai-panel" data-step-ai-panel="assets">
+                  <div>
+                    <strong>和 AI 修改本步</strong>
+                    <span>也可以单张重生成素材。</span>
+                  </div>
+                  <textarea data-step-ai-input rows="2" maxlength="120" placeholder="例如：重新生成所有便利店背景，但保持同一风格"></textarea>
+                  <button class="ghost-light-button" data-step-ai-apply="assets" type="button">让 AI 修改素材</button>
+                  <p class="step-ai-result hidden" data-step-ai-result></p>
+                </section>
+                </section>
+                <section class="ai-edit-panel hidden" id="aiEditPanel">
+                  <div class="section-heading compact-heading">
+                    <h3>和 AI 对话修改</h3>
+                    <span id="aiEditStatusLabel">未修改</span>
+                  </div>
+                  <textarea id="aiEditInput" rows="2" maxlength="120" placeholder="例如：第二幕太平了，加一点悬念"></textarea>
+                  <div class="ai-edit-scopes" id="aiEditScopes" aria-label="修改范围">
+                    <button class="active" data-ai-edit-scope="work" type="button">全作品</button>
+                    <button data-ai-edit-scope="scene" type="button">当前场景</button>
+                    <button data-ai-edit-scope="character" type="button">角色</button>
+                    <button data-ai-edit-scope="assets" type="button">素材</button>
+                  </div>
+                  <div class="ai-edit-actions">
+                    <button class="primary-button" id="askAiEditButton" type="button">生成修改提案</button>
+                    <button class="ghost-light-button" id="undoAiEditButton" type="button" disabled>撤销上次应用</button>
+                  </div>
+                  <div class="ai-edit-proposal hidden" id="aiEditProposalPanel"></div>
+                </section>
+                <section class="create-step-card hidden" data-create-step="publish">
+                  <div class="create-step-title">
+                    <span>发布前检查</span>
+                    <h3>确认作品完整可玩</h3>
+                    <p>发布前必须通过可玩性、角色、素材、权利和封面检查。</p>
+                  </div>
+                <div class="creation-section">
+                  <div class="section-heading compact-heading">
+                    <h3>完整性检查</h3>
+                    <span id="publishChecklistSummary">等待检查</span>
+                  </div>
+                  <div class="quality-check-list" id="qualityCheckList"></div>
+                </div>
+                <div class="publish-blocker-list hidden" id="publishBlockerList"></div>
+                <section class="step-ai-panel" data-step-ai-panel="publish">
+                  <div>
+                    <strong>和 AI 修改本步</strong>
+                    <span>也可以按检查项逐个手动修复。</span>
+                  </div>
+                  <textarea data-step-ai-input rows="2" maxlength="120" placeholder="例如：修复所有发布前阻塞项，并保留当前故事风格"></textarea>
+                  <button class="ghost-light-button" data-step-ai-apply="publish" type="button">让 AI 修复检查项</button>
+                  <p class="step-ai-result hidden" data-step-ai-result></p>
+                </section>
+                <p class="draft-publish-note">发布到首页，不会自动上架商店。这个主角也会保存为作品分身，可在设备选择该故事时作为你的社区形象。</p>
+                <button class="primary-button wide" id="publishDraftButton" data-testid="create-publish" type="button">发布</button>
+                </section>
+                </div>
               </div>
+              <div class="create-wizard-actions" id="createWizardActions">
+                <button class="ghost-light-button" id="createWizardPrevButton" type="button">上一步</button>
+                <button class="primary-button" id="createWizardNextButton" type="button">下一步</button>
+              </div>
+              <section class="prompt-polish-modal hidden" id="promptPolishModal" aria-label="AI 润色创意" aria-modal="true" role="dialog">
+                <div class="prompt-polish-backdrop" data-prompt-polish-close></div>
+                <div class="prompt-polish-card step-ai-panel" data-step-ai-panel="prompt">
+                  <div class="prompt-polish-header">
+                    <div>
+                      <strong>AI 润色创意</strong>
+                      <span>会把你的描述补成能支撑完整剧本生成的提示词。</span>
+                    </div>
+                    <button class="icon-button compact" data-prompt-polish-close type="button" aria-label="关闭 AI 润色">×</button>
+                  </div>
+                  <div class="prompt-polish-compose">
+                    <textarea data-step-ai-input rows="3" maxlength="160" placeholder="例如：更悬疑一点，但不要太恐怖；场景到10个；保留我写的主线"></textarea>
+                    <button class="ghost-light-button" data-step-ai-apply="prompt" type="button">让 AI 检查并补全提示词</button>
+                  </div>
+                  <div class="step-ai-result hidden" data-step-ai-result></div>
+                </div>
+              </section>
+              <section class="persona-picker-modal hidden" id="personaPickerModal" aria-label="选取 IP 角色" aria-modal="true" role="dialog">
+                <div class="persona-picker-backdrop" data-persona-picker-close></div>
+                <div class="persona-picker-card">
+                  <div class="persona-picker-header">
+                    <div>
+                      <strong>选取 IP 角色</strong>
+                      <span id="personaPickerHint">从当前 IP 的角色中选择故事主角。</span>
+                    </div>
+                    <button class="icon-button compact" data-persona-picker-close type="button" aria-label="关闭角色选择">×</button>
+                  </div>
+                  <div class="persona-picker-list" id="personaPickerList"></div>
+                  <div class="persona-picker-actions hidden" id="personaPickerActions">
+                    <button class="primary-button" id="addSelectedPersonasButton" type="button">添加选中角色</button>
+                    <button class="ghost-light-button" data-persona-picker-close type="button">取消</button>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </section>
@@ -162,8 +555,8 @@
           <div class="panel-page badge-page">
             <div class="panel-header">
               <div>
-                <h2>吧唧</h2>
-                <p>管理电子吧唧，购买内容包并同步到设备。</p>
+                <h2>我的设备</h2>
+                <p>管理电子吧唧，购买设备内容包并同步到设备。</p>
               </div>
             </div>
             <div class="device-hero">
@@ -175,15 +568,16 @@
               <button id="openStoreButton" type="button">商店</button>
             </div>
             <div class="badge-status-grid">
-              <div><strong id="ownedPackCount">0</strong><span>已拥有</span></div>
-              <div><strong id="downloadedPackCount">0</strong><span>已下载</span></div>
-              <div><strong id="syncedPackCount">0</strong><span>已装设备</span></div>
+              <div><strong id="ownedPackCount">0</strong><span>本设备拥有</span></div>
+              <div><strong id="downloadedPackCount">0</strong><span>已下载到手机</span></div>
+              <div><strong id="syncedPackCount">0</strong><span>已装本设备</span></div>
             </div>
             <div class="section-heading">
               <h3>当前运行内容</h3>
               <span id="installedPackName">未同步</span>
             </div>
             <div class="installed-pack" id="installedPack"></div>
+            <div class="sync-job-panel" id="syncJobPanel"></div>
             <div class="section-heading">
               <h3>我的设备</h3>
               <span id="deviceCount">0 台已绑定</span>
@@ -199,40 +593,87 @@
               <button class="back-button compact" id="closeStoreButton" type="button">返回</button>
               <div>
                 <h2>商店</h2>
-                <p>购买官方内容包，下载后同步到当前选中的电子吧唧。</p>
+                <p>给当前吧唧装一个新玩法。</p>
               </div>
             </div>
             <div class="store-target" id="storeTarget"></div>
+            <div class="legal-acceptance-panel" id="storeLegalPanel"></div>
             <div class="section-heading">
-              <h3>官方内容包</h3>
-              <span>购买 · 下载 · 同步</span>
+              <h3>推荐内容包</h3>
+              <span>获取后装到设备</span>
             </div>
             <div class="store-list" id="storeList"></div>
           </div>
         </section>
 
-        <section class="screen" id="operatorScreen" aria-label="官方精选台">
+        <section class="screen" id="operatorScreen" aria-label="运营台">
           <div class="panel-page">
             <div class="panel-header">
               <button class="back-button compact" id="closeOperatorButton" type="button">返回</button>
               <div>
-                <h2>官方精选台</h2>
-                <p>根据互动数据挑选 H5，进入硬件适配漏斗。</p>
+                <h2>运营台</h2>
+                <p>内部查看上架审核、举报投诉、设备包制作和硬件适配进度。</p>
               </div>
             </div>
             <div class="ops-metrics">
               <div><strong id="opsPublicCount">0</strong><span>公开内容</span></div>
-              <div><strong id="opsCandidateCount">0</strong><span>硬件候选</span></div>
-              <div><strong id="opsReadyCount">0</strong><span>可下载</span></div>
+              <div><strong id="opsCandidateCount">0</strong><span>审核任务</span></div>
+              <div><strong id="opsGovernanceCount">0</strong><span>治理工单</span></div>
+              <div><strong id="opsReadyCount">0</strong><span>制作队列</span></div>
+              <div><strong id="opsStorePendingCount">0</strong><span>上架中</span></div>
+              <div><strong id="opsSettlementFrozenCount">0</strong><span>冻结</span></div>
             </div>
-            <div class="ops-list" id="opsList"></div>
+            <div class="ops-workspace">
+              <section class="ops-section" aria-label="审核队列">
+                <div class="section-heading">
+                  <h3>审核队列</h3>
+                  <span>理由 · 证据 · 处理</span>
+                </div>
+                <div class="ops-list" id="opsReviewList"></div>
+              </section>
+              <section class="ops-section" aria-label="举报投诉">
+                <div class="section-heading">
+                  <h3>举报投诉</h3>
+                  <span>举报 · 权利投诉 · 申诉</span>
+                </div>
+                <div class="ops-list" id="opsGovernanceList"></div>
+              </section>
+              <section class="ops-section" aria-label="商店上架">
+                <div class="section-heading">
+                  <h3>商店上架</h3>
+                  <span>审核 · 制作 · 上架</span>
+                </div>
+                <div class="ops-list" id="opsStoreList"></div>
+              </section>
+              <section class="ops-section" aria-label="硬件制作">
+                <div class="section-heading">
+                  <h3>硬件制作</h3>
+                  <span>进度 · 兼容报告</span>
+                </div>
+                <div class="ops-list" id="opsHardwareList"></div>
+              </section>
+              <section class="ops-section" aria-label="结算冻结">
+                <div class="section-heading">
+                  <h3>结算冻结</h3>
+                  <span>订单 · 状态 · 风险</span>
+                </div>
+                <div class="ops-list" id="opsSettlementList"></div>
+              </section>
+              <section class="ops-section" aria-label="操作日志">
+                <div class="section-heading">
+                  <h3>操作日志</h3>
+                  <span>操作人 · 动作 · 目标</span>
+                </div>
+                <div class="ops-list" id="opsLogList"></div>
+              </section>
+            </div>
           </div>
         </section>
 
         <nav class="tabbar" aria-label="主导航">
-          <button class="tab" data-target="friendsScreen" type="button">好友</button>
-          <button class="tab active" data-target="feedScreen" type="button">刷</button>
-          <button class="tab" data-target="badgeScreen" type="button">吧唧</button>
+          <button class="tab active" data-target="feedScreen" type="button">首页</button>
+          <button class="tab" data-target="createScreen" type="button">创作</button>
+          <button class="tab" data-target="storeScreen" type="button">商店</button>
           <button class="tab" data-target="profileScreen" type="button">我的</button>
         </nav>
       </section>

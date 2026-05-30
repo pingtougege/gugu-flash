@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "gugu_identity_operations_certification_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_production_identity_ops",
+  "environment": "closed_beta_production_auth",
+  "identityProvider": {
+    "selectionStatus": "pending_external",
+    "issuer": "pending_external",
+    "audience": "gugu-flash-api",
+    "tokenContract": "gugu_flash_identity_token_v1",
+    "secretSource": "secrets_manager",
+    "mfaRequiredForOperators": true,
+    "demoAuthDisabled": true
+  },
+  "credentialRecoveryPolicy": {
+    "accountRecovery": "defined_pending_provider_binding",
+    "mfaReset": "defined_pending_provider_binding",
+    "drillPacket": "data/identity-access-recovery-drill.json",
+    "supportEscalationRequired": true,
+    "identityProofingRequired": true,
+    "auditTrailRequired": true,
+    "operatorRecoveryRequiresLeadApproval": true,
+    "superAdminRecoveryRequiresProductAndSecurityApproval": true
+  },
+  "operatorLifecycle": {
+    "namedRosterRequired": true,
+    "joinerMoverLeaverProcess": "defined_pending_provider_replay",
+    "drillPacket": "data/identity-access-recovery-drill.json",
+    "leastPrivilegeReviewCadence": "weekly_during_beta",
+    "offboardingSlaHours": 24,
+    "breakGlassSuperAdminReviewRequired": true,
+    "requiredRoleGroups": [
+      "gugu_reviewer",
+      "gugu_hardware_operator",
+      "gugu_support",
+      "gugu_operator",
+      "gugu_admin",
+      "gugu_super_admin"
+    ]
+  },
+  "roleAccessReviews": [
+    {
+      "role": "reviewer",
+      "providerGroup": "gugu_reviewer",
+      "requiresOperatorInvite": true,
+      "reviewCadence": "weekly_during_beta"
+    },
+    {
+      "role": "hardware_operator",
+      "providerGroup": "gugu_hardware_operator",
+      "requiresOperatorInvite": true,
+      "reviewCadence": "weekly_during_beta"
+    },
+    {
+      "role": "support",
+      "providerGroup": "gugu_support",
+      "requiresOperatorInvite": true,
+      "reviewCadence": "weekly_during_beta"
+    },
+    {
+      "role": "operator",
+      "providerGroup": "gugu_operator",
+      "requiresOperatorInvite": true,
+      "reviewCadence": "weekly_during_beta"
+    },
+    {
+      "role": "admin",
+      "providerGroup": "gugu_admin",
+      "requiresOperatorInvite": true,
+      "reviewCadence": "weekly_during_beta"
+    },
+    {
+      "role": "super_admin",
+      "providerGroup": "gugu_super_admin",
+      "requiresOperatorInvite": true,
+      "reviewCadence": "weekly_during_beta",
+      "breakGlass": true
+    }
+  ],
+  "sessionReleasePolicy": {
+    "requireAuthEnv": "GUGU_FLASH_REQUIRE_AUTH=1",
+    "allowDemoAuthEnv": "GUGU_FLASH_ALLOW_DEMO_AUTH=0",
+    "operatorInviteSecretRequired": true,
+    "accessTokenTtlMinutesMax": 30,
+    "refreshRotationRequired": true,
+    "revokedTokenRejectionRequired": true,
+    "signedExternalIdentityRequired": true
+  },
+  "privacySecurityReview": {
+    "providerLogsReviewed": "pending_external",
+    "retentionPolicyReviewed": "pending_external",
+    "privacyNoticeUpdated": "pending_external",
+    "incidentResponseLinked": true,
+    "securitySignoff": "pending_external"
+  },
+  "releasePolicy": {
+    "requiredCommands": [
+      "npm run check:identity-provider",
+      "npm run check:identity-provider-packet",
+      "npm run check:identity-operations",
+      "npm run check:identity-access-recovery",
+      "npm run check:auth-rbac",
+      "node --test apps/backend/src/flash-identity-token.test.js"
+    ],
+    "mustRemainInProgressUntil": [
+      "identity_provider_selection",
+      "credential_recovery_policy",
+      "operator_roster_lifecycle",
+      "security_privacy_review"
+    ]
+  },
+  "externalBlockers": [
+    {
+      "id": "identity_provider_selection",
+      "owner": "Security / Backend Lead",
+      "status": "pending_external",
+      "exitCriteria": ["provider selected", "issuer configured", "audience configured", "test credentials issued"]
+    },
+    {
+      "id": "credential_recovery_policy",
+      "owner": "Security",
+      "status": "pending_external",
+      "exitCriteria": ["account recovery policy", "MFA reset policy", "support escalation path", "audit evidence"]
+    },
+    {
+      "id": "operator_roster_lifecycle",
+      "owner": "Ops Lead",
+      "status": "pending_external",
+      "exitCriteria": ["named roster", "group mapping", "offboarding flow", "least-privilege review"]
+    },
+    {
+      "id": "security_privacy_review",
+      "owner": "Security / Privacy Owner",
+      "status": "pending_external",
+      "exitCriteria": ["provider logs reviewed", "retention approved", "privacy notice updated", "incident response linked"]
+    }
+  ]
+}

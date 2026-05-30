@@ -1,0 +1,105 @@
+{
+  "version": "2026.05.review-sla",
+  "updatedAt": "2026-05-29",
+  "status": "alpha_sla_ready_pending_named_rota",
+  "endpoint": {
+    "method": "GET",
+    "path": "/flash/operator/review-sla",
+    "auth": "operator",
+    "responseSchemaVersion": "gugu_flash_review_sla_v1"
+  },
+  "queueTargets": [
+    { "queueId": "h5_publish_review", "slaHours": 24, "escalationOwner": "Trust Lead" },
+    { "queueId": "store_listing_review", "slaHours": 48, "escalationOwner": "Commerce Lead" },
+    { "queueId": "hardware_adaptation_review", "slaHours": 72, "escalationOwner": "Hardware Lead" },
+    { "queueId": "comment_report_governance", "slaHours": 24, "escalationOwner": "Trust Lead" },
+    { "queueId": "rights_claim_governance", "slaHours": 72, "escalationOwner": "Trust Lead" },
+    { "queueId": "appeal_review", "slaHours": 72, "escalationOwner": "Product Owner", "requiresSecondReviewer": true }
+  ],
+  "codeControls": [
+    {
+      "id": "review_sla_evaluator",
+      "file": "apps/backend/src/review-sla.js",
+      "requiredMarkers": [
+        "REVIEW_SLA_VERSION",
+        "evaluateReviewSla",
+        "validateReviewSlaSnapshot",
+        "secondReviewerConflict"
+      ]
+    },
+    {
+      "id": "review_sla_tests",
+      "file": "apps/backend/src/review-sla.test.js",
+      "requiredMarkers": [
+        "review SLA snapshot",
+        "breached",
+        "separation-of-duty"
+      ]
+    },
+    {
+      "id": "backend_review_sla_route",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "evaluateReviewSla",
+        "review-sla"
+      ]
+    },
+    {
+      "id": "http_review_sla_tests",
+      "file": "packages/api-client/src/http-flash-api.test.js",
+      "requiredMarkers": [
+        "getOperatorReviewSla",
+        "gugu_flash_review_sla_v1",
+        "comment_report_governance"
+      ]
+    },
+    {
+      "id": "review_operations_certification_gate",
+      "file": "scripts/check-review-operations-certification.mjs",
+      "requiredMarkers": [
+        "gugu_review_operations_certification_packet_v1",
+        "REQUIRED_DAILY_CHECKS",
+        "separationOfDuties",
+        "review_operations_certification_packet"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "review_operations_certification_packet",
+      "file": "data/review-operations-certification-packet.json",
+      "requiredMarkers": [
+        "gugu_review_operations_certification_packet_v1",
+        "h5_publish_review",
+        "store_listing_review",
+        "appeal_review",
+        "pending_external"
+      ]
+    }
+  ],
+  "acceptance": [
+    {
+      "id": "sla_evaluator",
+      "status": "ready",
+      "evidence": ["apps/backend/src/review-sla.js", "apps/backend/src/review-sla.test.js"]
+    },
+    {
+      "id": "operator_sla_endpoint",
+      "status": "ready",
+      "evidence": ["apps/backend/src/flash-http-server.js", "packages/api-client/src/http-flash-api.test.js"]
+    },
+    {
+      "id": "production_dashboard_wiring",
+      "status": "pending_external",
+      "needed": "Wire the Alpha SLA snapshot into the production ops dashboard and verify named humans review it daily.",
+      "evidence": []
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:review-sla",
+    "npm run check:review-operations-certification",
+    "node --test apps/backend/src/review-sla.test.js",
+    "node --test packages/api-client/src/http-flash-api.test.js",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "gugu_payment_settlement_reconciliation_drill_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_ready_for_provider_export_replay",
+  "environment": "closed_beta_and_public_mvp",
+  "sourcePacket": "data/payment-provider-integration-packet.json",
+  "cadence": {
+    "beta": "daily",
+    "postStabilization": "weekly",
+    "owner": "Finance Ops",
+    "backupOwner": "Commerce Lead"
+  },
+  "providerExportRequiredColumns": [
+    "providerEventId",
+    "providerPaymentId",
+    "providerRefundId",
+    "merchantOrderId",
+    "grossAmount",
+    "feeAmount",
+    "netAmount",
+    "currency",
+    "settlementDate",
+    "status"
+  ],
+  "guguRecordSources": [
+    "orders",
+    "payment_callbacks",
+    "refund_callbacks",
+    "device_entitlements",
+    "settlement_records"
+  ],
+  "reconciliationScenarios": [
+    {
+      "id": "provider_paid_missing_order",
+      "severity": "S1",
+      "requiredEvidence": ["providerEventId", "merchantOrderId", "provider_export_row", "support_diagnostic_bundle"],
+      "requiredAction": "open_support_diagnostic_bundle",
+      "replayStatus": "pending_provider_export"
+    },
+    {
+      "id": "provider_paid_missing_entitlement",
+      "severity": "S1",
+      "requiredEvidence": ["orderId", "providerPaymentId", "deviceId", "entitlement_lookup"],
+      "requiredAction": "escalate_unresolved_mismatch_to_commerce_and_backend",
+      "replayStatus": "pending_provider_export"
+    },
+    {
+      "id": "amount_or_currency_mismatch",
+      "severity": "S1",
+      "requiredEvidence": ["orderId", "grossAmount", "currency", "order_amount_currency"],
+      "requiredAction": "record_manual_reconciliation_note",
+      "replayStatus": "pending_provider_export"
+    },
+    {
+      "id": "refund_without_revoke",
+      "severity": "S1",
+      "requiredEvidence": ["providerRefundId", "orderId", "entitlementId", "refund_callback_event"],
+      "requiredAction": "open_support_diagnostic_bundle",
+      "replayStatus": "pending_provider_export"
+    },
+    {
+      "id": "duplicate_provider_event",
+      "severity": "S2",
+      "requiredEvidence": ["providerEventId", "callback_event_count", "operation_log_count"],
+      "requiredAction": "record_manual_reconciliation_note",
+      "replayStatus": "pending_provider_export"
+    },
+    {
+      "id": "settlement_fee_unmapped",
+      "severity": "S2",
+      "requiredEvidence": ["providerEventId", "feeAmount", "netAmount", "settlementDate"],
+      "requiredAction": "escalate_unresolved_mismatch_to_commerce_and_backend",
+      "replayStatus": "pending_provider_export"
+    }
+  ],
+  "requiredActions": [
+    "freeze_related_listing_on_rights_claim",
+    "open_support_diagnostic_bundle",
+    "record_manual_reconciliation_note",
+    "escalate_unresolved_mismatch_to_commerce_and_backend"
+  ],
+  "supportHandoff": {
+    "diagnosticEndpoint": "/flash/operator/support-diagnostics",
+    "requiredMacros": ["payment_no_entitlement", "refund_provider_mismatch"],
+    "requiredLookupFields": ["orderId", "providerEventId", "providerPaymentId", "providerRefundId", "deviceId", "entitlementId"]
+  },
+  "localProof": {
+    "paymentReplayCommand": "npm run check:payment-replay",
+    "requiredReplayScenarios": [
+      "payment_provider_sandbox_success",
+      "payment_provider_duplicate_event",
+      "payment_provider_amount_mismatch",
+      "payment_provider_refund_success",
+      "payment_provider_refund_duplicate"
+    ],
+    "status": "ready_as_local_proof_only"
+  },
+  "releasePolicy": {
+    "requiredCommands": [
+      "npm run check:payment-provider",
+      "npm run check:payment-provider-packet",
+      "npm run check:payment-settlement-reconciliation",
+      "npm run check:payment-replay"
+    ],
+    "mustRemainInProgressUntil": [
+      "payment_sandbox_credentials",
+      "provider_webhook_configuration",
+      "production_merchant_approval",
+      "key_rotation_runbook",
+      "settlement_reconciliation"
+    ]
+  },
+  "externalBlockers": [
+    {
+      "id": "payment_sandbox_credentials",
+      "owner": "Commerce Lead",
+      "status": "pending_external",
+      "exitCriteria": ["sandbox merchant id", "sandbox callback secret", "sandbox payment method", "sandbox refund capability"]
+    },
+    {
+      "id": "provider_webhook_configuration",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "exitCriteria": ["payment webhook URL", "refund webhook URL", "provider retry policy", "callback IP policy if required"]
+    },
+    {
+      "id": "production_merchant_approval",
+      "owner": "Commerce Lead",
+      "status": "pending_external",
+      "exitCriteria": ["merchant KYC approved", "product category approved", "refund terms accepted", "production keys issued"]
+    },
+    {
+      "id": "key_rotation_runbook",
+      "owner": "Security",
+      "status": "pending_external",
+      "exitCriteria": ["old key replay", "new key replay", "cutover timestamp", "rollback owner"]
+    },
+    {
+      "id": "settlement_reconciliation",
+      "owner": "Finance Ops",
+      "status": "pending_external",
+      "exitCriteria": ["provider export sample", "Gugu order export", "refund export", "zero unresolved critical mismatches"]
+    }
+  ]
+}

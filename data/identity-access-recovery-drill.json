@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "gugu_identity_access_recovery_drill_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_ready_for_real_provider_replay",
+  "environment": "closed_beta_production_auth",
+  "scope": "credential_recovery_and_operator_lifecycle",
+  "recoveryPolicy": {
+    "accountRecoveryPolicyStatus": "defined_pending_provider_binding",
+    "mfaResetPolicyStatus": "defined_pending_provider_binding",
+    "identityProofingRequired": true,
+    "supportEscalationRequired": true,
+    "auditTrailRequired": true,
+    "operatorRecoveryRequiresLeadApproval": true,
+    "superAdminRecoveryRequiresProductAndSecurityApproval": true,
+    "maxRecoverySlaHours": 24,
+    "customerAccountRecoverySteps": [
+      "verify_email_or_phone_ownership",
+      "collect_support_ticket_context",
+      "rotate_active_refresh_tokens",
+      "record_identity_recovery_audit_event"
+    ],
+    "operatorAccountRecoverySteps": [
+      "open_support_ticket_with_operator_manager",
+      "verify_named_roster_membership",
+      "obtain_role_lead_approval",
+      "rotate_active_refresh_tokens",
+      "record_identity_recovery_audit_event"
+    ],
+    "mfaResetSteps": [
+      "verify_identity_with_secondary_channel",
+      "require_support_lead_approval",
+      "expire_existing_sessions",
+      "record_mfa_reset_audit_event"
+    ]
+  },
+  "operatorLifecycleDrills": [
+    {
+      "id": "joiner_operator_invite",
+      "role": "reviewer",
+      "providerGroup": "gugu_reviewer",
+      "trigger": "new_beta_reviewer_joins",
+      "requiredEvidence": ["operator invite", "provider group assignment", "least privilege review row"],
+      "expectedOutcome": "reviewer gains governance queue access only",
+      "status": "ready_for_provider_replay"
+    },
+    {
+      "id": "mover_role_change",
+      "role": "support",
+      "providerGroup": "gugu_support",
+      "trigger": "operator_moves_from_review_to_support",
+      "requiredEvidence": ["old provider group removed", "new provider group assigned", "session refresh revoked"],
+      "expectedOutcome": "support can read diagnostics without governance write access",
+      "status": "ready_for_provider_replay"
+    },
+    {
+      "id": "leaver_offboarding",
+      "role": "operator",
+      "providerGroup": "gugu_operator",
+      "trigger": "operator_leaves_beta_roster",
+      "requiredEvidence": ["provider group removal", "refresh token revocation", "access review signoff"],
+      "expectedOutcome": "operator access disabled within 24 hours",
+      "status": "ready_for_provider_replay"
+    },
+    {
+      "id": "break_glass_super_admin_review",
+      "role": "super_admin",
+      "providerGroup": "gugu_super_admin",
+      "trigger": "emergency_super_admin_access",
+      "requiredEvidence": ["product owner approval", "security approval", "post-incident access review"],
+      "expectedOutcome": "temporary super admin access expires and is reviewed",
+      "status": "ready_for_provider_replay"
+    }
+  ],
+  "roleCoverage": [
+    "reviewer",
+    "hardware_operator",
+    "support",
+    "operator",
+    "admin",
+    "super_admin"
+  ],
+  "releasePolicy": {
+    "requiredCommands": [
+      "npm run check:identity-access-recovery",
+      "npm run check:identity-operations",
+      "npm run check:identity-provider"
+    ],
+    "mustRemainInProgressUntil": [
+      "identity_provider_selection",
+      "provider_bound_account_recovery",
+      "named_operator_roster",
+      "provider_group_replay"
+    ]
+  },
+  "externalBlockers": [
+    {
+      "id": "identity_provider_selection",
+      "owner": "Security / Backend Lead",
+      "status": "pending_external",
+      "exitCriteria": ["provider selected", "issuer configured", "test credentials issued"]
+    },
+    {
+      "id": "provider_bound_account_recovery",
+      "owner": "Security",
+      "status": "pending_external",
+      "exitCriteria": ["recovery policy bound to provider", "MFA reset replayed", "audit export captured"]
+    },
+    {
+      "id": "named_operator_roster",
+      "owner": "Ops Lead",
+      "status": "pending_external",
+      "exitCriteria": ["named roster approved", "manager owners assigned", "least privilege review completed"]
+    },
+    {
+      "id": "provider_group_replay",
+      "owner": "Ops Lead / Security",
+      "status": "pending_external",
+      "exitCriteria": ["joiner replay", "mover replay", "leaver replay", "break glass replay"]
+    }
+  ]
+}

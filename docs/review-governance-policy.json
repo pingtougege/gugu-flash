@@ -1,0 +1,574 @@
+{
+  "version": "2026.05.closed-beta-sop",
+  "updatedAt": "2026-05-27",
+  "owners": {
+    "productOwner": "AI Product Owner",
+    "trustLead": "AI Trust Lead",
+    "operatorLead": "AI Operator Lead",
+    "commerceLead": "AI Commerce Lead",
+    "hardwareLead": "AI Hardware Lead"
+  },
+  "releaseGateCoverage": [
+    {
+      "gate": "closed_beta",
+      "itemId": "h5_publish_review",
+      "coveredBy": ["h5_publish_review"]
+    },
+    {
+      "gate": "closed_beta",
+      "itemId": "store_listing_review",
+      "coveredBy": ["store_listing_review"]
+    },
+    {
+      "gate": "closed_beta",
+      "itemId": "content_reports_rights_claims",
+      "coveredBy": ["comment_report_governance", "rights_claim_governance", "appeal_review"]
+    }
+  ],
+  "riskTaxonomy": {
+    "levels": ["low", "medium", "high", "blocked"],
+    "types": [
+      "sexual_or_adult",
+      "harassment_or_bullying",
+      "hate_or_discrimination",
+      "self_harm",
+      "minor_risk",
+      "privacy_leak",
+      "real_person_impersonation",
+      "illegal_or_dangerous",
+      "spam_or_scam",
+      "ip_or_copyright",
+      "unsafe_hardware_content",
+      "external_contact_or_transaction"
+    ]
+  },
+  "reviewLayers": [
+    {
+      "id": "h5_publish_review",
+      "area": "H5 publish review",
+      "ownerRole": "Trust Lead",
+      "operatorRoles": ["reviewer", "operator", "admin"],
+      "targetTypes": ["Work", "WorkVersion", "Asset"],
+      "sourceDocs": ["docs/review-workflow-plan.md", "docs/safety-governance-plan.md"],
+      "stateMachine": {
+        "initial": "draft",
+        "submitted": "publish_submitted",
+        "limited": "public_limited",
+        "approved": "public",
+        "rejected": "rejected",
+        "takenDown": "taken_down"
+      },
+      "triggers": [
+        "publish_work",
+        "core_content_changed",
+        "multi_reported",
+        "visibility_public"
+      ],
+      "riskLevels": ["low", "medium", "high", "blocked"],
+      "sla": {
+        "triageHours": 4,
+        "decisionHours": 24,
+        "escalationHours": 8
+      },
+      "requiredEvidence": [
+        {
+          "id": "work_preview",
+          "label": "Rendered H5 preview and metadata snapshot",
+          "requiredFor": ["approve", "reject", "limit_recommend", "take_down"]
+        },
+        {
+          "id": "safety_scan",
+          "label": "Safety label and risk reason snapshot",
+          "requiredFor": ["approve", "reject", "limit_recommend", "take_down"]
+        },
+        {
+          "id": "ip_context",
+          "label": "Original or fanwork IP pool context",
+          "requiredFor": ["approve", "reject", "take_down"]
+        }
+      ],
+      "actions": [
+        {
+          "id": "approve",
+          "toStatus": "public",
+          "requiresReason": false,
+          "requiresEvidence": ["work_preview", "safety_scan", "ip_context"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "reject",
+          "toStatus": "rejected",
+          "requiresReason": true,
+          "requiresEvidence": ["work_preview", "safety_scan", "ip_context"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "limit_recommend",
+          "toStatus": "public_limited",
+          "requiresReason": true,
+          "requiresEvidence": ["work_preview", "safety_scan"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "take_down",
+          "toStatus": "taken_down",
+          "requiresReason": true,
+          "requiresEvidence": ["work_preview", "safety_scan", "ip_context"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        }
+      ],
+      "automationHooks": ["publish_precheck", "operator_review_task", "moderation_action"],
+      "behaviorEvidence": ["packages/api-client/src/mock-flash-api.test.js"]
+    },
+    {
+      "id": "store_listing_review",
+      "area": "Store listing review",
+      "ownerRole": "Commerce Lead",
+      "operatorRoles": ["reviewer", "operator", "admin"],
+      "targetTypes": ["StoreListing", "Work", "HardwarePack"],
+      "sourceDocs": ["docs/review-workflow-plan.md", "docs/ip-rights-policy-plan.md", "docs/monetization-plan.md"],
+      "stateMachine": {
+        "initial": "not_applied",
+        "submitted": "listing_submitted",
+        "rightsReview": "rights_review",
+        "approved": "listed",
+        "rejected": "rejected",
+        "delisted": "delisted",
+        "frozen": "frozen"
+      },
+      "triggers": [
+        "apply_store_listing",
+        "listing_core_content_changed",
+        "rights_claim_submitted",
+        "operator_manual_review"
+      ],
+      "riskLevels": ["low", "medium", "high", "blocked"],
+      "sla": {
+        "triageHours": 8,
+        "decisionHours": 48,
+        "escalationHours": 12
+      },
+      "requiredEvidence": [
+        {
+          "id": "rights_acknowledgement",
+          "label": "Creator rights acknowledgement timestamp",
+          "requiredFor": ["approve", "reject", "freeze_store", "delist"]
+        },
+        {
+          "id": "material_source_note",
+          "label": "Material source note and external asset declaration",
+          "requiredFor": ["approve", "reject", "freeze_store", "delist"]
+        },
+        {
+          "id": "ip_pool_context",
+          "label": "Selected IP pool item, zone, persona, and governance status",
+          "requiredFor": ["approve", "reject", "freeze_store", "delist"]
+        },
+        {
+          "id": "store_preview",
+          "label": "Store card, price, and hardware pack preview snapshot",
+          "requiredFor": ["approve", "reject", "delist"]
+        }
+      ],
+      "actions": [
+        {
+          "id": "approve",
+          "toStatus": "listed",
+          "requiresReason": false,
+          "requiresEvidence": ["rights_acknowledgement", "material_source_note", "ip_pool_context", "store_preview"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "reject",
+          "toStatus": "rejected",
+          "requiresReason": true,
+          "requiresEvidence": ["rights_acknowledgement", "material_source_note", "ip_pool_context"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "freeze_store",
+          "toStatus": "frozen",
+          "requiresReason": true,
+          "requiresEvidence": ["rights_acknowledgement", "material_source_note", "ip_pool_context"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "delist",
+          "toStatus": "delisted",
+          "requiresReason": true,
+          "requiresEvidence": ["rights_acknowledgement", "material_source_note", "ip_pool_context", "store_preview"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        }
+      ],
+      "automationHooks": ["store_listing_application", "operator_review_task", "settlement_freeze"],
+      "behaviorEvidence": ["packages/api-client/src/mock-flash-api.test.js"]
+    },
+    {
+      "id": "hardware_adaptation_review",
+      "area": "Hardware adaptation review",
+      "ownerRole": "Hardware Lead",
+      "operatorRoles": ["hardware_operator", "operator", "admin"],
+      "targetTypes": ["HardwareCandidate", "HardwarePack", "Work"],
+      "sourceDocs": ["docs/review-workflow-plan.md", "docs/device-sync-plan.md", "docs/content-schema-versioning-plan.md"],
+      "stateMachine": {
+        "initial": "not_candidate",
+        "candidate": "hardware_candidate",
+        "reviewing": "adaptation_review",
+        "adapting": "adapting",
+        "ready": "hardware_ready",
+        "available": "device_available",
+        "rejected": "hardware_rejected"
+      },
+      "triggers": [
+        "operator_marks_candidate",
+        "store_listing_threshold_met",
+        "campaign_selection",
+        "hardware_pack_changed"
+      ],
+      "riskLevels": ["low", "medium", "high", "blocked"],
+      "sla": {
+        "triageHours": 24,
+        "decisionHours": 72,
+        "escalationHours": 24
+      },
+      "requiredEvidence": [
+        {
+          "id": "compatibility_report",
+          "label": "Circle 185 compatibility report and degradation plan",
+          "requiredFor": ["approve", "reject", "publish"]
+        },
+        {
+          "id": "resource_budget",
+          "label": "Estimated package size, scene count, media budget, and checksum",
+          "requiredFor": ["approve", "reject", "publish"]
+        },
+        {
+          "id": "rights_clearance",
+          "label": "Rights review result carried from store listing",
+          "requiredFor": ["approve", "reject", "publish"]
+        },
+        {
+          "id": "device_preview",
+          "label": "Device-sized preview evidence",
+          "requiredFor": ["approve", "reject", "publish"]
+        }
+      ],
+      "actions": [
+        {
+          "id": "approve",
+          "toStatus": "hardware_ready",
+          "requiresReason": false,
+          "requiresEvidence": ["compatibility_report", "resource_budget", "rights_clearance", "device_preview"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "reject",
+          "toStatus": "hardware_rejected",
+          "requiresReason": true,
+          "requiresEvidence": ["compatibility_report", "resource_budget", "rights_clearance", "device_preview"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "publish",
+          "toStatus": "device_available",
+          "requiresReason": false,
+          "requiresEvidence": ["compatibility_report", "resource_budget", "rights_clearance", "device_preview"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        }
+      ],
+      "automationHooks": ["hardware_compatibility_report", "hardware_studio_export", "operator_review_task"],
+      "behaviorEvidence": ["packages/api-client/src/mock-flash-api.test.js", "packages/core/src/gugu-hardware-compat.js"]
+    }
+  ],
+  "governanceQueues": [
+    {
+      "id": "comment_report_governance",
+      "area": "Comment and content report governance",
+      "ownerRole": "Trust Lead",
+      "operatorRoles": ["reviewer", "operator", "admin"],
+      "caseType": "report",
+      "targetTypes": ["Work", "Comment", "User", "Persona", "IPEntry", "IPZone", "StoreListing", "HardwarePack"],
+      "sourceDocs": ["docs/safety-governance-plan.md"],
+      "statuses": ["submitted", "triage", "action_taken", "rejected", "closed", "escalated"],
+      "sla": {
+        "triageHours": 4,
+        "decisionHours": 24,
+        "escalationHours": 4
+      },
+      "requiredEvidence": [
+        {
+          "id": "report_record",
+          "label": "Reporter, reason, description, and submitted timestamp",
+          "requiredFor": ["hide", "limit_recommend", "take_down", "reject", "escalate"]
+        },
+        {
+          "id": "target_snapshot",
+          "label": "Target content snapshot before moderation",
+          "requiredFor": ["hide", "limit_recommend", "take_down", "reject", "escalate"]
+        },
+        {
+          "id": "operator_reason",
+          "label": "Operator decision reason",
+          "requiredFor": ["hide", "limit_recommend", "take_down", "reject", "escalate"]
+        }
+      ],
+      "actions": [
+        {
+          "id": "hide",
+          "effect": "Hide or remove a reported comment from public surfaces",
+          "requiresReason": true,
+          "requiresEvidence": ["report_record", "target_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "limit_recommend",
+          "effect": "Keep work reachable while removing it from recommendation and hot surfaces",
+          "requiresReason": true,
+          "requiresEvidence": ["report_record", "target_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "take_down",
+          "effect": "Remove the target from public distribution",
+          "requiresReason": true,
+          "requiresEvidence": ["report_record", "target_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "reject",
+          "effect": "Reject a report as not actionable",
+          "requiresReason": true,
+          "requiresEvidence": ["report_record", "target_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "escalate",
+          "effect": "Escalate to Trust Lead or legal review",
+          "requiresReason": true,
+          "requiresEvidence": ["report_record", "target_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": false,
+          "appealable": false
+        }
+      ],
+      "behaviorEvidence": ["packages/api-client/src/mock-flash-api.test.js"]
+    },
+    {
+      "id": "rights_claim_governance",
+      "area": "Rights claim governance",
+      "ownerRole": "Trust Lead",
+      "operatorRoles": ["reviewer", "operator", "admin"],
+      "caseType": "rights_claim",
+      "targetTypes": ["Work", "StoreListing", "HardwarePack", "IPEntry", "IPZone", "Persona"],
+      "sourceDocs": ["docs/safety-governance-plan.md", "docs/ip-rights-policy-plan.md", "docs/monetization-plan.md"],
+      "statuses": ["submitted", "triage", "action_taken", "counter_notice_waiting", "restored", "rejected", "closed", "escalated"],
+      "sla": {
+        "triageHours": 4,
+        "decisionHours": 72,
+        "escalationHours": 24
+      },
+      "requiredEvidence": [
+        {
+          "id": "claimant_identity",
+          "label": "Claimant name and contact or platform account",
+          "requiredFor": ["freeze_store", "take_down", "restore", "reject", "close", "escalate"]
+        },
+        {
+          "id": "claim_summary",
+          "label": "Rights claim type, summary, and affected target",
+          "requiredFor": ["freeze_store", "take_down", "restore", "reject", "close", "escalate"]
+        },
+        {
+          "id": "target_snapshot",
+          "label": "Target work, listing, IP, or pack snapshot before action",
+          "requiredFor": ["freeze_store", "take_down", "restore", "reject", "close", "escalate"]
+        },
+        {
+          "id": "revenue_snapshot",
+          "label": "Affected orders, entitlements, settlements, and frozen revenue",
+          "requiredFor": ["freeze_store", "restore", "close"]
+        },
+        {
+          "id": "operator_reason",
+          "label": "Operator decision reason",
+          "requiredFor": ["freeze_store", "take_down", "restore", "reject", "close", "escalate"]
+        }
+      ],
+      "actions": [
+        {
+          "id": "freeze_store",
+          "effect": "Pause store and hardware distribution while preserving purchaser evidence",
+          "requiresReason": true,
+          "requiresEvidence": ["claimant_identity", "claim_summary", "target_snapshot", "revenue_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "take_down",
+          "effect": "Remove public work and delist affected listing",
+          "requiresReason": true,
+          "requiresEvidence": ["claimant_identity", "claim_summary", "target_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": true
+        },
+        {
+          "id": "restore",
+          "effect": "Restore work, listing, hardware availability, and frozen settlement state",
+          "requiresReason": true,
+          "requiresEvidence": ["claimant_identity", "claim_summary", "target_snapshot", "revenue_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "reject",
+          "effect": "Reject a claim as insufficient or not actionable",
+          "requiresReason": true,
+          "requiresEvidence": ["claimant_identity", "claim_summary", "target_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "close",
+          "effect": "Close a resolved claim and retain evidence",
+          "requiresReason": true,
+          "requiresEvidence": ["claimant_identity", "claim_summary", "target_snapshot", "revenue_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "escalate",
+          "effect": "Escalate to legal or product owner review",
+          "requiresReason": true,
+          "requiresEvidence": ["claimant_identity", "claim_summary", "target_snapshot", "operator_reason"],
+          "auditLog": true,
+          "notifiesUser": false,
+          "appealable": false
+        }
+      ],
+      "behaviorEvidence": ["packages/api-client/src/mock-flash-api.test.js"]
+    },
+    {
+      "id": "appeal_review",
+      "area": "Appeal review",
+      "ownerRole": "Trust Lead",
+      "operatorRoles": ["reviewer", "operator", "admin"],
+      "caseType": "appeal",
+      "targetTypes": ["Work", "Comment", "StoreListing", "HardwarePack", "Persona", "IPEntry", "IPZone", "User"],
+      "sourceDocs": ["docs/safety-governance-plan.md", "docs/review-workflow-plan.md"],
+      "statuses": ["submitted", "reviewing", "resolved", "rejected", "escalated"],
+      "sla": {
+        "triageHours": 24,
+        "decisionHours": 72,
+        "escalationHours": 24
+      },
+      "requiredEvidence": [
+        {
+          "id": "original_action",
+          "label": "Original moderation or rights action and source case",
+          "requiredFor": ["restore", "keep_action", "modify_required", "escalate"]
+        },
+        {
+          "id": "appellant_statement",
+          "label": "Creator or user appeal statement",
+          "requiredFor": ["restore", "keep_action", "modify_required", "escalate"]
+        },
+        {
+          "id": "supplemental_evidence",
+          "label": "Additional rights, safety, or context evidence",
+          "requiredFor": ["restore", "keep_action", "modify_required", "escalate"]
+        },
+        {
+          "id": "second_review_reason",
+          "label": "Second-review operator reason",
+          "requiredFor": ["restore", "keep_action", "modify_required", "escalate"]
+        }
+      ],
+      "actions": [
+        {
+          "id": "restore",
+          "effect": "Reverse the action when appeal evidence is accepted",
+          "requiresReason": true,
+          "requiresEvidence": ["original_action", "appellant_statement", "supplemental_evidence", "second_review_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "keep_action",
+          "effect": "Keep original moderation or rights action",
+          "requiresReason": true,
+          "requiresEvidence": ["original_action", "appellant_statement", "supplemental_evidence", "second_review_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "modify_required",
+          "effect": "Require creator changes before restoration",
+          "requiresReason": true,
+          "requiresEvidence": ["original_action", "appellant_statement", "supplemental_evidence", "second_review_reason"],
+          "auditLog": true,
+          "notifiesUser": true,
+          "appealable": false
+        },
+        {
+          "id": "escalate",
+          "effect": "Escalate ambiguous appeal to Trust Lead or legal review",
+          "requiresReason": true,
+          "requiresEvidence": ["original_action", "appellant_statement", "supplemental_evidence", "second_review_reason"],
+          "auditLog": true,
+          "notifiesUser": false,
+          "appealable": false
+        }
+      ],
+      "behaviorEvidence": ["packages/api-client/src/mock-flash-api.test.js"]
+    }
+  ],
+  "staffingAssumptions": {
+    "closedBeta": {
+      "minimumReviewerSeats": 2,
+      "minimumEscalationSeats": 1,
+      "coverage": "daily manual review before inviting external beta users"
+    },
+    "publicMvp": {
+      "minimumReviewerSeats": 4,
+      "minimumEscalationSeats": 2,
+      "coverage": "launch-week rota, daily queue health check, and urgent escalation channel"
+    }
+  }
+}

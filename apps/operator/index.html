@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gugu Flash Operator</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="operator-shell">
+      <aside class="sidebar" aria-label="运营管理导航">
+        <div class="brand">
+          <span class="brand-mark">G</span>
+          <div>
+            <strong>Gugu Operator</strong>
+            <small>独立运营管理后台</small>
+          </div>
+        </div>
+        <nav class="nav-list" id="navList" aria-label="后台模块"></nav>
+        <section class="connection-panel" aria-label="API 连接">
+          <label>
+            <span>API Base</span>
+            <input id="apiBaseInput" type="url" spellcheck="false" />
+          </label>
+          <label>
+            <span>Operator Token</span>
+            <input id="tokenInput" type="text" spellcheck="false" placeholder="demo-operator" />
+          </label>
+          <div class="connection-actions">
+            <button id="saveConnectionButton" type="button">保存</button>
+            <button id="demoTokenButton" type="button">Demo</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <span class="eyebrow">Backend Alpha</span>
+            <h1 id="pageTitle">运营总览</h1>
+          </div>
+          <div class="topbar-actions">
+            <span class="status-pill" id="connectionStatus">连接中</span>
+            <button id="refreshButton" type="button" title="刷新数据" aria-label="刷新数据">↻</button>
+          </div>
+        </header>
+
+        <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+        <section class="section active" id="section-overview" aria-label="运营总览">
+          <div class="summary-grid" id="summaryGrid"></div>
+          <div class="split-grid">
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>今日处置优先级</h2>
+                <span id="priorityCount">0 项</span>
+              </div>
+              <div class="card-list compact" id="priorityList"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>服务状态</h2>
+                <span id="serviceStatus">待检查</span>
+              </div>
+              <div class="ops-health" id="opsHealth"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="section-works" aria-label="作品库管理">
+          <div class="section-intro">
+            <h2>作品库</h2>
+            <p>全量作品、热度、IP 归属、商店状态和硬件候选集中运营。</p>
+          </div>
+          <div class="table-stats" id="worksStats"></div>
+          <div class="ops-toolbar" aria-label="作品筛选">
+            <label>
+              <span>搜索</span>
+              <input id="workSearchInput" data-table="works" data-field="query" type="search" placeholder="作品 / 作者 / IP / 分身" />
+            </label>
+            <label>
+              <span>来源</span>
+              <select data-table="works" data-field="origin">
+                <option value="all">全部来源</option>
+                <option value="original">原创</option>
+                <option value="fanwork">二创</option>
+              </select>
+            </label>
+            <label>
+              <span>状态</span>
+              <select data-table="works" data-field="status">
+                <option value="all">全部状态</option>
+                <option value="listed">商店上架</option>
+                <option value="store_pending">上架流程</option>
+                <option value="candidate">硬件候选</option>
+                <option value="ready">硬件可下载</option>
+                <option value="h5_only">仅 H5</option>
+                <option value="risk">风险作品</option>
+              </select>
+            </label>
+            <label>
+              <span>排序</span>
+              <select data-table="works" data-field="sort">
+                <option value="heat">热度优先</option>
+                <option value="plays">播放优先</option>
+                <option value="completion">完播优先</option>
+                <option value="reports">举报优先</option>
+                <option value="updated">最近更新</option>
+              </select>
+            </label>
+            <label>
+              <span>每页</span>
+              <select data-table="works" data-field="pageSize">
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="content-table data-table" id="worksTable"></div>
+        </section>
+
+        <section class="section" id="section-ips" aria-label="IP池管理">
+          <div class="section-intro">
+            <h2>IP池</h2>
+            <p>IP 热度、作品规模、专区门槛、分身和风险状态统一追踪。</p>
+          </div>
+          <nav class="ip-tabs" id="ipTabList" role="tablist" aria-label="IP池功能分区"></nav>
+          <div class="ip-tab-panels">
+            <section class="ip-overview-panel ip-tab-panel active" id="ipOverviewPanel" data-ip-tab-panel="overview" role="tabpanel" aria-labelledby="ipTab-overview">
+              <div class="table-stats ip-stats-grid" id="ipStats"></div>
+            </section>
+            <article class="panel ip-collector-panel ip-tab-panel" id="ipCollectorPanel" data-ip-tab-panel="collect" role="tabpanel" aria-labelledby="ipTab-collect" hidden>
+              <div class="panel-heading">
+                <h2>全网搜索入池</h2>
+                <span id="ipCollectorSource">候选库</span>
+              </div>
+              <div class="collector-form">
+                <label>
+                  <span>关键词</span>
+                  <input id="ipCollectorQuery" type="search" placeholder="IP / 角色 / 别名 / 题材关键词" />
+                </label>
+                <label>
+                  <span>候选数</span>
+                  <select id="ipCollectorLimit">
+                    <option value="6">6</option>
+                    <option value="8">8</option>
+                    <option value="12">12</option>
+                    <option value="all">全部</option>
+                  </select>
+                </label>
+                <label class="check-label">
+                  <input id="ipCollectorIncludeExisting" type="checkbox" checked />
+                  <span>显示已入池</span>
+                </label>
+                <button id="ipCandidateSearchButton" type="button">搜索候选</button>
+                <button id="ipCollectButton" type="button">收集入池</button>
+                <button id="ipSweepAllButton" class="primary" type="button">一键全网IP入池</button>
+              </div>
+              <p class="collector-message" id="ipCollectorMessage">输入 IP、角色、别名或题材关键词，先预览完整角色与权利提示；也可以一键扫描全网 IP 名录和公开知识库，把缺失 IP 批量入池。</p>
+            </article>
+            <article class="panel ip-inventory-panel ip-tab-panel" id="ipInventoryPanel" data-ip-tab-panel="inventory" role="tabpanel" aria-labelledby="ipTab-inventory" hidden>
+              <div class="panel-heading">
+                <h2>IP资产库</h2>
+                <span>检索 / 分页 / 专区</span>
+              </div>
+              <div class="ops-toolbar ip-toolbar" aria-label="IP 筛选">
+                <label>
+                  <span>搜索</span>
+                  <input id="ipSearchInputOperator" data-table="ips" data-field="query" type="search" placeholder="IP / 分身 / 标签" />
+                </label>
+                <label>
+                  <span>类型</span>
+                  <select data-table="ips" data-field="type">
+                    <option value="all">全部类型</option>
+                    <option value="platform_original">平台原创</option>
+                    <option value="community_fan_ip">社区IP</option>
+                    <option value="local_anime_ip">本地动漫</option>
+                    <option value="mainstream_external_ip">主流外部</option>
+                  </select>
+                </label>
+                <label>
+                  <span>状态</span>
+                  <select data-table="ips" data-field="status">
+                    <option value="all">全部状态</option>
+                    <option value="open">已开专区</option>
+                    <option value="eligible">可申请专区</option>
+                    <option value="not_open">未开专区</option>
+                    <option value="risk">风险 IP</option>
+                  </select>
+                </label>
+                <label>
+                  <span>排序</span>
+                  <select data-table="ips" data-field="sort">
+                    <option value="heat">热度优先</option>
+                    <option value="works">作品数优先</option>
+                    <option value="creators">创作者优先</option>
+                    <option value="hardware">硬件包优先</option>
+                    <option value="risk">风险优先</option>
+                  </select>
+                </label>
+                <label>
+                  <span>每页</span>
+                  <select data-table="ips" data-field="pageSize">
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </label>
+              </div>
+              <div class="content-table data-table" id="ipTable"></div>
+            </article>
+            <article class="panel ip-candidate-panel ip-tab-panel" id="ipCandidatePanel" data-ip-tab-panel="candidates" role="tabpanel" aria-labelledby="ipTab-candidates" hidden>
+              <div class="panel-heading">
+                <h2>候选入池队列</h2>
+                <span>导入 / 补全</span>
+              </div>
+              <p class="collector-message candidate-message" id="ipCandidateMessage">候选结果会在这里展示。</p>
+              <div class="candidate-grid" id="ipCandidateResults"></div>
+            </article>
+            <article class="panel ip-persona-panel ip-tab-panel" id="ipPersonaPanel" data-ip-tab-panel="personas" role="tabpanel" aria-labelledby="ipTab-personas" hidden>
+              <div class="panel-heading">
+                <h2>全 IP 角色简介</h2>
+                <span id="ipPersonaSummary">0 IP · 0 角色</span>
+              </div>
+              <div class="persona-directory" id="ipPersonaDirectory"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="section-review" aria-label="审核队列">
+          <div class="section-intro">
+            <h2>审核队列</h2>
+            <p>H5 发布、商店权利审核和设备包复核集中处理。</p>
+          </div>
+          <div class="card-list" id="reviewList"></div>
+        </section>
+
+        <section class="section" id="section-governance" aria-label="治理中心">
+          <div class="section-intro">
+            <h2>治理中心</h2>
+            <p>处理举报、权利投诉、申诉和已经执行的治理动作。</p>
+          </div>
+          <div class="triple-grid">
+            <article class="panel">
+              <div class="panel-heading"><h2>待处理治理</h2><span id="governanceCount">0</span></div>
+              <div class="card-list compact" id="governanceList"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><h2>处置记录</h2><span id="moderationCount">0</span></div>
+              <div class="card-list compact" id="moderationList"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><h2>风险说明</h2><span>策略</span></div>
+              <div class="risk-notes">
+                <p>二创、外部联系、未成年人风险、设备安全和权利争议必须保留理由与证据。</p>
+                <p>冻结、下架和恢复都写入操作日志；申诉需要独立复核。</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="section-store" aria-label="商店上架">
+          <div class="section-intro">
+            <h2>商店上架</h2>
+            <p>从权利审核推进到制作、复核、正式上架，也可以冻结或下架。</p>
+          </div>
+          <div class="card-list" id="storeList"></div>
+        </section>
+
+        <section class="section" id="section-hardware" aria-label="硬件制作">
+          <div class="section-intro">
+            <h2>硬件制作</h2>
+            <p>查看兼容报告、资源预算、制作进度，并导出到 Hardware Studio。</p>
+          </div>
+          <div class="card-list" id="hardwareList"></div>
+        </section>
+
+        <section class="section" id="section-commerce" aria-label="结算与支付">
+          <div class="section-intro">
+            <h2>结算与支付</h2>
+            <p>观察订单结算、冻结资金、支付和退款回放证据。</p>
+          </div>
+          <div class="card-list" id="settlementList"></div>
+        </section>
+
+        <section class="section" id="section-trending" aria-label="趋势内容">
+          <div class="section-intro">
+            <h2>趋势内容</h2>
+            <p>按互动信号挑选硬件候选，保留上架和权利边界。</p>
+          </div>
+          <div class="content-table" id="trendingTable"></div>
+        </section>
+
+        <section class="section" id="section-sla" aria-label="SLA 与监控">
+          <div class="section-intro">
+            <h2>SLA 与监控</h2>
+            <p>审核时效、队列积压、生产告警和 Backend Alpha 请求指标。</p>
+          </div>
+          <div class="split-grid">
+            <article class="panel">
+              <div class="panel-heading"><h2>审核 SLA</h2><span id="slaSummary">0 open</span></div>
+              <div class="card-list compact" id="slaList"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading"><h2>监控告警</h2><span id="alertSummary">0 alert</span></div>
+              <div class="card-list compact" id="alertList"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="section-support" aria-label="支持诊断">
+          <div class="section-intro">
+            <h2>支持诊断</h2>
+            <p>按用户、设备、订单或内容定位权益、同步、举报和退款证据。</p>
+          </div>
+          <article class="panel">
+            <div class="support-query">
+              <label><span>用户 ID</span><input id="supportUserInput" value="user_local" /></label>
+              <label><span>设备 ID</span><input id="supportDeviceInput" value="badge_s3_01" /></label>
+              <label><span>订单 ID</span><input id="supportOrderInput" placeholder="可选" /></label>
+              <button id="supportSearchButton" type="button">查询</button>
+            </div>
+            <div class="support-results" id="supportResults"></div>
+          </article>
+        </section>
+
+        <section class="section" id="section-logs" aria-label="操作日志">
+          <div class="section-intro">
+            <h2>操作日志</h2>
+            <p>追踪后台动作、支付回调、审核推进和治理处置。</p>
+          </div>
+          <div class="log-list" id="logList"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js?v=20260529-one-click-ip-intake"></script>
+  </body>
+</html>

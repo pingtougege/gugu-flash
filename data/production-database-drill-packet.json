@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "gugu_production_database_drill_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_ready_for_production_database_replay",
+  "environment": "closed_beta_and_public_mvp",
+  "sourcePacket": "data/production-database-migration-packet.json",
+  "targetDatabase": {
+    "connectionSecret": "PRODUCTION_DATABASE_URL",
+    "managedBackupsRequired": true,
+    "pointInTimeRecoveryRequired": true,
+    "productionDatabaseStatus": "pending_external"
+  },
+  "rehearsalMatrix": [
+    {
+      "id": "pre_migration_snapshot",
+      "owner": "DevOps Lead",
+      "sourceStep": "create_pre_migration_backup",
+      "requiredEvidence": ["backup_id", "checksum_or_db_verification", "retention_policy", "restore_target"],
+      "verification": ["row_counts", "checksum_or_sample_audit"],
+      "replayStatus": "pending_external"
+    },
+    {
+      "id": "schema_apply_rehearsal",
+      "owner": "Backend Lead",
+      "sourceStep": "apply_schema",
+      "requiredEvidence": ["schema_version", "migration_log", "table_count", "index_count"],
+      "verification": ["validateSqlSchema", "critical_table_count"],
+      "replayStatus": "pending_external"
+    },
+    {
+      "id": "repository_contract_rehearsal",
+      "owner": "QA Lead",
+      "sourceStep": "run_repository_contract",
+      "requiredEvidence": ["validateRepositoryContract", "http_smoke", "payment_callback_replay"],
+      "verification": ["repository_contract", "web_http_smoke"],
+      "replayStatus": "pending_external"
+    },
+    {
+      "id": "restore_to_staging_rehearsal",
+      "owner": "DevOps Lead",
+      "sourceStep": "database_backup_restore_drill",
+      "requiredEvidence": ["restore_job_id", "restored_row_counts", "support_diagnostic_lookup", "restore_duration"],
+      "verification": ["row_counts", "support_diagnostics", "web_http_smoke"],
+      "replayStatus": "pending_external"
+    },
+    {
+      "id": "rollback_snapshot_rehearsal",
+      "owner": "Release Manager",
+      "sourceStep": "switch_runtime_to_database",
+      "requiredEvidence": ["rollback_snapshot", "rollback_owner", "readiness_probe", "support_handoff_note"],
+      "verification": ["readiness_probe", "data_integrity_decision", "support_handoff_note"],
+      "replayStatus": "pending_external"
+    }
+  ],
+  "restoreVerification": [
+    "row_counts",
+    "repository_contract",
+    "support_diagnostics",
+    "web_http_smoke"
+  ],
+  "criticalDataSets": [
+    "sessions",
+    "orders",
+    "payment_callbacks",
+    "refund_callbacks",
+    "settlements",
+    "device_entitlements",
+    "device_sync_jobs",
+    "reports",
+    "rights_claims",
+    "appeals",
+    "operation_logs"
+  ],
+  "localProof": {
+    "alphaBackupSchema": "gugu_flash_json_backup_v1",
+    "automatedCommand": "npm run check:alpha-backup-restore",
+    "backupUtility": "apps/backend/src/json-flash-store-backup.js",
+    "status": "ready_as_local_proof_only"
+  },
+  "releasePolicy": {
+    "requiredCommands": [
+      "npm run check:backend-persistence",
+      "npm run check:production-database",
+      "npm run check:production-database-drill",
+      "npm run check:alpha-backup-restore"
+    ],
+    "mustRemainInProgressUntil": [
+      "production_database_provisioned",
+      "repository_implementation",
+      "migration_execution",
+      "database_backup_restore_drill"
+    ]
+  },
+  "externalBlockers": [
+    {
+      "id": "production_database_provisioned",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "exitCriteria": ["database provisioned", "credentials in secrets manager", "managed backups enabled"]
+    },
+    {
+      "id": "repository_implementation",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "exitCriteria": ["database repositories implemented", "contract passes", "HTTP integration passes"]
+    },
+    {
+      "id": "migration_execution",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "exitCriteria": ["schema applied", "data imported", "reconciliation recorded"]
+    },
+    {
+      "id": "database_backup_restore_drill",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "exitCriteria": ["backup captured", "restore rehearsed", "rollback rehearsed", "smoke tests passed"]
+    }
+  ]
+}

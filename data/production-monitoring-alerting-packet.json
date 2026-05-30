@@ -1,0 +1,201 @@
+{
+  "schemaVersion": "gugu_production_monitoring_alerting_packet_v1",
+  "updatedAt": "2026-05-28",
+  "status": "draft_pending_production_observability",
+  "alertRulesVersion": "gugu_flash_monitoring_alert_rules_v1",
+  "environment": "public_mvp_production",
+  "serviceTargets": [
+    {
+      "id": "web_h5",
+      "name": "Gugu Flash Web/H5",
+      "url": "pending_public_web_origin",
+      "status": "pending_external"
+    },
+    {
+      "id": "backend_api",
+      "name": "Gugu Flash Backend API",
+      "url": "pending_production_api_host",
+      "healthPath": "/flash/health",
+      "readinessPath": "/flash/ready",
+      "metricsPath": "/flash/operator/ops-metrics",
+      "status": "pending_external"
+    }
+  ],
+  "signalSources": [
+    {
+      "id": "api_health",
+      "source": "GET /flash/health",
+      "backendField": "health.status",
+      "required": true
+    },
+    {
+      "id": "api_readiness",
+      "source": "GET /flash/ready",
+      "backendField": "ready.checks",
+      "required": true
+    },
+    {
+      "id": "ops_metrics",
+      "source": "GET /flash/operator/ops-metrics",
+      "backendField": "opsMetrics.alertInputs",
+      "required": true
+    },
+    {
+      "id": "request_correlation",
+      "source": "X-Gugu-Request-Id",
+      "backendField": "requests.lastRequestId",
+      "required": true
+    },
+    {
+      "id": "web_http_smoke",
+      "source": "Playwright HTTP-mode smoke",
+      "backendField": "webSmokeFailure",
+      "required": true
+    }
+  ],
+  "alertRoutes": [
+    {
+      "id": "api_down",
+      "severity": "S0",
+      "owner": "DevOps Lead",
+      "delivery": ["on_call_page", "incident_channel"],
+      "status": "pending_external"
+    },
+    {
+      "id": "api_5xx_spike",
+      "severity": "S1",
+      "owner": "Backend Lead",
+      "delivery": ["incident_channel"],
+      "status": "pending_external"
+    },
+    {
+      "id": "auth_denied_spike",
+      "severity": "S1",
+      "owner": "Security / Backend Lead",
+      "delivery": ["incident_channel"],
+      "status": "pending_external"
+    },
+    {
+      "id": "payment_callback_failure",
+      "severity": "S1",
+      "owner": "Commerce Lead",
+      "delivery": ["incident_channel", "commerce_channel"],
+      "status": "pending_external"
+    },
+    {
+      "id": "refund_mismatch",
+      "severity": "S1",
+      "owner": "Commerce Lead",
+      "delivery": ["incident_channel", "commerce_channel"],
+      "status": "pending_external"
+    },
+    {
+      "id": "sync_failure_spike",
+      "severity": "S1",
+      "owner": "Hardware Lead",
+      "delivery": ["incident_channel", "hardware_channel"],
+      "status": "pending_external"
+    },
+    {
+      "id": "review_queue_aging",
+      "severity": "S1",
+      "owner": "Trust Lead",
+      "delivery": ["incident_channel", "trust_channel"],
+      "status": "pending_external"
+    },
+    {
+      "id": "frozen_settlement_aging",
+      "severity": "S1",
+      "owner": "Commerce Lead",
+      "delivery": ["incident_channel", "commerce_channel"],
+      "status": "pending_external"
+    },
+    {
+      "id": "web_smoke_failure",
+      "severity": "S1",
+      "owner": "QA Lead",
+      "delivery": ["incident_channel", "qa_channel"],
+      "status": "pending_external"
+    }
+  ],
+  "syntheticChecks": [
+    {
+      "id": "external_api_health",
+      "target": "backend_api",
+      "method": "GET",
+      "path": "/flash/health",
+      "frequency": "1m",
+      "status": "pending_external"
+    },
+    {
+      "id": "external_api_readiness",
+      "target": "backend_api",
+      "method": "GET",
+      "path": "/flash/ready",
+      "frequency": "1m",
+      "status": "pending_external"
+    },
+    {
+      "id": "web_http_core_loop",
+      "target": "web_h5",
+      "method": "PLAYWRIGHT",
+      "path": "/apps/web/?api=http",
+      "frequency": "5m",
+      "status": "pending_external"
+    }
+  ],
+  "dashboardPanels": [
+    "api_status_uptime",
+    "request_status_classes",
+    "request_status_codes",
+    "last_5xx_path",
+    "active_alerts",
+    "payment_refund_callbacks",
+    "device_sync_failures",
+    "review_queue_aging",
+    "frozen_settlement_aging",
+    "web_smoke_status"
+  ],
+  "incidentDrills": [
+    {
+      "id": "api_down_s0_drill",
+      "severity": "S0",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "requiredEvidence": ["alert_fired", "on_call_ack", "incident_timeline", "health_recovery", "postmortem_notes"]
+    },
+    {
+      "id": "payment_callback_s1_drill",
+      "severity": "S1",
+      "owner": "Commerce Lead",
+      "status": "pending_external",
+      "requiredEvidence": ["provider_event_id", "request_id", "alert_fired", "support_macro", "resolution_notes"]
+    }
+  ],
+  "externalBlockers": [
+    {
+      "id": "hosted_metrics_backend",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "exitCriteria": ["metrics backend selected", "API logs shipped", "dashboard visible to leads"]
+    },
+    {
+      "id": "alert_delivery",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "exitCriteria": ["S0/S1 routes configured", "named on-call owners", "delivery test recorded"]
+    },
+    {
+      "id": "synthetic_checks",
+      "owner": "QA Lead",
+      "status": "pending_external",
+      "exitCriteria": ["external health check", "external readiness check", "external Web HTTP-mode smoke"]
+    },
+    {
+      "id": "incident_drill",
+      "owner": "Release Manager",
+      "status": "pending_external",
+      "exitCriteria": ["S0 drill complete", "S1 drill complete", "follow-up actions tracked"]
+    }
+  ]
+}

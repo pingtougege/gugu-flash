@@ -1,0 +1,219 @@
+{
+  "updatedAt": "2026-05-29",
+  "statusValues": ["blocked", "in_progress", "ready", "waived"],
+  "gates": {
+    "internal_prototype": {
+      "verdict": "ready",
+      "items": [
+        {
+          "id": "content_schema_validation",
+          "area": "Content schema validation",
+          "status": "ready",
+          "evidence": ["npm run check:content", "scripts/check-content.mjs"]
+        },
+        {
+          "id": "unit_contract_tests",
+          "area": "Unit and contract tests",
+          "status": "ready",
+          "evidence": ["npm test", "packages/api-client/src/http-flash-api.test.js"]
+        },
+        {
+          "id": "browser_smoke_tests",
+          "area": "Browser smoke tests",
+          "status": "ready",
+          "evidence": ["npm run test:e2e", "tests/e2e/gugu-flash-flows.spec.js"]
+        },
+        {
+          "id": "ai_text_game_creation_maturity",
+          "area": "AI text-game creation maturity",
+          "status": "ready",
+          "evidence": ["npm run check:ai-creation-maturity", "data/ai-creation-team-roster.json", "docs/ai-text-game-creation-maturity.md", "scripts/check-ai-creation-maturity.mjs", "packages/core/src/gugu-h5-pack.test.js"]
+        },
+        {
+          "id": "backend_alpha_health",
+          "area": "Backend Alpha health",
+          "status": "ready",
+          "evidence": ["GET /flash/health", "apps/backend/src/flash-http-server.js"]
+        },
+        {
+          "id": "web_http_mode_main_flow",
+          "area": "Web HTTP-mode main flow",
+          "status": "ready",
+          "evidence": ["tests/e2e/gugu-flash-http-api.spec.js"]
+        },
+        {
+          "id": "backend_alpha_route_coverage",
+          "area": "Backend Alpha route coverage",
+          "status": "ready",
+          "evidence": ["apps/backend/src/alpha-route-coverage.test.js", "apps/backend/src/alpha-route-coverage.js"]
+        },
+        {
+          "id": "ci_gate",
+          "area": "CI gate",
+          "status": "ready",
+          "evidence": [".github/workflows/ci.yml"]
+        },
+        {
+          "id": "pages_deploy_gate",
+          "area": "Pages deploy gate",
+          "status": "ready",
+          "evidence": [".github/workflows/pages.yml"]
+        }
+      ]
+    },
+    "closed_beta": {
+      "verdict": "not_ready",
+      "items": [
+        {
+          "id": "real_auth_session",
+          "area": "Real auth/session",
+          "status": "in_progress",
+          "evidence": ["apps/backend/src/flash-http-server.js", "apps/backend/src/json-flash-store.js", "apps/backend/src/flash-auth-policy.js", "apps/backend/src/flash-identity-token.js", "apps/backend/src/flash-identity-token.test.js", "docs/auth-rbac-plan.md", "docs/auth-rbac-readiness.json", "docs/identity-provider-readiness.md", "docs/identity-provider-readiness.json", "data/identity-provider-integration-packet.json", "data/identity-operations-certification-packet.json", "data/identity-access-recovery-drill.json", "scripts/check-auth-rbac-readiness.mjs", "scripts/check-identity-provider-readiness.mjs", "scripts/check-identity-provider-packet.mjs", "scripts/check-identity-operations.mjs", "scripts/check-identity-access-recovery.mjs", "packages/api-client/src/http-flash-api.test.js"],
+          "needed": "Backend Alpha session issue/refresh/revoke, token rotation, revoked-token rejection, invite-protected non-creator role issuance, demo-token shutdown, signed external identity token bridge, identity provider integration packet, identity operations certification packet, and identity access recovery drill exist; production identity provider selection, provider-bound account recovery replay, named operator roster, provider group replay, and real credential verification pending."
+        },
+        {
+          "id": "operator_permissions",
+          "area": "Operator permissions",
+          "status": "ready",
+          "evidence": ["docs/auth-rbac-plan.md", "docs/auth-rbac-readiness.json", "scripts/check-auth-rbac-readiness.mjs", "apps/backend/src/flash-auth-policy.js", "apps/backend/src/flash-auth-policy.test.js", "apps/backend/src/flash-http-server.js", "packages/api-client/src/http-flash-api.test.js"]
+        },
+        {
+          "id": "backend_persistence",
+          "area": "Backend persistence",
+          "status": "in_progress",
+          "evidence": ["apps/backend/src/json-flash-store.js", "apps/backend/src/json-flash-store.test.js", "apps/backend/src/json-flash-store-backup.js", "apps/backend/src/persistence-contract.js", "apps/backend/src/persistence-contract.test.js", "apps/backend/db/schema.sql", "data/production-database-migration-packet.json", "data/production-database-drill-packet.json", "docs/backend-persistence-readiness.md", "docs/backend-persistence-readiness.json", "scripts/check-backend-persistence-readiness.mjs", "scripts/check-production-database-packet.mjs", "scripts/check-production-database-drill.mjs", "scripts/check-alpha-backup-restore.mjs"],
+          "needed": "JSON persistence, repository contract, production schema coverage for content/assets/review/store/hardware/order/payment/refund/settlement/device/governance tables, production database migration packet, production database drill packet, Alpha backup/restore proof, and machine-readable backend persistence gates exist; production database provisioning, repository implementation, migration execution, and real database backup/restore/rollback replay pending."
+        },
+        {
+          "id": "h5_publish_review",
+          "area": "H5 publish review",
+          "status": "in_progress",
+          "evidence": ["packages/api-client/src/mock-flash-api.js", "docs/review-workflow-plan.md", "docs/review-governance-policy.json", "docs/review-sla-readiness.md", "docs/review-sla-readiness.json", "data/review-operations-certification-packet.json", "scripts/check-review-governance.mjs", "scripts/check-review-sla-readiness.mjs", "scripts/check-review-operations-certification.mjs", "apps/backend/src/review-sla.js", "apps/backend/src/review-sla.test.js", "apps/backend/src/flash-http-server.js", "apps/backend/src/alpha-route-coverage.js", "packages/api-client/src/flash-api-contract.js", "packages/api-client/src/http-flash-api.js", "packages/api-client/src/http-flash-api.test.js"],
+          "needed": "Machine-checked SOP, Alpha review SLA evaluator, operator SLA endpoint, review operations certification packet, and route tests exist; production review queue ownership and staffed reviewer rota pending."
+        },
+        {
+          "id": "store_listing_review",
+          "area": "Store listing review",
+          "status": "in_progress",
+          "evidence": ["packages/api-client/src/mock-flash-api.test.js", "packages/api-client/src/http-flash-api.test.js", "docs/review-governance-policy.json", "docs/review-sla-readiness.md", "docs/review-sla-readiness.json", "data/review-operations-certification-packet.json", "scripts/check-review-governance.mjs", "scripts/check-review-sla-readiness.mjs", "scripts/check-review-operations-certification.mjs", "apps/backend/src/review-sla.js", "apps/backend/src/review-sla.test.js", "apps/backend/src/flash-http-server.js", "apps/backend/src/alpha-route-coverage.js", "packages/api-client/src/flash-api-contract.js", "packages/api-client/src/http-flash-api.js"],
+          "needed": "Machine-checked rights/materials SOP, policy-bound HTTP validation, Alpha review SLA evaluator, operator SLA endpoint, and review operations certification packet exist; production reviewer workflow and staffing pending."
+        },
+        {
+          "id": "hardware_pack_production",
+          "area": "HardwarePack production",
+          "status": "in_progress",
+          "evidence": ["packages/core/src/gugu-hardware-compat.js", "packages/core/src/gugu-launch-content.js", "packages/core/src/gugu-launch-content.test.js", "packages/core/src/gugu-hardware-export.js", "packages/core/src/gugu-hardware-export.test.js", "packages/core/src/index.js", "apps/backend/src/flash-http-server.js", "packages/api-client/src/flash-api-contract.js", "packages/api-client/src/http-flash-api.js", "packages/api-client/src/http-flash-api.test.js", "data/launch-hardware-packs.json", "docs/hardware-studio-export-readiness.md", "docs/hardware-studio-export-readiness.json", "scripts/check-launch-content-readiness.mjs", "scripts/check-hardware-export-readiness.mjs"],
+          "needed": "Compatibility report builder, deterministic launch HardwarePack manifest with checksum, Hardware Studio export bundle, operator export route, and machine-readable export readiness gate exist; real Hardware Studio binary packaging, native install packaging, and real device signoff pending."
+        },
+        {
+          "id": "payment_claim_flow",
+          "area": "Payment/claim flow",
+          "status": "in_progress",
+          "evidence": ["packages/api-client/src/mock-flash-api.test.js", "packages/api-client/src/http-flash-api.test.js", "apps/backend/src/flash-http-server.js", "packages/api-client/src/flash-api-contract.js", "scripts/replay-payment-provider-callbacks.mjs", "data/payment-settlement-reconciliation-drill.json", "scripts/check-payment-settlement-reconciliation.mjs"],
+          "needed": "Alpha payment provider callback signature validation, success/failure/idempotency tests, local replay drill, device entitlement grant, and payment settlement reconciliation drill exist; external payment sandbox, provider approval, and real provider export replay pending."
+        },
+        {
+          "id": "refund_revoke_flow",
+          "area": "Refund/revoke flow",
+          "status": "in_progress",
+          "evidence": ["packages/api-client/src/mock-flash-api.test.js", "packages/api-client/src/http-flash-api.test.js", "scripts/replay-payment-provider-callbacks.mjs", "data/payment-settlement-reconciliation-drill.json", "scripts/check-payment-settlement-reconciliation.mjs"],
+          "needed": "Mock and HTTP Alpha refund revoke, provider callback idempotency tests, local refund replay drill, and settlement reconciliation refund mismatch drill exist; external payment sandbox and real provider export replay pending."
+        },
+        {
+          "id": "device_sync_failure_handling",
+          "area": "Device sync failure handling",
+          "status": "in_progress",
+          "evidence": ["packages/api-client/src/http-flash-api.test.js", "packages/core/src/gugu-device-sync-evidence.js", "packages/core/src/gugu-device-sync-evidence.test.js", "data/device-sync-regression-drill.json", "scripts/check-device-sync-regression.mjs"],
+          "needed": "HTTP Alpha failure/retry tests, fake BLE evidence contract, and local device sync regression drill exist; real BLE evidence pending."
+        },
+        {
+          "id": "takedown_legacy_use",
+          "area": "Takedown and legacy use",
+          "status": "ready",
+          "evidence": ["packages/api-client/src/http-flash-api.test.js", "packages/api-client/src/mock-flash-api.test.js"]
+        },
+        {
+          "id": "content_reports_rights_claims",
+          "area": "Content reports and rights claims",
+          "status": "in_progress",
+          "evidence": ["packages/api-client/src/mock-flash-api.test.js", "packages/api-client/src/http-flash-api.test.js", "docs/safety-governance-plan.md", "docs/review-governance-policy.json", "docs/review-sla-readiness.md", "docs/review-sla-readiness.json", "data/review-operations-certification-packet.json", "scripts/check-review-governance.mjs", "scripts/check-review-sla-readiness.mjs", "scripts/check-review-operations-certification.mjs", "apps/backend/src/review-sla.js", "apps/backend/src/review-sla.test.js", "apps/backend/src/flash-http-server.js", "apps/backend/src/alpha-route-coverage.js", "packages/api-client/src/flash-api-contract.js", "packages/api-client/src/http-flash-api.js"],
+          "needed": "Machine-checked report/rights/appeal SOP, policy-bound HTTP validation, Alpha review SLA evaluator, escalation owner calculation, second-reviewer conflict detection, and review operations certification packet exist; production staffing and escalation rota pending."
+        },
+        {
+          "id": "legal_terms",
+          "area": "Legal terms",
+          "status": "in_progress",
+          "evidence": ["docs/legal-terms-draft.md", "docs/legal-terms-coverage.json", "data/legal-approval-packet.json", "data/legal-release-signoff-packet.json", "scripts/check-legal-readiness.mjs", "scripts/check-legal-approval-packet.mjs", "scripts/check-legal-release-signoff.mjs", "docs/monetization-plan.md", "docs/ip-rights-policy-plan.md"],
+          "needed": "Closed-beta legal drafts, legal approval packet, legal release signoff packet, machine-readable coverage, and in-app acceptance UX exist; qualified legal counsel approval, privacy owner approval, product copy signoff, and commerce refund terms signoff pending."
+        },
+        {
+          "id": "support_playbook",
+          "area": "Support playbook",
+          "status": "in_progress",
+          "evidence": ["docs/support-playbook.md", "docs/support-ticket-macros.md", "docs/support-readiness.json", "data/support-oncall-packet.json", "data/support-training-handoff-drill.json", "data/beta-operations-launch-packet.json", "docs/support-diagnostics-readiness.md", "docs/support-diagnostics-readiness.json", "scripts/check-support-readiness.mjs", "scripts/check-support-oncall-packet.mjs", "scripts/check-support-training-handoff.mjs", "scripts/check-beta-operations-launch.mjs", "scripts/check-support-diagnostics-readiness.mjs", "apps/backend/src/support-diagnostics.js", "apps/backend/src/support-diagnostics.test.js", "apps/backend/src/flash-http-server.js", "apps/backend/src/alpha-route-coverage.js", "packages/api-client/src/flash-api-contract.js", "packages/api-client/src/http-flash-api.js", "packages/api-client/src/http-flash-api.test.js", "docs/device-sync-plan.md", "docs/monetization-plan.md", "docs/review-governance-policy.json"],
+          "needed": "Closed-beta support runbook, ticket macros, escalation matrix, support on-call packet, training/handoff drill packet, beta operations launch packet, daily review checklist, diagnostic bundle endpoint, support role read coverage, and machine-readable support readiness gates exist; named real-person staffing, beta on-call calendar, launch channels, training completion evidence, and staffed handoff drill replay pending."
+        }
+      ]
+    },
+    "public_mvp": {
+      "verdict": "not_ready",
+      "items": [
+        {
+          "id": "production_deployment",
+          "area": "Production deployment",
+          "status": "in_progress",
+          "evidence": ["docs/production-deployment-runbook.md", "docs/deployment-readiness.json", "data/production-environment-preflight.json", "data/production-rollout-packet.json", "scripts/check-deployment-readiness.mjs", "scripts/check-production-environment-preflight.mjs", "scripts/check-production-rollout-packet.mjs", "apps/backend/src/flash-http-server.js", "packages/api-client/src/http-flash-api.test.js", ".github/workflows/pages.yml", "apps/backend/src/json-flash-store-backup.js", "scripts/check-alpha-backup-restore.mjs"],
+          "needed": "Alpha readiness probe, deployment runbook, production environment preflight manifest, production rollout packet, backup/restore utility, automated Alpha backup/restore drill, rollback checklist, Pages deploy gate, and machine-readable deployment readiness gates exist; production API hosting, production database, secrets management, production database backup/restore drill, and rollback drill execution pending."
+        },
+        {
+          "id": "monitoring_alerts",
+          "area": "Monitoring and alerts",
+          "status": "in_progress",
+          "evidence": ["docs/monitoring-alerts-plan.md", "docs/monitoring-readiness.json", "data/production-monitoring-alerting-packet.json", "scripts/check-monitoring-readiness.mjs", "scripts/check-production-monitoring-packet.mjs", "apps/backend/src/flash-http-server.js", "apps/backend/src/monitoring-alerts.js", "apps/backend/src/monitoring-alerts.test.js", "packages/api-client/src/http-flash-api.test.js"],
+          "needed": "Alpha request correlation, operator ops metrics endpoint, status-code counters, alert inputs, alert evaluator, production monitoring/alerting packet, and machine-readable monitoring readiness gates exist; hosted metrics backend, alert delivery, external synthetic checks, and incident drill pending."
+        },
+        {
+          "id": "real_device_matrix",
+          "area": "Real device matrix",
+          "status": "in_progress",
+          "evidence": ["docs/device-sync-plan.md", "docs/real-device-matrix-plan.md", "docs/device-matrix-readiness.json", "data/device-lab-evidence-packet.json", "data/device-sync-certification-packet.json", "data/device-sync-regression-drill.json", "scripts/check-device-matrix-readiness.mjs", "scripts/check-device-lab-evidence.mjs", "scripts/check-device-sync-certification.mjs", "scripts/check-device-sync-regression.mjs", "packages/core/src/gugu-device-sync-evidence.js", "packages/core/src/gugu-device-sync-evidence.test.js"],
+          "needed": "Real device matrix plan, device lab evidence packet, device sync certification packet, device sync regression drill, case IDs, fake BLE evidence contract, and machine-readable readiness gates exist; at least two Circle 185 physical devices, firmware spread, real BLE session captures, and hardware lead signoff pending."
+        },
+        {
+          "id": "payment_provider",
+          "area": "Payment provider",
+          "status": "in_progress",
+          "evidence": ["docs/monetization-plan.md", "docs/payment-provider-readiness-plan.md", "docs/payment-provider-readiness.json", "data/payment-provider-integration-packet.json", "data/payment-settlement-reconciliation-drill.json", "scripts/check-payment-provider-readiness.mjs", "scripts/check-payment-provider-packet.mjs", "scripts/check-payment-settlement-reconciliation.mjs", "scripts/replay-payment-provider-callbacks.mjs", "apps/backend/src/flash-http-server.js", "packages/api-client/src/http-flash-api.test.js", "docs/support-ticket-macros.md"],
+          "needed": "Payment provider plan, callback replay matrix, local payment/refund replay drill, Alpha HMAC/idempotency controls, support macros, payment provider integration packet, settlement reconciliation drill packet, and machine-readable readiness gates exist; sandbox credentials, webhook configuration, production merchant approval, key rotation drill, and real settlement reconciliation execution pending."
+        },
+        {
+          "id": "app_distribution",
+          "area": "App distribution",
+          "status": "in_progress",
+          "evidence": ["apps/native/README.md", "docs/app-distribution-plan.md", "docs/app-distribution-readiness.json", "data/app-release-packet.json", "data/native-build-certification-packet.json", "data/native-store-assets-packet.json", "scripts/check-app-distribution-readiness.mjs", "scripts/check-app-release-packet.mjs", "scripts/check-native-build-certification.mjs", "scripts/check-native-store-assets.mjs", "packages/core/src/gugu-domain.js", "packages/api-client/src/flash-api-contract.js"],
+          "needed": "Native distribution plan, TestFlight/Android internal testing checklist, store-review packet manifest, native build certification packet, native store assets packet, shared native API targets, release packet gates, and machine-readable readiness gate exist; signed native shell, developer accounts, final screenshot capture/assets, and release manager signoff pending."
+        },
+        {
+          "id": "security_review",
+          "area": "Security review",
+          "status": "in_progress",
+          "evidence": ["docs/safety-governance-plan.md", "docs/security-review-plan.md", "docs/security-readiness.json", "data/security-review-packet.json", "data/security-infrastructure-review-packet.json", "docs/asset-security-readiness.md", "docs/asset-security-readiness.json", "docs/auth-rbac-readiness.json", "docs/identity-provider-readiness.json", "scripts/check-security-readiness.mjs", "scripts/check-security-review-packet.mjs", "scripts/check-security-infrastructure.mjs", "scripts/check-asset-security-readiness.mjs", "scripts/check-auth-rbac-readiness.mjs", "scripts/check-identity-provider-readiness.mjs", "apps/backend/src/flash-http-server.js", "apps/backend/src/asset-security.js", "apps/backend/src/asset-security.test.js", "apps/backend/src/flash-auth-policy.js", "apps/backend/src/flash-identity-token.js", "packages/api-client/src/http-flash-api.test.js"],
+          "needed": "Alpha HTTP security headers, request body limit, configurable CORS, invite-protected RBAC, route-level operator permissions, signed external identity token bridge, asset upload policy validation, source statement validation, security review packet, infrastructure/upload storage replay packet, and machine-readable security readiness gates exist; production identity provider, real upload scanning/storage isolation, TLS/secret/alert/backup replay, infrastructure review, and external security signoff pending."
+        },
+        {
+          "id": "moderation_staffing",
+          "area": "Content moderation staffing",
+          "status": "in_progress",
+          "evidence": ["docs/moderation-staffing-plan.md", "docs/moderation-staffing-readiness.json", "data/moderation-staffing-rota.json", "data/review-operations-certification-packet.json", "docs/review-sla-readiness.md", "docs/review-sla-readiness.json", "scripts/check-moderation-staffing-readiness.mjs", "scripts/check-moderation-rota.mjs", "scripts/check-review-sla-readiness.mjs", "scripts/check-review-operations-certification.mjs", "docs/review-workflow-plan.md", "docs/review-governance-policy.json", "apps/backend/src/review-sla.js", "apps/backend/src/review-sla.test.js", "apps/backend/src/flash-http-server.js", "apps/backend/src/alpha-route-coverage.js", "packages/api-client/src/flash-api-contract.js", "packages/api-client/src/http-flash-api.js", "packages/api-client/src/http-flash-api.test.js"],
+          "needed": "Moderation staffing model, rota packet, review operations certification packet, queue coverage, SLA/escalation matrix, daily queue review checklist, training modules, Alpha SLA dashboard endpoint, and machine-readable staffing/rota/SLA readiness gates exist; named human rota, training completion, escalation drill, and production dashboard wiring pending."
+        },
+        {
+          "id": "launch_content",
+          "area": "Launch content",
+          "status": "ready",
+          "evidence": ["data/seed-packs.json", "data/launch-hardware-packs.json", "docs/launch-content-plan.md", "docs/launch-content-readiness.json", "scripts/check-launch-content-readiness.mjs", "packages/core/src/gugu-launch-content.js", "packages/core/src/gugu-launch-content.test.js"]
+        }
+      ]
+    }
+  }
+}

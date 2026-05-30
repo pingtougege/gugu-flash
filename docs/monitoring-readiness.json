@@ -1,0 +1,200 @@
+{
+  "version": "2026.05.alpha-monitoring-readiness",
+  "updatedAt": "2026-05-28",
+  "status": "draft_pending_production_observability",
+  "documents": [
+    {
+      "id": "monitoring_alerts_plan",
+      "file": "docs/monitoring-alerts-plan.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Alpha Signals",
+        "## Alert Drafts",
+        "## Dashboard Draft",
+        "## External Work",
+        "## Exit Criteria"
+      ],
+      "requiredClauses": [
+        "/flash/health",
+        "/flash/operator/ops-metrics",
+        "X-Gugu-Request-Id",
+        "Payment callback failure",
+        "Auth denied spike",
+        "Refund mismatch",
+        "Sync failure spike",
+        "Review queue aging",
+        "Frozen settlement aging",
+        "gugu_flash_monitoring_alert_rules_v1"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "request_correlation",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "requestIdFromRequest",
+        "X-Gugu-Request-Id",
+        "X-Gugu-Service"
+      ]
+    },
+    {
+      "id": "ops_metrics_endpoint",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "opsMetricsSnapshot",
+        "requestMetrics",
+        "ops-metrics",
+        "byStatusCode",
+        "authDeniedCount",
+        "syncFailureCount"
+      ]
+    },
+    {
+      "id": "alert_rule_evaluator",
+      "file": "apps/backend/src/monitoring-alerts.js",
+      "requiredMarkers": [
+        "gugu_flash_monitoring_alert_rules_v1",
+        "evaluateMonitoringAlerts",
+        "auth_denied_spike",
+        "refund_mismatch",
+        "frozen_settlement_aging"
+      ]
+    },
+    {
+      "id": "alert_rule_tests",
+      "file": "apps/backend/src/monitoring-alerts.test.js",
+      "requiredMarkers": [
+        "release-critical alert inputs",
+        "active alerts with owner and severity",
+        "web_smoke_failure"
+      ]
+    },
+    {
+      "id": "ops_metrics_contract",
+      "file": "packages/api-client/src/flash-api-contract.js",
+      "requiredMarkers": [
+        "operator.opsMetrics",
+        "/flash/operator/ops-metrics"
+      ]
+    },
+    {
+      "id": "ops_metrics_tests",
+      "file": "packages/api-client/src/http-flash-api.test.js",
+      "requiredMarkers": [
+        "exposes request ids and operator ops metrics",
+        "exposes active alert inputs",
+        "x-gugu-request-id",
+        "getOperatorOpsMetrics",
+        "authDeniedCount",
+        "syncFailureCount"
+      ]
+    },
+    {
+      "id": "production_monitoring_packet_gate",
+      "file": "scripts/check-production-monitoring-packet.mjs",
+      "requiredMarkers": [
+        "gugu_production_monitoring_alerting_packet_v1",
+        "REQUIRED_ALERTS",
+        "REQUIRED_SYNTHETICS",
+        "draft_pending_production_observability"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "production_monitoring_alerting_packet",
+      "file": "data/production-monitoring-alerting-packet.json",
+      "requiredMarkers": [
+        "gugu_production_monitoring_alerting_packet_v1",
+        "gugu_flash_monitoring_alert_rules_v1",
+        "api_down",
+        "web_http_core_loop",
+        "pending_external"
+      ]
+    }
+  ],
+  "alertDrafts": [
+    {
+      "id": "api_down",
+      "severity": "S0",
+      "owner": "DevOps Lead",
+      "signal": "GET /flash/health"
+    },
+    {
+      "id": "api_5xx_spike",
+      "severity": "S1",
+      "owner": "Backend Lead",
+      "signal": "opsMetrics.alertInputs.fiveHundredCount"
+    },
+    {
+      "id": "auth_denied_spike",
+      "severity": "S1",
+      "owner": "Security / Backend Lead",
+      "signal": "opsMetrics.alertInputs.authDeniedCount"
+    },
+    {
+      "id": "payment_callback_failure",
+      "severity": "S1",
+      "owner": "Commerce Lead",
+      "signal": "payment callback result"
+    },
+    {
+      "id": "refund_mismatch",
+      "severity": "S1",
+      "owner": "Commerce Lead",
+      "signal": "opsMetrics.alertInputs.refundMismatchCount"
+    },
+    {
+      "id": "sync_failure_spike",
+      "severity": "S1",
+      "owner": "Hardware Lead",
+      "signal": "DeviceSyncJob.failureReason"
+    },
+    {
+      "id": "review_queue_aging",
+      "severity": "S1",
+      "owner": "Trust Lead",
+      "signal": "review/report/appeal oldest age"
+    },
+    {
+      "id": "frozen_settlement_aging",
+      "severity": "S1",
+      "owner": "Commerce Lead",
+      "signal": "opsMetrics.alertInputs.frozenSettlementOldestAgeMs"
+    },
+    {
+      "id": "web_smoke_failure",
+      "severity": "S1",
+      "owner": "QA Lead",
+      "signal": "Playwright HTTP-mode smoke"
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:monitoring",
+    "npm run check:production-monitoring",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ],
+  "externalAcceptance": [
+    {
+      "id": "hosted_metrics_backend",
+      "status": "pending_external",
+      "needed": "Production monitoring packet exists; connect production API and Web to hosted metrics and log storage."
+    },
+    {
+      "id": "alert_delivery",
+      "status": "pending_external",
+      "needed": "Route S0/S1 alerts to named on-call owners."
+    },
+    {
+      "id": "synthetic_checks",
+      "status": "pending_external",
+      "needed": "Run external Web and API synthetic checks against production URLs."
+    },
+    {
+      "id": "incident_drill",
+      "status": "pending_external",
+      "needed": "Run at least one incident drill before public MVP."
+    }
+  ]
+}

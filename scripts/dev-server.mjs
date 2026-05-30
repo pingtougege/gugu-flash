@@ -36,6 +36,11 @@ createServer(async (req, res) => {
     res.end();
     return;
   }
+  if (cleanPath === "/apps/operator") {
+    res.writeHead(308, { Location: "/apps/operator/" });
+    res.end();
+    return;
+  }
 
   const filePath = resolvePath(req.url || "/");
   if (!filePath) {

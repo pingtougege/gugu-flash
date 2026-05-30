@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "gugu_legal_release_signoff_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_external_legal_signoff",
+  "releaseScope": "closed_beta_external_users",
+  "sourcePacket": "data/legal-approval-packet.json",
+  "finalDocumentSet": [
+    {
+      "id": "user_agreement",
+      "sourceFile": "docs/legal-terms-draft.md",
+      "section": "## 2. User Agreement Draft",
+      "versionFrozen": false,
+      "requiredApprover": "Legal Counsel"
+    },
+    {
+      "id": "creator_terms",
+      "sourceFile": "docs/legal-terms-draft.md",
+      "section": "## 3. Creator Terms Draft",
+      "versionFrozen": false,
+      "requiredApprover": "Legal Counsel"
+    },
+    {
+      "id": "store_listing_terms",
+      "sourceFile": "docs/legal-terms-draft.md",
+      "section": "## 4. Store Listing Terms Draft",
+      "versionFrozen": false,
+      "requiredApprover": "Legal Counsel"
+    },
+    {
+      "id": "rights_claim_appeal_policy",
+      "sourceFile": "docs/legal-terms-draft.md",
+      "section": "## 5. Rights Claim And Appeal Policy Draft",
+      "versionFrozen": false,
+      "requiredApprover": "Legal Counsel"
+    },
+    {
+      "id": "privacy_notice",
+      "sourceFile": "docs/legal-terms-draft.md",
+      "section": "## 6. Privacy Notice Draft Checklist",
+      "versionFrozen": false,
+      "requiredApprover": "Privacy Owner"
+    }
+  ],
+  "copyConsistencyChecks": [
+    {
+      "id": "device_scoped_entitlement",
+      "requiredCopyMarker": "购买/领取权益按当前设备生效",
+      "evidence": ["apps/web/src/app.js", "data/legal-approval-packet.json"]
+    },
+    {
+      "id": "refund_revokes_new_rights",
+      "requiredCopyMarker": "退款会撤销新下载和新同步权益",
+      "evidence": ["apps/web/src/app.js", "data/legal-approval-packet.json"]
+    },
+    {
+      "id": "sync_failure_preserves_content",
+      "requiredCopyMarker": "失败会保留原运行内容",
+      "evidence": ["apps/web/src/app.js", "data/legal-approval-packet.json"]
+    },
+    {
+      "id": "fanwork_ip_pool_required",
+      "requiredCopyMarker": "Fanwork must select an IP from the platform IP pool",
+      "evidence": ["docs/legal-terms-draft.md", "data/legal-approval-packet.json"]
+    },
+    {
+      "id": "personal_information_notice",
+      "requiredCopyMarker": "Device sync diagnostics may include device id",
+      "evidence": ["docs/legal-terms-draft.md", "data/legal-approval-packet.json"]
+    }
+  ],
+  "privacySignoff": {
+    "requiredDataCategories": [
+      "account_session",
+      "ugc_content",
+      "comments_reports_claims_appeals",
+      "device_sync_diagnostics",
+      "orders_entitlements_payments_refunds",
+      "support_cases",
+      "operation_logs"
+    ],
+    "specialHandling": [
+      "minors_information",
+      "sensitive_personal_information",
+      "cross_border_data",
+      "third_party_processors",
+      "retention_and_deletion"
+    ],
+    "approvalStatus": "pending_external"
+  },
+  "commerceSignoff": {
+    "paidCheckoutEnabled": false,
+    "paidContentCopy": "disabled_until_payment_provider_approval",
+    "refundTermsApproval": "pending_external",
+    "providerCallbackCopyApproval": "pending_external",
+    "settlementDisclosureApproval": "pending_external"
+  },
+  "acceptanceUx": {
+    "storeTermsCheckbox": "storeTermsAccepted",
+    "deviceSyncTermsCheckbox": "deviceSyncTermsAccepted",
+    "e2eEvidence": ["tests/e2e/gugu-flash-flows.spec.js", "tests/e2e/gugu-flash-http-api.spec.js"],
+    "mustBlockStoreListingWithoutTerms": true,
+    "mustShowDeviceSyncWarning": true
+  },
+  "releasePolicy": {
+    "requiredCommands": [
+      "npm run check:legal",
+      "npm run check:legal-approval",
+      "npm run check:legal-release-signoff",
+      "npm run test:e2e"
+    ],
+    "mustRemainInProgressUntil": [
+      "legal_counsel_approval",
+      "privacy_owner_approval",
+      "product_acceptance_copy_signoff",
+      "commerce_refund_terms_signoff"
+    ]
+  },
+  "externalBlockers": [
+    {
+      "id": "legal_counsel_approval",
+      "owner": "Legal",
+      "status": "pending_external",
+      "exitCriteria": ["qualified counsel assigned", "final document set reviewed", "approval or redlines recorded"]
+    },
+    {
+      "id": "privacy_owner_approval",
+      "owner": "Privacy Owner",
+      "status": "pending_external",
+      "exitCriteria": ["privacy notice reviewed", "data categories confirmed", "sensitive/minor handling approved"]
+    },
+    {
+      "id": "product_acceptance_copy_signoff",
+      "owner": "Product Owner",
+      "status": "pending_external",
+      "exitCriteria": ["store checkbox copy approved", "device sync warning approved", "refund copy approved"]
+    },
+    {
+      "id": "commerce_refund_terms_signoff",
+      "owner": "Commerce Lead",
+      "status": "pending_external",
+      "exitCriteria": ["payment wording approved", "refund limitations approved", "provider callback wording approved"]
+    }
+  ]
+}

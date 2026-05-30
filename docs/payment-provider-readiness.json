@@ -1,0 +1,234 @@
+{
+  "version": "2026.05.payment-provider-readiness",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_provider_approval",
+  "documents": [
+    {
+      "id": "payment_provider_readiness_plan",
+      "file": "docs/payment-provider-readiness-plan.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Provider Contract",
+        "## Callback Replay Matrix",
+        "## Settlement And Refund Controls",
+        "## Launch Mode",
+        "## External Work"
+      ],
+      "requiredClauses": [
+        "X-Gugu-Payment-Signature",
+        "GUGU_FLASH_PAYMENT_CALLBACK_SECRET",
+        "providerEventId",
+        "amount mismatch",
+        "refund",
+        "sandbox",
+        "production merchant approval"
+      ]
+    },
+    {
+      "id": "monetization_plan",
+      "file": "docs/monetization-plan.md",
+      "requiredHeadings": [
+        "### Payment callback",
+        "### Refund callback"
+      ],
+      "requiredClauses": [
+        "providerEventId",
+        "X-Gugu-Payment-Signature",
+        "金额或币种不匹配",
+        "DeviceEntitlement"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "payment_callback_http_boundary",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "GUGU_FLASH_PAYMENT_CALLBACK_SECRET",
+        "createPaymentCallbackSignature",
+        "verifyPaymentCallbackSignature",
+        "/flash/operator/payment-callbacks",
+        "invalid_payment_signature"
+      ]
+    },
+    {
+      "id": "payment_callback_contract_tests",
+      "file": "packages/api-client/src/http-flash-api.test.js",
+      "requiredMarkers": [
+        "validates payment callback signatures",
+        "providerEventId",
+        "invalid_payment_signature",
+        "createPaymentCallbackSignature"
+      ]
+    },
+    {
+      "id": "commerce_state_machine",
+      "file": "packages/api-client/src/mock-flash-api.js",
+      "requiredMarkers": [
+        "processPaymentCallback",
+        "processRefundCallback",
+        "provider_event_id_required",
+        "amount_mismatch"
+      ]
+    },
+    {
+      "id": "support_macros",
+      "file": "docs/support-ticket-macros.md",
+      "requiredMarkers": [
+        "providerEventId",
+        "Payment success without entitlement",
+        "Provider refund mismatch"
+      ]
+    },
+    {
+      "id": "payment_replay_drill",
+      "file": "scripts/replay-payment-provider-callbacks.mjs",
+      "requiredMarkers": [
+        "gugu_flash_payment_provider_replay_v1",
+        "payment_provider_amount_mismatch",
+        "payment_provider_refund_duplicate",
+        "invalid_payment_signature"
+      ]
+    },
+    {
+      "id": "payment_provider_packet_gate",
+      "file": "scripts/check-payment-provider-packet.mjs",
+      "requiredMarkers": [
+        "gugu_payment_provider_integration_packet_v1",
+        "settlementReconciliation",
+        "keyRotation",
+        "payment_provider_integration_packet"
+      ]
+    },
+    {
+      "id": "payment_settlement_reconciliation_gate",
+      "file": "scripts/check-payment-settlement-reconciliation.mjs",
+      "requiredMarkers": [
+        "gugu_payment_settlement_reconciliation_drill_v1",
+        "REQUIRED_BUCKETS",
+        "pending_provider_export",
+        "payment_settlement_reconciliation_drill"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "payment_provider_integration_packet",
+      "file": "data/payment-provider-integration-packet.json",
+      "requiredFields": [
+        "provider",
+        "webhooks",
+        "sandboxReplay",
+        "settlementReconciliation",
+        "keyRotation",
+        "supportHandoff",
+        "externalBlockers"
+      ]
+    },
+    {
+      "id": "payment_settlement_reconciliation_drill",
+      "file": "data/payment-settlement-reconciliation-drill.json",
+      "requiredFields": [
+        "cadence",
+        "providerExportRequiredColumns",
+        "guguRecordSources",
+        "reconciliationScenarios",
+        "requiredActions",
+        "supportHandoff",
+        "externalBlockers"
+      ]
+    }
+  ],
+  "replayScenarios": [
+    {
+      "id": "payment_provider_sandbox_success",
+      "owner": "Commerce Lead",
+      "providerEnvironment": "sandbox",
+      "callbackType": "payment",
+      "expectedResult": "paid_entitlement_granted",
+      "requiredEvidence": ["provider_payload", "signature", "order_state", "device_entitlement"]
+    },
+    {
+      "id": "payment_provider_duplicate_event",
+      "owner": "Backend Lead",
+      "providerEnvironment": "sandbox",
+      "callbackType": "payment",
+      "expectedResult": "idempotent_same_event",
+      "requiredEvidence": ["providerEventId", "callback_event", "operation_log_count"]
+    },
+    {
+      "id": "payment_provider_invalid_signature",
+      "owner": "Security",
+      "providerEnvironment": "sandbox",
+      "callbackType": "payment",
+      "expectedResult": "invalid_payment_signature",
+      "requiredEvidence": ["bad_signature_payload", "http_400_response"]
+    },
+    {
+      "id": "payment_provider_amount_mismatch",
+      "owner": "Commerce Lead",
+      "providerEnvironment": "sandbox",
+      "callbackType": "payment",
+      "expectedResult": "blocked_no_entitlement",
+      "requiredEvidence": ["provider_payload", "amount_currency_diff", "order_state"]
+    },
+    {
+      "id": "payment_provider_failed_payment",
+      "owner": "Commerce Lead",
+      "providerEnvironment": "sandbox",
+      "callbackType": "payment",
+      "expectedResult": "failed_no_entitlement",
+      "requiredEvidence": ["provider_payload", "order_state"]
+    },
+    {
+      "id": "payment_provider_refund_success",
+      "owner": "Commerce Lead",
+      "providerEnvironment": "sandbox",
+      "callbackType": "refund",
+      "expectedResult": "refunded_entitlement_revoked",
+      "requiredEvidence": ["provider_payload", "refund_event", "entitlement_state"]
+    },
+    {
+      "id": "payment_provider_refund_duplicate",
+      "owner": "Backend Lead",
+      "providerEnvironment": "sandbox",
+      "callbackType": "refund",
+      "expectedResult": "idempotent_same_refund_event",
+      "requiredEvidence": ["providerEventId", "refund_callback_event", "operation_log_count"]
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:payment-provider",
+    "npm run check:payment-provider-packet",
+    "npm run check:payment-settlement-reconciliation",
+    "npm run check:payment-replay",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ],
+  "externalAcceptance": [
+    {
+      "id": "payment_sandbox_credentials",
+      "status": "pending_external",
+      "needed": "Create real payment provider sandbox credentials and merchant identifiers."
+    },
+    {
+      "id": "provider_webhook_configuration",
+      "status": "pending_external",
+      "needed": "Configure provider webhook URL, signing secret, retry policy, and callback IP allowlist if required."
+    },
+    {
+      "id": "production_merchant_approval",
+      "status": "pending_external",
+      "needed": "Complete production merchant onboarding and product category approval."
+    },
+    {
+      "id": "key_rotation_runbook",
+      "status": "pending_external",
+      "needed": "Run and record payment callback secret rotation with old/new callback acceptance window."
+    },
+    {
+      "id": "settlement_reconciliation",
+      "status": "pending_external",
+      "needed": "Reconcile provider settlement export against Gugu Flash order, refund, and entitlement records."
+    }
+  ]
+}

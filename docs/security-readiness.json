@@ -1,0 +1,223 @@
+{
+  "version": "2026.05.alpha-security-readiness",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_external_security_review",
+  "documents": [
+    {
+      "id": "security_review_plan",
+      "file": "docs/security-review-plan.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Alpha Controls",
+        "## Required External Review",
+        "## Open Risks",
+        "## Exit Criteria"
+      ],
+      "requiredClauses": [
+        "Auth and session handling",
+        "Operator permissions",
+        "Payment and refund callback signature verification",
+        "request body size limit",
+        "External security review"
+      ]
+    },
+    {
+      "id": "safety_governance_plan",
+      "file": "docs/safety-governance-plan.md",
+      "requiredHeadings": [
+        "## 4. 年龄和未成年人保护",
+        "## 6. 发布和审核链路",
+        "## 7. 评论治理"
+      ],
+      "requiredClauses": [
+        "privacy_leak",
+        "external_contact_or_transaction",
+        "Appeal",
+        "ModerationAction"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "http_security_headers",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "flashSecurityHeaders",
+        "X-Content-Type-Options",
+        "X-Frame-Options",
+        "Referrer-Policy",
+        "Permissions-Policy",
+        "Content-Security-Policy"
+      ]
+    },
+    {
+      "id": "cors_origin_override",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "GUGU_FLASH_CORS_ORIGIN",
+        "Access-Control-Allow-Origin"
+      ]
+    },
+    {
+      "id": "json_body_limit",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "DEFAULT_MAX_JSON_BODY_BYTES",
+        "PayloadTooLargeError",
+        "payload_too_large"
+      ]
+    },
+    {
+      "id": "route_level_rbac",
+      "file": "apps/backend/src/flash-auth-policy.js",
+      "requiredMarkers": [
+        "gugu_flash_auth_rbac_v1",
+        "FLASH_ROLE_PERMISSIONS",
+        "operatorPermissionForRoute",
+        "requiresOperatorInvite"
+      ]
+    },
+    {
+      "id": "auth_rbac_http_enforcement",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "GUGU_FLASH_ALLOW_DEMO_AUTH",
+        "GUGU_FLASH_OPERATOR_INVITE_SECRET",
+        "permissionsForRole",
+        "operatorPermissionForRoute"
+      ]
+    },
+    {
+      "id": "identity_token_bridge",
+      "file": "apps/backend/src/flash-identity-token.js",
+      "requiredMarkers": [
+        "gugu_flash_identity_token_v1",
+        "verifyIdentityToken",
+        "identity_token_signature_invalid",
+        "identity_token_expired"
+      ]
+    },
+    {
+      "id": "identity_token_http_enforcement",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "GUGU_FLASH_IDENTITY_TOKEN_SECRET",
+        "GUGU_FLASH_IDENTITY_ISSUER",
+        "GUGU_FLASH_IDENTITY_AUDIENCE",
+        "identityBridge"
+      ]
+    },
+    {
+      "id": "security_header_tests",
+      "file": "packages/api-client/src/http-flash-api.test.js",
+      "requiredMarkers": [
+        "sends security headers",
+        "x-content-type-options",
+        "payload_too_large",
+        "operator_invite_required",
+        "accepts signed external identity tokens"
+      ]
+    },
+    {
+      "id": "asset_upload_security_policy",
+      "file": "apps/backend/src/asset-security.js",
+      "requiredMarkers": [
+        "gugu_flash_asset_security_v1",
+        "validateAssetUploadSecurity",
+        "validateAssetSourceStatement",
+        "ASSET_BLOCKED_MEDIA_TYPES"
+      ]
+    },
+    {
+      "id": "asset_upload_http_enforcement",
+      "file": "packages/api-client/src/http-flash-api.test.js",
+      "requiredMarkers": [
+        "enforces asset upload security policy",
+        "asset_security_violation",
+        "asset_source_statement_invalid",
+        "malware_scan"
+      ]
+    },
+    {
+      "id": "security_review_packet_gate",
+      "file": "scripts/check-security-review-packet.mjs",
+      "requiredMarkers": [
+        "gugu_security_review_packet_v1",
+        "externalReviewChecklist",
+        "riskRegister",
+        "security_review_packet"
+      ]
+    },
+    {
+      "id": "security_infrastructure_gate",
+      "file": "scripts/check-security-infrastructure.mjs",
+      "requiredMarkers": [
+        "gugu_security_infrastructure_review_packet_v1",
+        "REQUIRED_INFRA_CONTROLS",
+        "scannerReplayMatrix",
+        "security_infrastructure_review_packet"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "security_review_packet",
+      "file": "data/security-review-packet.json",
+      "requiredFields": [
+        "scope",
+        "externalReviewChecklist",
+        "riskRegister",
+        "releasePolicy"
+      ]
+    },
+    {
+      "id": "security_infrastructure_review_packet",
+      "file": "data/security-infrastructure-review-packet.json",
+      "requiredFields": [
+        "sourcePackets",
+        "infrastructureControls",
+        "uploadStorageControls",
+        "scannerReplayMatrix",
+        "privacyLogControls",
+        "releasePolicy",
+        "externalBlockers"
+      ]
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:security",
+    "npm run check:security-review-packet",
+    "npm run check:security-infrastructure",
+    "npm run check:asset-security",
+    "npm run check:auth-rbac",
+    "npm run check:identity-provider",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ],
+  "externalAcceptance": [
+    {
+      "id": "production_identity_review",
+      "status": "pending_external",
+      "needed": "Review real auth provider, token lifetime, refresh rotation, logout, and operator role mapping."
+    },
+    {
+      "id": "payment_provider_review",
+      "status": "pending_external",
+      "needed": "Replay real payment/refund sandbox callbacks, verify key rotation, and confirm production approval."
+    },
+    {
+      "id": "upload_storage_review",
+      "status": "pending_external",
+      "needed": "Alpha upload policy, content-type validation, source statement validation, and HTTP rejection tests exist; review real file upload scanning, storage isolation, signed delivery, deletion, and asset retention."
+    },
+    {
+      "id": "infrastructure_review",
+      "status": "pending_external",
+      "needed": "Review production hosting, TLS, secrets, logs, backups, alerts, and rollback."
+    },
+    {
+      "id": "external_security_signoff",
+      "status": "pending_external",
+      "needed": "Named reviewer signs off or records accepted residual risks before public MVP."
+    }
+  ]
+}

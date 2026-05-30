@@ -1,0 +1,249 @@
+{
+  "version": "2026.05.real-device-matrix",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_real_devices",
+  "documents": [
+    {
+      "id": "real_device_matrix_plan",
+      "file": "docs/real-device-matrix-plan.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Matrix Cases",
+        "## Evidence Capture",
+        "## Acceptance Criteria",
+        "## Hardware Lead Handoff",
+        "## External Work"
+      ],
+      "requiredClauses": [
+        "Circle 185",
+        "two physical devices",
+        "gugu_device_sync_evidence_v1",
+        "fake_ble_transport_v1",
+        "GFS-*",
+        "real BLE session",
+        "hardware lead signoff"
+      ]
+    },
+    {
+      "id": "device_sync_plan",
+      "file": "docs/device-sync-plan.md",
+      "requiredHeadings": [
+        "### DeviceSyncEvidence v1",
+        "### Fake BLE transport contract"
+      ],
+      "requiredClauses": [
+        "low_battery",
+        "insufficient_storage",
+        "ble_disconnected",
+        "write_failed",
+        "rollbackStatus"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "real_device_matrix_ids",
+      "file": "packages/core/src/gugu-device-sync-evidence.js",
+      "requiredMarkers": [
+        "DEVICE_SYNC_REAL_DEVICE_MATRIX_CASE_IDS",
+        "circle185_current_firmware_nominal",
+        "circle185_low_battery_block",
+        "circle185_low_storage_block",
+        "circle185_ble_disconnect_retry",
+        "circle185_write_failed_rollback",
+        "circle185_verify_success",
+        "circle185_legacy_delisted_use"
+      ]
+    },
+    {
+      "id": "fake_ble_contract",
+      "file": "packages/core/src/gugu-device-sync-evidence.js",
+      "requiredMarkers": [
+        "DEVICE_SYNC_FAKE_TRANSPORT_CONTRACT_VERSION",
+        "readback_current_package",
+        "rollback_previous_package",
+        "failureInjectionReasons"
+      ]
+    },
+    {
+      "id": "evidence_contract_tests",
+      "file": "packages/core/src/gugu-device-sync-evidence.test.js",
+      "requiredMarkers": [
+        "real device matrix",
+        "circle185_write_failed_rollback",
+        "two_physical_devices"
+      ]
+    },
+    {
+      "id": "device_lab_evidence_gate",
+      "file": "scripts/check-device-lab-evidence.mjs",
+      "requiredMarkers": [
+        "gugu_real_device_lab_evidence_packet_v1",
+        "DEVICE_SYNC_REAL_DEVICE_MATRIX_CASE_IDS",
+        "DEVICE_SYNC_REAL_DEVICE_EXTERNAL_ACCEPTANCE_IDS",
+        "draft_pending_real_ble_captures"
+      ]
+    },
+    {
+      "id": "device_sync_certification_gate",
+      "file": "scripts/check-device-sync-certification.mjs",
+      "requiredMarkers": [
+        "gugu_device_sync_certification_packet_v1",
+        "REQUIRED_LOG_FIELDS",
+        "criticalFailuresBlockRelease",
+        "device_sync_certification_packet"
+      ]
+    },
+    {
+      "id": "device_sync_regression_gate",
+      "file": "scripts/check-device-sync-regression.mjs",
+      "requiredMarkers": [
+        "gugu_device_sync_regression_drill_v1",
+        "DEVICE_SYNC_REAL_DEVICE_MATRIX_CASE_IDS",
+        "ready_as_local_proof",
+        "device_sync_regression_drill"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "device_lab_evidence_packet",
+      "file": "data/device-lab-evidence-packet.json",
+      "requiredMarkers": [
+        "gugu_real_device_lab_evidence_packet_v1",
+        "Circle 185",
+        "circle185_current_firmware_nominal",
+        "real_ble_session_capture",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "device_sync_certification_packet",
+      "file": "data/device-sync-certification-packet.json",
+      "requiredMarkers": [
+        "gugu_device_sync_certification_packet_v1",
+        "Circle 185",
+        "circle185_current_firmware_nominal",
+        "criticalFailuresBlockRelease",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "device_sync_regression_drill",
+      "file": "data/device-sync-regression-drill.json",
+      "requiredMarkers": [
+        "gugu_device_sync_regression_drill_v1",
+        "fake_ble_transport_v1",
+        "circle185_write_failed_rollback",
+        "ready_as_local_proof",
+        "pending_external"
+      ]
+    }
+  ],
+  "matrixCases": [
+    {
+      "id": "circle185_current_firmware_nominal",
+      "owner": "Native/Hardware Lead",
+      "deviceModel": "Circle 185",
+      "firmwareBand": "current_shipping",
+      "batteryBand": "normal",
+      "storageBand": "sufficient",
+      "expectedStatus": "installed",
+      "requiredEvidence": ["real_ble_session_capture", "device_sync_evidence_v1", "readback_current_package"]
+    },
+    {
+      "id": "circle185_low_battery_block",
+      "owner": "Native/Hardware Lead",
+      "deviceModel": "Circle 185",
+      "firmwareBand": "current_or_previous_supported",
+      "batteryBand": "below_20_percent",
+      "storageBand": "sufficient",
+      "expectedStatus": "blocked",
+      "failureReason": "low_battery",
+      "requiredEvidence": ["real_ble_session_capture", "device_sync_evidence_v1", "GFS_diagnostic_code"]
+    },
+    {
+      "id": "circle185_low_storage_block",
+      "owner": "Native/Hardware Lead",
+      "deviceModel": "Circle 185",
+      "firmwareBand": "current_or_previous_supported",
+      "batteryBand": "normal",
+      "storageBand": "below_package_size",
+      "expectedStatus": "blocked",
+      "failureReason": "insufficient_storage",
+      "requiredEvidence": ["real_ble_session_capture", "device_sync_evidence_v1", "GFS_diagnostic_code"]
+    },
+    {
+      "id": "circle185_ble_disconnect_retry",
+      "owner": "QA Lead",
+      "deviceModel": "Circle 185",
+      "firmwareBand": "current_or_previous_supported",
+      "batteryBand": "normal",
+      "storageBand": "sufficient",
+      "expectedStatus": "failed_then_retry_recorded",
+      "failureReason": "ble_disconnected",
+      "requiredEvidence": ["real_ble_session_capture", "device_sync_evidence_v1", "retryOf"]
+    },
+    {
+      "id": "circle185_write_failed_rollback",
+      "owner": "Native/Hardware Lead",
+      "deviceModel": "Circle 185",
+      "firmwareBand": "current_or_previous_supported",
+      "batteryBand": "normal",
+      "storageBand": "sufficient",
+      "expectedStatus": "failed_or_rollback_required",
+      "failureReason": "write_failed",
+      "requiredEvidence": ["real_ble_session_capture", "device_sync_evidence_v1", "rollbackStatus"]
+    },
+    {
+      "id": "circle185_verify_success",
+      "owner": "QA Lead",
+      "deviceModel": "Circle 185",
+      "firmwareBand": "current_shipping",
+      "batteryBand": "normal",
+      "storageBand": "sufficient",
+      "expectedStatus": "installed",
+      "requiredEvidence": ["real_ble_session_capture", "verify_checksum", "readback_current_package"]
+    },
+    {
+      "id": "circle185_legacy_delisted_use",
+      "owner": "Support Lead",
+      "deviceModel": "Circle 185",
+      "firmwareBand": "current_or_previous_supported",
+      "batteryBand": "normal",
+      "storageBand": "existing_install",
+      "expectedStatus": "installed_content_runs_new_sync_blocked",
+      "failureReason": "hardware_pack_unavailable",
+      "requiredEvidence": ["real_ble_session_capture", "device_sync_evidence_v1", "legacy_use_readback"]
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:device-matrix",
+    "npm run check:device-lab-evidence",
+    "npm run check:device-sync-certification",
+    "npm run check:device-sync-regression",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ],
+  "externalAcceptance": [
+    {
+      "id": "two_physical_devices",
+      "status": "pending_external",
+      "needed": "Procure or reserve at least two Circle 185 physical devices for the matrix."
+    },
+    {
+      "id": "firmware_spread",
+      "status": "pending_external",
+      "needed": "Represent current shipping firmware and one previous supported firmware, or document the nearest available spread."
+    },
+    {
+      "id": "real_ble_session_capture",
+      "status": "pending_external",
+      "needed": "Device lab evidence packet exists; capture real BLE/native client transcripts for every required matrix case."
+    },
+    {
+      "id": "hardware_lead_signoff",
+      "status": "pending_external",
+      "needed": "Hardware lead signs the matrix handoff packet before Public MVP."
+    }
+  ]
+}

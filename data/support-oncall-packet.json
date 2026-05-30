@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "gugu_support_oncall_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_real_staffing",
+  "launchWindow": {
+    "name": "Closed beta support window",
+    "timezone": "Asia/Shanghai",
+    "coverageDays": 7,
+    "supportCoverage": "09:00-21:00",
+    "s0s1Escalation": "24x7"
+  },
+  "roleSlots": [
+    {
+      "id": "support_agent_primary",
+      "title": "Support Agent Primary",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "requiredTraining": ["support_playbook", "support_diagnostics", "ticket_macros"]
+    },
+    {
+      "id": "support_agent_backup",
+      "title": "Support Agent Backup",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "requiredTraining": ["support_playbook", "ticket_macros"]
+    },
+    {
+      "id": "support_lead",
+      "title": "Support Lead",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "requiredTraining": ["support_playbook", "support_diagnostics", "escalation_matrix"]
+    },
+    {
+      "id": "on_call_operator",
+      "title": "On-call Operator",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "requiredTraining": ["operation_log", "review_sla", "support_diagnostics"]
+    },
+    {
+      "id": "commerce_escalation",
+      "title": "Commerce Escalation",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "requiredTraining": ["payment_callbacks", "refund_policy", "support_diagnostics"]
+    },
+    {
+      "id": "hardware_escalation",
+      "title": "Hardware Escalation",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "requiredTraining": ["device_sync", "device_lab_evidence", "support_diagnostics"]
+    },
+    {
+      "id": "trust_escalation",
+      "title": "Trust Escalation",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "requiredTraining": ["rights_claims", "appeals", "takedowns"]
+    },
+    {
+      "id": "product_s0_owner",
+      "title": "Product S0 Owner",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "requiredTraining": ["s0_incident_handoff", "legal_packet"]
+    }
+  ],
+  "severityCoverage": [
+    {
+      "severity": "S0",
+      "responseTarget": "same_day",
+      "primaryRole": "product_s0_owner",
+      "backupRole": "trust_escalation",
+      "handoffChannel": "closed_beta_s0_room",
+      "status": "pending_external"
+    },
+    {
+      "severity": "S1",
+      "responseTarget": "24h",
+      "primaryRole": "support_lead",
+      "backupRole": "on_call_operator",
+      "handoffChannel": "closed_beta_ops_room",
+      "status": "pending_external"
+    },
+    {
+      "severity": "S2",
+      "responseTarget": "48h",
+      "primaryRole": "support_agent_primary",
+      "backupRole": "support_lead",
+      "handoffChannel": "closed_beta_support_queue",
+      "status": "pending_external"
+    },
+    {
+      "severity": "S3",
+      "responseTarget": "5_business_days",
+      "primaryRole": "support_agent_backup",
+      "backupRole": "product_s0_owner",
+      "handoffChannel": "closed_beta_support_queue",
+      "status": "pending_external"
+    }
+  ],
+  "macroCoverage": [
+    {
+      "macroId": "sync_low_battery",
+      "primaryRole": "support_agent_primary",
+      "escalationRole": "hardware_escalation"
+    },
+    {
+      "macroId": "sync_write_failed",
+      "primaryRole": "hardware_escalation",
+      "escalationRole": "support_lead"
+    },
+    {
+      "macroId": "payment_no_entitlement",
+      "primaryRole": "commerce_escalation",
+      "escalationRole": "support_lead"
+    },
+    {
+      "macroId": "refund_provider_mismatch",
+      "primaryRole": "commerce_escalation",
+      "escalationRole": "support_lead"
+    },
+    {
+      "macroId": "takedown_legacy_use",
+      "primaryRole": "trust_escalation",
+      "escalationRole": "support_lead"
+    },
+    {
+      "macroId": "rights_claim_received",
+      "primaryRole": "trust_escalation",
+      "escalationRole": "product_s0_owner"
+    },
+    {
+      "macroId": "appeal_received",
+      "primaryRole": "support_lead",
+      "escalationRole": "trust_escalation"
+    },
+    {
+      "macroId": "operator_reason_missing",
+      "primaryRole": "on_call_operator",
+      "escalationRole": "support_lead"
+    }
+  ],
+  "dailyReviewChecklist": [
+    "open_reports",
+    "open_rights_claims",
+    "open_appeals",
+    "payment_callbacks",
+    "refund_callbacks",
+    "failed_sync_jobs",
+    "frozen_settlements",
+    "operator_actions_without_reason"
+  ],
+  "diagnosticRequirements": [
+    "diagnosticCode",
+    "providerEventId",
+    "orderId",
+    "deviceId",
+    "targetId",
+    "requestId",
+    "operationLogId"
+  ],
+  "handoffDrills": [
+    {
+      "id": "payment_no_entitlement_s1",
+      "macroId": "payment_no_entitlement",
+      "severity": "S1",
+      "status": "pending_external",
+      "requiredEvidence": ["support_case_id", "providerEventId", "diagnostic_bundle", "commerce_owner_ack"]
+    },
+    {
+      "id": "sync_write_failed_s1",
+      "macroId": "sync_write_failed",
+      "severity": "S1",
+      "status": "pending_external",
+      "requiredEvidence": ["support_case_id", "diagnosticCode", "rollbackStatus", "hardware_owner_ack"]
+    },
+    {
+      "id": "rights_claim_store_freeze_s1",
+      "macroId": "rights_claim_received",
+      "severity": "S1",
+      "status": "pending_external",
+      "requiredEvidence": ["support_case_id", "claimId", "targetId", "trust_owner_ack"]
+    }
+  ],
+  "trainingHandoffDrillPacket": "data/support-training-handoff-drill.json",
+  "externalBlockers": [
+    {
+      "id": "real_staffing_assignment",
+      "owner": "Support Lead",
+      "status": "pending_external",
+      "exitCriteria": ["named support agents", "lead owners assigned", "coverage calendar approved"]
+    },
+    {
+      "id": "beta_oncall_calendar",
+      "owner": "Ops Lead",
+      "status": "pending_external",
+      "exitCriteria": ["7-day calendar", "handoff channels created", "backup owners confirmed"]
+    },
+    {
+      "id": "support_training_completion",
+      "owner": "Support Lead",
+      "status": "pending_external",
+      "exitCriteria": ["playbook training complete", "diagnostics training complete", "macro usage verified"]
+    },
+    {
+      "id": "support_handoff_drill",
+      "owner": "Release Manager",
+      "status": "pending_external",
+      "exitCriteria": ["payment drill complete", "sync drill complete", "rights drill complete"]
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "version": "2026.05.launch-content-readiness",
+  "updatedAt": "2026-05-27",
+  "status": "ready_for_public_mvp_seed",
+  "documents": [
+    {
+      "id": "launch_content_plan",
+      "file": "docs/launch-content-plan.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## HardwarePack Launch Set",
+        "## QA Smoke",
+        "## Support Handoff",
+        "## External Boundary"
+      ],
+      "requiredClauses": [
+        "hw_h5_rain_gugu",
+        "gugu_launch_hardware_packs_v1",
+        "gugu_hardware_payload_v1",
+        "official_free",
+        "SHA-256 checksum",
+        "offline"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "launch_hardware_pack_manifest",
+      "file": "data/launch-hardware-packs.json",
+      "requiredMarkers": [
+        "gugu_launch_hardware_packs_v1",
+        "hw_h5_rain_gugu",
+        "official_free",
+        "sha256:",
+        "offlineUseAllowed"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "launch_content_core",
+      "file": "packages/core/src/gugu-launch-content.js",
+      "requiredMarkers": [
+        "LAUNCH_HARDWARE_PACK_MANIFEST_VERSION",
+        "buildLaunchHardwarePackCandidate",
+        "validateLaunchHardwareManifest",
+        "checksum_matches_payload"
+      ]
+    },
+    {
+      "id": "launch_content_tests",
+      "file": "packages/core/src/gugu-launch-content.test.js",
+      "requiredMarkers": [
+        "official launch H5",
+        "launch hardware manifest",
+        "checksum"
+      ]
+    },
+    {
+      "id": "core_exports",
+      "file": "packages/core/src/index.js",
+      "requiredMarkers": [
+        "buildLaunchHardwarePackCandidate",
+        "validateLaunchHardwareManifest"
+      ]
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:launch-content",
+    "npm run check:content",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ]
+}

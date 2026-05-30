@@ -1,15 +1,33 @@
 [
   {
     "id": "h5_rain_gugu",
+    "schemaVersion": "gugu_h5_pack_v1",
     "title": "雨天咕咕",
     "author": { "id": "user_mika", "name": "Mika" },
+    "capabilities": ["scene_graph", "branching"],
     "status": "public_h5",
     "hardwareStatus": "hardware_candidate",
+    "storeStatus": "listed",
+    "contentOrigin": "original",
+    "ipId": "rain_gugu_universe",
+    "ipName": null,
+    "zoneId": "healing",
+    "zoneName": "情绪陪伴区",
+    "persona": {
+      "id": "rain_gugu",
+      "name": "雨天咕咕",
+      "avatar": "☔",
+      "roleType": "official",
+      "tagline": "轻声陪你把今天过完。",
+      "cloneOf": null
+    },
+    "fanworkOf": null,
+    "rightsAcknowledgedAt": 1760000000000,
     "cover": {
       "background": "linear-gradient(160deg, #0f172a 0%, #155e75 55%, #67e8f9 130%)",
       "character": "☔"
     },
-    "tags": ["治愈", "雨天", "陪伴"],
+    "tags": ["原创", "情绪陪伴区", "治愈", "雨天", "陪伴"],
     "metrics": { "plays": 12840, "likes": 3280, "saves": 906, "comments": 141, "remixes": 72, "completionRate": 0.78 },
     "entrySceneId": "start",
     "createdAt": 1760000000000,
@@ -62,15 +80,33 @@
   },
   {
     "id": "h5_midnight_train",
+    "schemaVersion": "gugu_h5_pack_v1",
     "title": "零点列车",
     "author": { "id": "user_noa", "name": "Noa" },
+    "capabilities": ["scene_graph", "branching"],
     "status": "public_h5",
     "hardwareStatus": "h5_only",
+    "storeStatus": "not_applied",
+    "contentOrigin": "original",
+    "ipId": "midnight_train_project",
+    "ipName": null,
+    "zoneId": "adventure",
+    "zoneName": "像素冒险区",
+    "persona": {
+      "id": "night_conductor",
+      "name": "零点列车长",
+      "avatar": "🚃",
+      "roleType": "official",
+      "tagline": "负责把犹豫检票进明天。",
+      "cloneOf": null
+    },
+    "fanworkOf": null,
+    "rightsAcknowledgedAt": null,
     "cover": {
       "background": "linear-gradient(160deg, #111827 0%, #7c2d12 60%, #facc15 150%)",
       "character": "🚃"
     },
-    "tags": ["冒险", "选择", "夜晚"],
+    "tags": ["原创", "像素冒险区", "冒险", "选择", "夜晚"],
     "metrics": { "plays": 7840, "likes": 1492, "saves": 312, "comments": 86, "remixes": 28, "completionRate": 0.64 },
     "entrySceneId": "start",
     "createdAt": 1760000000000,
@@ -122,15 +158,33 @@
   },
   {
     "id": "h5_soda_planet",
+    "schemaVersion": "gugu_h5_pack_v1",
     "title": "汽水星球",
     "author": { "id": "user_yu", "name": "Yu" },
+    "capabilities": ["scene_graph", "branching"],
     "status": "public_h5",
     "hardwareStatus": "h5_only",
+    "storeStatus": "rights_review",
+    "contentOrigin": "fanwork",
+    "ipId": "soda_planet_fan",
+    "ipName": "汽水星球原创企划",
+    "zoneId": "duo",
+    "zoneName": "同频搭子区",
+    "persona": {
+      "id": "soda_gugu",
+      "name": "汽水咕咕",
+      "avatar": "🥤",
+      "roleType": "official",
+      "tagline": "把无聊摇到冒泡。",
+      "cloneOf": null
+    },
+    "fanworkOf": null,
+    "rightsAcknowledgedAt": 1760000000000,
     "cover": {
       "background": "linear-gradient(160deg, #ecfeff 0%, #a7f3d0 48%, #fb7185 130%)",
       "character": "🥤"
     },
-    "tags": ["元气", "夏天", "二创友好"],
+    "tags": ["二创", "汽水星球原创企划", "同频搭子区", "元气", "夏天"],
     "metrics": { "plays": 5120, "likes": 1180, "saves": 244, "comments": 51, "remixes": 44, "completionRate": 0.69 },
     "entrySceneId": "start",
     "createdAt": 1760000000000,
@@ -174,6 +228,309 @@
         "character": "🌈",
         "speaker": "汽水咕咕",
         "text": "下次来，记得带一颗不太严肃的心。",
+        "actions": [
+          { "label": "重新播放", "goto": "start" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "h5_workday_flash",
+    "schemaVersion": "gugu_h5_pack_v1",
+    "title": "工位闪光倒计时",
+    "author": { "id": "official_gugu", "name": "Gugu Studio" },
+    "capabilities": ["scene_graph", "branching"],
+    "status": "public_h5",
+    "hardwareStatus": "h5_only",
+    "storeStatus": "not_applied",
+    "contentOrigin": "original",
+    "ipId": "workday_flash_project",
+    "ipName": null,
+    "zoneId": "workday",
+    "zoneName": "摸鱼上班区",
+    "persona": {
+      "id": "office_sprite",
+      "name": "工位小闪",
+      "avatar": "💡",
+      "roleType": "official",
+      "tagline": "上班时低调发光，下班时大胆逃跑。",
+      "cloneOf": null
+    },
+    "fanworkOf": null,
+    "rightsAcknowledgedAt": 1760000000000,
+    "cover": {
+      "background": "linear-gradient(160deg, #172554 0%, #0f766e 58%, #fef08a 135%)",
+      "character": "💡"
+    },
+    "tags": ["原创", "摸鱼上班区", "倒计时", "分支", "高光"],
+    "metrics": { "plays": 6240, "likes": 1802, "saves": 512, "comments": 67, "remixes": 33, "completionRate": 0.73 },
+    "entrySceneId": "start",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000,
+    "remixOf": null,
+    "scenes": [
+      {
+        "id": "start",
+        "background": "linear-gradient(160deg, #172554 0%, #0f766e 58%, #fef08a 135%)",
+        "character": "💡",
+        "speaker": "工位小闪",
+        "text": "18:01，工位小闪发现电梯口亮起一枚下班倒计时，只有你能决定它会不会准时归零。",
+        "actions": [
+          { "label": "先看日程", "goto": "calendar" },
+          { "label": "去电梯口", "goto": "elevator" }
+        ]
+      },
+      {
+        "id": "calendar",
+        "background": "linear-gradient(160deg, #111827 0%, #2563eb 60%, #93c5fd 140%)",
+        "character": "📅",
+        "speaker": "日程弹窗",
+        "text": "最后一个会议被标成“可选”。工位小闪眨了眨灯：可选的意思，也许是可以选择自己。",
+        "actions": [
+          { "label": "取消会议", "goto": "decision" },
+          { "label": "再查线索", "goto": "elevator" }
+        ]
+      },
+      {
+        "id": "elevator",
+        "background": "linear-gradient(160deg, #064e3b 0%, #0d9488 58%, #ccfbf1 135%)",
+        "character": "🛗",
+        "speaker": "电梯屏幕",
+        "text": "屏幕写着：准点离开的人，会把今天剩下的一点光带回家。工位小闪把光悄悄递给你。",
+        "actions": [
+          { "label": "按下一楼", "goto": "clean_end" },
+          { "label": "回去收尾", "goto": "decision" }
+        ]
+      },
+      {
+        "id": "decision",
+        "background": "linear-gradient(160deg, #1e1b4b 0%, #7c3aed 62%, #f0abfc 145%)",
+        "character": "✨",
+        "speaker": "工位小闪",
+        "text": "倒计时只剩 30 秒。工位小闪问：要把今天整理成漂亮句号，还是把未完成留给明天的自己？",
+        "actions": [
+          { "label": "漂亮收尾", "goto": "clean_end" },
+          { "label": "勇敢下班", "goto": "wild_end" }
+        ]
+      },
+      {
+        "id": "clean_end",
+        "background": "linear-gradient(160deg, #020617 0%, #155e75 70%, #a7f3d0 150%)",
+        "character": "✅",
+        "speaker": "结局",
+        "text": "你关掉最后一个窗口。工位小闪把屏幕调暗，像替你说：今天已经足够好了。",
+        "actions": [
+          { "label": "重新播放", "goto": "start" }
+        ]
+      },
+      {
+        "id": "wild_end",
+        "background": "linear-gradient(160deg, #3b0764 0%, #db2777 70%, #fde68a 150%)",
+        "character": "🏃",
+        "speaker": "尾声",
+        "text": "电梯门合上时，倒计时变成一颗小星星。工位小闪宣布：下班也是一种高光时刻。",
+        "actions": [
+          { "label": "重新播放", "goto": "start" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "h5_starlight_spell",
+    "schemaVersion": "gugu_h5_pack_v1",
+    "title": "星光迟到咒",
+    "author": { "id": "official_gugu", "name": "Gugu Studio" },
+    "capabilities": ["scene_graph", "branching"],
+    "status": "public_h5",
+    "hardwareStatus": "h5_only",
+    "storeStatus": "not_applied",
+    "contentOrigin": "fanwork",
+    "ipId": "anime_starlight_academy",
+    "ipName": "星光魔法学院",
+    "zoneId": "healing",
+    "zoneName": "情绪陪伴区",
+    "persona": {
+      "id": "starlight_mage_luna",
+      "name": "露娜",
+      "avatar": "🌙",
+      "roleType": "official",
+      "tagline": "星光魔法学院的夜巡生，擅长把心事折成星星。",
+      "cloneOf": null
+    },
+    "fanworkOf": null,
+    "rightsAcknowledgedAt": 1760000000000,
+    "cover": {
+      "background": "linear-gradient(160deg, #111827 0%, #4c1d95 58%, #f9a8d4 135%)",
+      "character": "🌙"
+    },
+    "tags": ["二创", "星光魔法学院", "陪伴", "魔法", "双结局"],
+    "metrics": { "plays": 4380, "likes": 1390, "saves": 426, "comments": 58, "remixes": 41, "completionRate": 0.76 },
+    "entrySceneId": "start",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000,
+    "remixOf": null,
+    "scenes": [
+      {
+        "id": "start",
+        "background": "linear-gradient(160deg, #111827 0%, #4c1d95 58%, #f9a8d4 135%)",
+        "character": "🌙",
+        "speaker": "露娜",
+        "text": "星光魔法学院的钟迟到了三分钟。露娜听见走廊尽头，有一颗星星在替谁道歉。",
+        "actions": [
+          { "label": "追上星星", "goto": "corridor" },
+          { "label": "翻开课本", "goto": "spellbook" }
+        ]
+      },
+      {
+        "id": "corridor",
+        "background": "linear-gradient(160deg, #1e1b4b 0%, #6d28d9 58%, #c4b5fd 135%)",
+        "character": "⭐",
+        "speaker": "迟到星星",
+        "text": "星星说：我不是迟到，我是在等一句没有说出口的“没关系”。露娜把手伸进光里。",
+        "actions": [
+          { "label": "安慰它", "goto": "decision" },
+          { "label": "查咒语", "goto": "spellbook" }
+        ]
+      },
+      {
+        "id": "spellbook",
+        "background": "linear-gradient(160deg, #312e81 0%, #7e22ce 62%, #fbcfe8 145%)",
+        "character": "📖",
+        "speaker": "魔法课本",
+        "text": "课本自动翻到“迟到咒”：真正慢下来的不是时间，而是害怕被责怪的心。",
+        "actions": [
+          { "label": "念温柔咒", "goto": "gentle_end" },
+          { "label": "找当事人", "goto": "decision" }
+        ]
+      },
+      {
+        "id": "decision",
+        "background": "linear-gradient(160deg, #581c87 0%, #be185d 62%, #fde68a 145%)",
+        "character": "✨",
+        "speaker": "露娜",
+        "text": "露娜发现迟到的是自己交给明天的勇气。她可以立刻原谅它，也可以把它折成新咒语。",
+        "actions": [
+          { "label": "立刻原谅", "goto": "gentle_end" },
+          { "label": "折成咒语", "goto": "remix_end" }
+        ]
+      },
+      {
+        "id": "gentle_end",
+        "background": "linear-gradient(160deg, #0f172a 0%, #7c3aed 70%, #ddd6fe 150%)",
+        "character": "💜",
+        "speaker": "结局",
+        "text": "钟声终于响起。露娜把那句“没关系”放进口袋，晚到的星光也能照亮今晚。",
+        "actions": [
+          { "label": "重新播放", "goto": "start" }
+        ]
+      },
+      {
+        "id": "remix_end",
+        "background": "linear-gradient(160deg, #020617 0%, #db2777 70%, #fef3c7 150%)",
+        "character": "🪄",
+        "speaker": "尾声",
+        "text": "新咒语写成了半句，留给下一个分身补完。露娜笑了：这正适合被 Remix。",
+        "actions": [
+          { "label": "重新播放", "goto": "start" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "h5_dragon_sleep_case",
+    "schemaVersion": "gugu_h5_pack_v1",
+    "title": "龙眠便利店谜案",
+    "author": { "id": "official_gugu", "name": "Gugu Studio" },
+    "capabilities": ["scene_graph", "branching"],
+    "status": "public_h5",
+    "hardwareStatus": "h5_only",
+    "storeStatus": "not_applied",
+    "contentOrigin": "fanwork",
+    "ipId": "anime_dragon_sleep_agency",
+    "ipName": "龙眠侦探社",
+    "zoneId": "adventure",
+    "zoneName": "像素冒险区",
+    "persona": {
+      "id": "dragon_sleep_detective_aki",
+      "name": "秋也",
+      "avatar": "🕵️",
+      "roleType": "official",
+      "tagline": "龙眠侦探社社长，越困越能发现线索。",
+      "cloneOf": null
+    },
+    "fanworkOf": null,
+    "rightsAcknowledgedAt": 1760000000000,
+    "cover": {
+      "background": "linear-gradient(160deg, #1f2937 0%, #7c2d12 58%, #fde68a 135%)",
+      "character": "🕵️"
+    },
+    "tags": ["二创", "龙眠侦探社", "推理", "分支", "便利店"],
+    "metrics": { "plays": 3920, "likes": 1064, "saves": 318, "comments": 49, "remixes": 37, "completionRate": 0.71 },
+    "entrySceneId": "start",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000,
+    "remixOf": null,
+    "scenes": [
+      {
+        "id": "start",
+        "background": "linear-gradient(160deg, #1f2937 0%, #7c2d12 58%, #fde68a 135%)",
+        "character": "🕵️",
+        "speaker": "秋也",
+        "text": "凌晨两点，龙眠侦探社接到便利店来电：所有热饮都在同一分钟梦见了同一个客人。",
+        "actions": [
+          { "label": "查看小票", "goto": "receipt" },
+          { "label": "询问店员", "goto": "clerk" }
+        ]
+      },
+      {
+        "id": "receipt",
+        "background": "linear-gradient(160deg, #0f172a 0%, #92400e 62%, #fed7aa 145%)",
+        "character": "🧾",
+        "speaker": "小票",
+        "text": "小票上没有商品名，只有一句话：别叫醒正在守门的小龙。秋也越困，字迹越清楚。",
+        "actions": [
+          { "label": "追踪字迹", "goto": "decision" },
+          { "label": "问店员", "goto": "clerk" }
+        ]
+      },
+      {
+        "id": "clerk",
+        "background": "linear-gradient(160deg, #064e3b 0%, #15803d 58%, #bbf7d0 135%)",
+        "character": "☕",
+        "speaker": "夜班店员",
+        "text": "店员说客人买走了最后一杯热可可，却把梦留在微波炉里。秋也听见里面有轻轻的呼噜声。",
+        "actions": [
+          { "label": "打开微波炉", "goto": "wake_end" },
+          { "label": "先拼线索", "goto": "decision" }
+        ]
+      },
+      {
+        "id": "decision",
+        "background": "linear-gradient(160deg, #312e81 0%, #0f766e 62%, #a7f3d0 145%)",
+        "character": "🐉",
+        "speaker": "梦境入口",
+        "text": "线索拼成一扇门。秋也必须决定：立刻叫醒小龙，还是替它守到天亮再问真相？",
+        "actions": [
+          { "label": "叫醒小龙", "goto": "wake_end" },
+          { "label": "守到天亮", "goto": "guard_end" }
+        ]
+      },
+      {
+        "id": "wake_end",
+        "background": "linear-gradient(160deg, #450a0a 0%, #dc2626 70%, #fde68a 150%)",
+        "character": "🔥",
+        "speaker": "结局",
+        "text": "小龙醒来喷出一朵迷你火花：原来它只是怕梦被偷走。便利店恢复了热饮菜单。",
+        "actions": [
+          { "label": "重新播放", "goto": "start" }
+        ]
+      },
+      {
+        "id": "guard_end",
+        "background": "linear-gradient(160deg, #020617 0%, #1d4ed8 70%, #bfdbfe 150%)",
+        "character": "🌅",
+        "speaker": "尾声",
+        "text": "天亮时，梦境入口留下新的案件编号。秋也把它贴到公告板：欢迎下一位侦探续写。",
         "actions": [
           { "label": "重新播放", "goto": "start" }
         ]

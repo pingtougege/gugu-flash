@@ -42,15 +42,23 @@ UGC H5 creation
 
 3. Creator
    Template-first creation. User enters a theme sentence, the system creates a structured H5 draft.
+   Creation starts with lightweight rights metadata: original or derivative work. Derivative works must select an IP from the platform IP pool before a draft can be generated or published.
 
 4. Remix
    Any public work can be remixed into a new draft while preserving ancestry.
+   Remix creates a derivative work by default and stores the source work title or source IP as the derivative IP reference.
 
 5. Signals
    Like, save, comment count, completion, share, remix count.
 
 6. Operator Console
    Trending list and hardware candidate marking.
+
+7. IP Zones, Personas, And Genres
+   Works belong to an IP from the platform IP pool, such as a platform original universe, user original project, authorized IP, or community fan IP. Users pick a persona inside that IP before creation. An IP zone is opened later only after the IP reaches community thresholds and a user applies for the zone. Emotional companion, workday, duo-sync, and pixel adventure are genre channels/template tags, not IP zones.
+
+8. Store Listing
+   Publishing an H5 work is separate from store listing. Store listing is a later application step where the user acknowledges originality/IP authorization responsibility, then the work enters rights review before it can become purchasable/downloadable.
 
 ## Content Lifecycle
 
@@ -65,20 +73,37 @@ draft
   -> device_available
 ```
 
-## Relation To Existing Projects
+Store listing is a parallel commercial lifecycle:
 
-- `guguclub`: user account, device binding, BLE, social graph, IM, resonance, hardware download.
-- `guguclub-ui`: advanced authoring, StoryPack editing, LVGL preview, hardware adaptation tooling.
-- `gugu-flash`: consumer-facing feed and lightweight H5 co-creation experience for native app, Web/H5, and mini program clients.
+```text
+public_h5
+  -> store_application
+  -> rights_review
+  -> listed
+  -> downloaded
+  -> synced_to_device
+```
 
-Recommended integration:
+Rights rules:
+
+- `original`: can be published, recommended, remixed, and submitted for store or hardware review.
+- `fanwork`: must select an IP from the platform IP pool. Any IP-pool work can enter recommendation, store listing, and hardware review if the IP is not restricted or blocked and the work passes the relevant review.
+- User acknowledgement lowers ambiguity but does not replace platform takedown, complaint, and review obligations.
+
+## Relation To Legacy Projects
+
+- `guguclub`: deprecated legacy project. It can provide migration references for device identity, BLE flow, historical device constraints, and content download experience, but it is not a runtime dependency.
+- `guguclub-ui`: deprecated legacy tooling. Useful StoryPack, LVGL preview, and packaging ideas should be migrated into Gugu Flash Hardware Studio.
+- `gugu-flash`: new main product replacing guguclub, including account, device, content, store, hardware download, native app, Web/H5, and mini program clients.
+
+Recommended direction:
 
 1. Keep Gugu Flash H5 content independent from device code.
-2. Build the product backend and `GuguH5Pack` protocol as the source of truth.
+2. Build the Gugu Flash backend and `GuguH5Pack` protocol as the source of truth.
 3. Ship clients from the same product surface: native app first for daily use, Web/H5 for sharing, mini program for WeChat distribution.
-4. Add publish/export adapters from Gugu Flash to `guguclub-ui`.
-5. Let official operators adapt selected packs in `guguclub-ui`.
-6. Publish hardware-ready content to `guguclub/backend`.
+4. Build Gugu Flash Hardware Studio for official hardware adaptation.
+5. Let official operators adapt selected packs in Hardware Studio.
+6. Publish hardware-ready content through Gugu Flash backend.
 7. Expose download/install in every device-capable client, with mini program support as one channel rather than the whole product.
 
 ## Platform Strategy
@@ -99,4 +124,4 @@ Suggested client responsibilities:
 - Native app: primary consumer app, content feed, creation, social, push, device management, future BLE/native capabilities.
 - Web/H5: share landing, embedded player, lightweight browsing, campaign pages, creator preview.
 - Mini program: WeChat acquisition, quick browsing, account/device bridge, lightweight creation where platform limits allow.
-- Operator web console: review, ranking, hardware candidate selection, export to `guguclub-ui`.
+- Operator web console: review, ranking, hardware candidate selection, export to Gugu Flash Hardware Studio.

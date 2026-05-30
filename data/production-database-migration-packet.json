@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "gugu_production_database_migration_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_production_database",
+  "targetDatabase": {
+    "engine": "postgres_or_managed_sqlite",
+    "environment": "closed_beta_and_public_mvp",
+    "connectionSecret": "PRODUCTION_DATABASE_URL",
+    "managedBackupsRequired": true,
+    "pointInTimeRecoveryRequired": true,
+    "status": "pending_external"
+  },
+  "schema": {
+    "file": "apps/backend/db/schema.sql",
+    "minimumTables": 31,
+    "minimumIndexes": 21,
+    "validator": "validateSqlSchema",
+    "status": "ready_for_migration"
+  },
+  "repositoryContract": {
+    "validator": "validateRepositoryContract",
+    "contractVersion": "gugu_flash_persistence_contract_v1",
+    "requiredRepositories": [
+      "sessions",
+      "orders",
+      "deviceEntitlements",
+      "deviceInstalls",
+      "deviceSyncJobs",
+      "comments",
+      "blockRelations",
+      "reports",
+      "rightsClaims",
+      "appeals",
+      "moderationActions",
+      "operationLogs",
+      "paymentCallbacks",
+      "refundCallbacks"
+    ],
+    "productionImplementationStatus": "pending_external"
+  },
+  "migrationPlan": [
+    {
+      "id": "freeze_alpha_writes",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "requiredEvidence": ["maintenance_window", "operator_notice", "last_json_backup"]
+    },
+    {
+      "id": "create_pre_migration_backup",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "requiredEvidence": ["gugu_flash_json_backup_v1", "checksum", "backup_location"]
+    },
+    {
+      "id": "apply_schema",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "requiredEvidence": ["schema_version", "migration_log", "table_count", "index_count"]
+    },
+    {
+      "id": "import_seed_and_runtime_state",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "requiredEvidence": ["seed_pack_count", "order_count", "device_entitlement_count", "governance_case_count"]
+    },
+    {
+      "id": "run_repository_contract",
+      "owner": "QA Lead",
+      "status": "pending_external",
+      "requiredEvidence": ["validateRepositoryContract", "http_smoke", "payment_callback_replay"]
+    },
+    {
+      "id": "switch_runtime_to_database",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "requiredEvidence": ["PRODUCTION_DATABASE_URL", "readiness_probe", "rollback_snapshot"]
+    },
+    {
+      "id": "post_migration_reconciliation",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "requiredEvidence": ["row_counts", "checksum_or_sample_audit", "support_diagnostic_lookup"]
+    }
+  ],
+  "criticalTables": [
+    "users",
+    "sessions",
+    "works",
+    "work_versions",
+    "assets",
+    "store_listings",
+    "hardware_packs",
+    "devices",
+    "orders",
+    "payment_callbacks",
+    "refund_callbacks",
+    "settlements",
+    "device_entitlements",
+    "device_installs",
+    "device_sync_jobs",
+    "reports",
+    "rights_claims",
+    "appeals",
+    "moderation_actions",
+    "operation_logs"
+  ],
+  "backupRestore": {
+    "alphaBackupSchema": "gugu_flash_json_backup_v1",
+    "drillPacket": "data/production-database-drill-packet.json",
+    "productionBackupRequired": true,
+    "restoreDrillRequired": true,
+    "rollbackDrillRequired": true,
+    "restoreVerification": ["row_counts", "repository_contract", "support_diagnostics", "web_http_smoke"]
+  },
+  "externalBlockers": [
+    {
+      "id": "production_database_provisioned",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "exitCriteria": ["database provisioned", "credentials in secrets manager", "managed backups enabled"]
+    },
+    {
+      "id": "repository_implementation",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "exitCriteria": ["database repositories implemented", "contract passes", "HTTP integration passes"]
+    },
+    {
+      "id": "migration_execution",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "exitCriteria": ["schema applied", "data imported", "reconciliation recorded"]
+    },
+    {
+      "id": "database_backup_restore_drill",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "exitCriteria": ["backup captured", "restore rehearsed", "rollback rehearsed", "smoke tests passed"]
+    }
+  ]
+}

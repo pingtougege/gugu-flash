@@ -16,7 +16,59 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  unit:
+    name: Content and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run content and unit tests
+        run: npm test
+
+  e2e-smoke:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-playwright-output
+          path: output/playwright
+          if-no-files-found: ignore
+
   deploy:
+    needs:
+      - unit
+      - e2e-smoke
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

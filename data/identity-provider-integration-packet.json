@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "gugu_identity_provider_integration_packet_v1",
+  "updatedAt": "2026-05-28",
+  "status": "draft_pending_real_identity_provider",
+  "tokenContract": "gugu_flash_identity_token_v1",
+  "environment": "closed_beta_production_auth",
+  "provider": {
+    "selectionStatus": "pending_external",
+    "providerName": "pending_external",
+    "issuer": "pending_external",
+    "audience": "gugu-flash-api",
+    "jwksOrSharedSecretSource": "secrets_manager",
+    "mfaRequiredForOperators": true,
+    "demoAuthDisabled": true
+  },
+  "requiredClaims": ["iss", "aud", "sub", "displayName", "role", "iat", "exp", "jti"],
+  "roleGroupMapping": [
+    {
+      "role": "creator",
+      "providerGroup": "gugu_creator",
+      "requiresOperatorInvite": false,
+      "status": "pending_external"
+    },
+    {
+      "role": "reviewer",
+      "providerGroup": "gugu_reviewer",
+      "requiresOperatorInvite": true,
+      "status": "pending_external"
+    },
+    {
+      "role": "hardware_operator",
+      "providerGroup": "gugu_hardware_operator",
+      "requiresOperatorInvite": true,
+      "status": "pending_external"
+    },
+    {
+      "role": "support",
+      "providerGroup": "gugu_support",
+      "requiresOperatorInvite": true,
+      "status": "pending_external"
+    },
+    {
+      "role": "operator",
+      "providerGroup": "gugu_operator",
+      "requiresOperatorInvite": true,
+      "status": "pending_external"
+    },
+    {
+      "role": "admin",
+      "providerGroup": "gugu_admin",
+      "requiresOperatorInvite": true,
+      "status": "pending_external"
+    },
+    {
+      "role": "super_admin",
+      "providerGroup": "gugu_super_admin",
+      "requiresOperatorInvite": true,
+      "status": "pending_external"
+    }
+  ],
+  "sessionPolicy": {
+    "requireAuthEnv": "GUGU_FLASH_REQUIRE_AUTH=1",
+    "allowDemoAuthEnv": "GUGU_FLASH_ALLOW_DEMO_AUTH=0",
+    "operatorInviteSecretRequired": true,
+    "accessTokenTtlMinutes": 30,
+    "refreshRotationRequired": true,
+    "revokedTokenRejectionRequired": true
+  },
+  "credentialRecovery": {
+    "accountRecovery": "defined_pending_provider_binding",
+    "mfaReset": "defined_pending_provider_binding",
+    "drillPacket": "data/identity-access-recovery-drill.json",
+    "supportEscalationRequired": true,
+    "identityProofingRequired": true,
+    "auditTrailRequired": true
+  },
+  "operatorLifecycle": {
+    "joinerMoverLeaverProcess": "defined_pending_provider_replay",
+    "drillPacket": "data/identity-access-recovery-drill.json",
+    "namedRosterRequired": true,
+    "leastPrivilegeReviewCadence": "weekly_during_beta",
+    "offboardingSlaHours": 24,
+    "breakGlassSuperAdminReviewRequired": true
+  },
+  "privacySecurityReview": {
+    "providerLogsReviewed": "pending_external",
+    "retentionPolicyReviewed": "pending_external",
+    "privacyNoticeUpdated": "pending_external",
+    "incidentResponseLinked": true,
+    "securitySignoff": "pending_external"
+  },
+  "acceptanceChecks": [
+    {
+      "id": "valid_external_identity_token",
+      "evidence": ["scripts/check-identity-provider-readiness.mjs", "apps/backend/src/flash-identity-token.test.js"],
+      "status": "ready_for_provider"
+    },
+    {
+      "id": "wrong_audience_rejected",
+      "evidence": ["scripts/check-identity-provider-readiness.mjs", "packages/api-client/src/http-flash-api.test.js"],
+      "status": "ready_for_provider"
+    },
+    {
+      "id": "expired_token_rejected",
+      "evidence": ["scripts/check-identity-provider-readiness.mjs", "apps/backend/src/flash-identity-token.test.js"],
+      "status": "ready_for_provider"
+    },
+    {
+      "id": "demo_auth_disabled_in_required_mode",
+      "evidence": ["docs/auth-rbac-readiness.json", "packages/api-client/src/http-flash-api.test.js"],
+      "status": "ready_for_provider"
+    },
+    {
+      "id": "operator_roster_lifecycle",
+      "evidence": ["data/identity-access-recovery-drill.json", "scripts/check-identity-access-recovery.mjs"],
+      "status": "ready_for_provider_replay"
+    }
+  ],
+  "externalBlockers": [
+    {
+      "id": "identity_provider_selection",
+      "owner": "Security / Backend Lead",
+      "status": "pending_external",
+      "exitCriteria": ["provider selected", "issuer configured", "audience configured", "test credentials issued"]
+    },
+    {
+      "id": "credential_recovery_policy",
+      "owner": "Security",
+      "status": "pending_external",
+      "exitCriteria": ["account recovery policy", "MFA reset policy", "support escalation path", "audit evidence"]
+    },
+    {
+      "id": "operator_roster_lifecycle",
+      "owner": "Ops Lead",
+      "status": "pending_external",
+      "exitCriteria": ["named roster", "group mapping", "offboarding flow", "least-privilege review"]
+    },
+    {
+      "id": "security_privacy_review",
+      "owner": "Security / Privacy Owner",
+      "status": "pending_external",
+      "exitCriteria": ["provider logs reviewed", "retention approved", "privacy notice updated", "incident response linked"]
+    }
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "version": "ai_creation_team_roster_v1",
+  "updatedAt": "2026-05-29",
+  "minimumMembersPerSquad": 3,
+  "lead": {
+    "name": "Codex",
+    "role": "Project Owner / AI Creation Director",
+    "mandate": "Rebuild the Gugu Flash AI text-game creation organization, keep scope tied to executable release evidence, and stop maturity claims that are not supported by tests or external signoff."
+  },
+  "squads": [
+    {
+      "id": "product_strategy",
+      "name": "Product Strategy Squad",
+      "mission": "Own positioning, MVP tradeoffs, release gates, and creator/user loops.",
+      "members": [
+        { "name": "Lin Qiao", "role": "Product Owner" },
+        { "name": "Chen Yu", "role": "Creator Journey PM" },
+        { "name": "Maya Shen", "role": "Release Gate PM" }
+      ],
+      "reviewSignals": ["release_readiness_delta", "creator_loop_completion", "blocked_gate_count"]
+    },
+    {
+      "id": "narrative_design",
+      "name": "Narrative Design Squad",
+      "mission": "Define text-game grammar, persona voice, endings, remix hooks, and launch content quality.",
+      "members": [
+        { "name": "He Ran", "role": "Lead Narrative Designer" },
+        { "name": "Nora Xu", "role": "Branching Story Editor" },
+        { "name": "Jin Wei", "role": "Persona Voice Editor" }
+      ],
+      "reviewSignals": ["branch_depth", "ending_payoff", "persona_voice"]
+    },
+    {
+      "id": "game_systems",
+      "name": "Game Systems Squad",
+      "mission": "Own scene graph rules, playable choices, completion loops, and hardware-friendly structure.",
+      "members": [
+        { "name": "Wu Tong", "role": "Interaction Systems Designer" },
+        { "name": "Iris Zhao", "role": "Scene Graph Designer" },
+        { "name": "Gao Ming", "role": "Hardware Format Designer" }
+      ],
+      "reviewSignals": ["reachability", "scene_count", "hardware_potential"]
+    },
+    {
+      "id": "ai_prompt_model_ops",
+      "name": "AI Prompt And Model Ops Squad",
+      "mission": "Own draft prompts, provider fallback, generation provenance, regression fixtures, and model safety boundaries.",
+      "members": [
+        { "name": "An Li", "role": "Prompt Architect" },
+        { "name": "Rui Han", "role": "Model Ops Engineer" },
+        { "name": "Sofia Tang", "role": "AI Evaluation Lead" }
+      ],
+      "reviewSignals": ["prompt_specificity", "creative_provenance", "provider_fallback_rate"]
+    },
+    {
+      "id": "frontend_experience",
+      "name": "Frontend Experience Squad",
+      "mission": "Own Web/H5 creator, feed, player, IP pool, store, device, and operator surfaces.",
+      "members": [
+        { "name": "Zhou Ke", "role": "Frontend Lead" },
+        { "name": "Ava Liu", "role": "Mobile Interaction Engineer" },
+        { "name": "Bao Ning", "role": "Design Systems Engineer" }
+      ],
+      "reviewSignals": ["playwright_smoke", "creator_editor_completion", "mobile_layout_health"]
+    },
+    {
+      "id": "backend_platform",
+      "name": "Backend Platform Squad",
+      "mission": "Own /flash APIs, persistence, auth/session, contracts, operator routes, and integration tests.",
+      "members": [
+        { "name": "Deng Kai", "role": "Backend Lead" },
+        { "name": "Yuki Sun", "role": "API Contract Engineer" },
+        { "name": "Tao Ren", "role": "Persistence Engineer" }
+      ],
+      "reviewSignals": ["backend_route_coverage", "http_contract_tests", "persistence_contract"]
+    },
+    {
+      "id": "safety_rights_moderation",
+      "name": "Safety Rights And Moderation Squad",
+      "mission": "Own content review, IP rights, asset source statements, reports, appeals, takedowns, and moderation staffing gates.",
+      "members": [
+        { "name": "Mei Lan", "role": "Trust And Safety Lead" },
+        { "name": "Oscar Chen", "role": "Rights Review Specialist" },
+        { "name": "Priya Gu", "role": "Moderation Operations Lead" }
+      ],
+      "reviewSignals": ["review_sla", "rights_claim_coverage", "asset_security"]
+    },
+    {
+      "id": "native_hardware",
+      "name": "Native And Hardware Squad",
+      "mission": "Own native shell readiness, device binding, sync evidence, compatibility reports, and Hardware Studio export.",
+      "members": [
+        { "name": "Huang Yao", "role": "Native Lead" },
+        { "name": "Sam Qi", "role": "BLE Sync Engineer" },
+        { "name": "Leah Wang", "role": "Hardware Studio Engineer" }
+      ],
+      "reviewSignals": ["device_sync_evidence", "hardware_export_bundle", "real_device_matrix"]
+    },
+    {
+      "id": "commerce_support_ops",
+      "name": "Commerce Support And Ops Squad",
+      "mission": "Own store applications, payment/refund flows, support diagnostics, ticket macros, settlement review, and on-call handoff.",
+      "members": [
+        { "name": "Fang Mo", "role": "Commerce Lead" },
+        { "name": "Ethan Yu", "role": "Support Readiness Lead" },
+        { "name": "Qin Yue", "role": "Settlement Operations Lead" }
+      ],
+      "reviewSignals": ["payment_replay", "support_diagnostics", "settlement_reconciliation"]
+    },
+    {
+      "id": "qa_release",
+      "name": "QA And Release Squad",
+      "mission": "Own CI, unit tests, Playwright smoke, release packets, readiness scripts, and regression triage.",
+      "members": [
+        { "name": "Mina Fu", "role": "QA Lead" },
+        { "name": "Noah Peng", "role": "Automation Engineer" },
+        { "name": "Luo Bei", "role": "Release Manager" }
+      ],
+      "reviewSignals": ["npm_test", "playwright_e2e", "release_packet_status"]
+    },
+    {
+      "id": "content_ops",
+      "name": "Content Operations Squad",
+      "mission": "Own official starter packs, launch content, IP pool hygiene, creator education, and showcase curation.",
+      "members": [
+        { "name": "Song Yi", "role": "Content Ops Lead" },
+        { "name": "Kira Meng", "role": "Launch Pack Curator" },
+        { "name": "Zed Luo", "role": "Creator Education Editor" }
+      ],
+      "reviewSignals": ["launch_content_readiness", "showcase_pack_count", "remix_hook_coverage"]
+    }
+  ]
+}

@@ -24,6 +24,36 @@ Open:
 http://127.0.0.1:4177
 ```
 
+Standalone operations console:
+
+```text
+http://127.0.0.1:4177/apps/operator/
+```
+
+Run the Web prototype with the Backend Alpha API for integration work:
+
+```bash
+npm run dev:all
+```
+
+Open:
+
+```text
+http://127.0.0.1:4177/apps/web/?api=http&apiBase=http%3A%2F%2F127.0.0.1%3A4188
+```
+
+Open the standalone Operator console against Backend Alpha:
+
+```text
+http://127.0.0.1:4177/apps/operator/?apiBase=http%3A%2F%2F127.0.0.1%3A4188
+```
+
+The Backend Alpha health check is:
+
+```text
+http://127.0.0.1:4188/flash/health
+```
+
 For same-Wi-Fi phone preview, expose the dev server on the local network:
 
 ```bash
@@ -64,7 +94,8 @@ apps/
         local-pack-store.js Local prototype persistence adapter
   native/                   Future iOS/Android shell
   miniprogram/              Future WeChat client
-  operator/                 Future review and curation console
+  operator/                 Standalone operations management console
+    index.html              Standalone operations management backend
 packages/
   core/
     src/
@@ -88,7 +119,7 @@ scripts/
 - Remix path
 - Badge management with multi-device bind/switch/unbind
 - Standalone store prototype with purchase/download/sync states for the active device
-- Operator console for hardware candidate selection
+- Operator console for works, IP pool, review, governance, store, hardware, SLA, support, and operation logs
 - Local persistence via `localStorage`
 
 ## Portability Notes

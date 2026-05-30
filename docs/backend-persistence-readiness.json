@@ -1,0 +1,162 @@
+{
+  "version": "2026.05.backend-persistence-contract",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_production_database",
+  "documents": [
+    {
+      "id": "backend_persistence_readiness",
+      "file": "docs/backend-persistence-readiness.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Repository Contract",
+        "## Schema Coverage",
+        "## Migration Path",
+        "## External Boundary"
+      ],
+      "requiredClauses": [
+        "validateRepositoryContract",
+        "validateSqlSchema",
+        "payment callbacks",
+        "refund callbacks",
+        "settlements",
+        "production database"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "persistence_contract",
+      "file": "apps/backend/src/persistence-contract.js",
+      "requiredMarkers": [
+        "gugu_flash_persistence_contract_v1",
+        "REQUIRED_PRODUCTION_TABLES",
+        "JSON_STORE_REPOSITORY_CONTRACTS",
+        "validateRepositoryContract",
+        "validateSqlSchema"
+      ]
+    },
+    {
+      "id": "persistence_contract_tests",
+      "file": "apps/backend/src/persistence-contract.test.js",
+      "requiredMarkers": [
+        "validates JSON store repository methods",
+        "production schema covers persistence contract tables and indexes",
+        "payment_callbacks",
+        "refund_callbacks",
+        "settlements"
+      ]
+    },
+    {
+      "id": "json_flash_store",
+      "file": "apps/backend/src/json-flash-store.js",
+      "requiredMarkers": [
+        "sessions",
+        "orders",
+        "deviceEntitlements",
+        "paymentCallbacks",
+        "refundCallbacks"
+      ]
+    },
+    {
+      "id": "production_schema",
+      "file": "apps/backend/db/schema.sql",
+      "requiredMarkers": [
+        "CREATE TABLE payment_callbacks",
+        "CREATE TABLE refund_callbacks",
+        "CREATE TABLE settlements",
+        "CREATE TABLE block_relations",
+        "CREATE INDEX idx_payment_callbacks_provider_event_id"
+      ]
+    },
+    {
+      "id": "production_database_packet_gate",
+      "file": "scripts/check-production-database-packet.mjs",
+      "requiredMarkers": [
+        "gugu_production_database_migration_packet_v1",
+        "REQUIRED_MIGRATION_STEPS",
+        "REQUIRED_EXTERNAL_BLOCKERS",
+        "draft_pending_production_database"
+      ]
+    },
+    {
+      "id": "production_database_drill_gate",
+      "file": "scripts/check-production-database-drill.mjs",
+      "requiredMarkers": [
+        "gugu_production_database_drill_packet_v1",
+        "REQUIRED_REHEARSALS",
+        "restore_to_staging_rehearsal",
+        "production_database_drill_packet"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "production_database_migration_packet",
+      "file": "data/production-database-migration-packet.json",
+      "requiredMarkers": [
+        "gugu_production_database_migration_packet_v1",
+        "PRODUCTION_DATABASE_URL",
+        "validateRepositoryContract",
+        "database_backup_restore_drill",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "production_database_drill_packet",
+      "file": "data/production-database-drill-packet.json",
+      "requiredMarkers": [
+        "gugu_production_database_drill_packet_v1",
+        "draft_ready_for_production_database_replay",
+        "restore_to_staging_rehearsal",
+        "rollback_snapshot_rehearsal",
+        "pending_external"
+      ]
+    }
+  ],
+  "requiredRepositories": [
+    "sessions",
+    "orders",
+    "deviceEntitlements",
+    "deviceInstalls",
+    "deviceSyncJobs",
+    "comments",
+    "blockRelations",
+    "reports",
+    "rightsClaims",
+    "appeals",
+    "moderationActions",
+    "operationLogs",
+    "paymentCallbacks",
+    "refundCallbacks"
+  ],
+  "externalAcceptance": [
+    {
+      "id": "production_database_provisioned",
+      "status": "pending_external",
+      "needed": "Provision a production database with managed backups and environment-specific credentials."
+    },
+    {
+      "id": "repository_implementation",
+      "status": "pending_external",
+      "needed": "Implement and run production database repositories behind the same persistence contract."
+    },
+    {
+      "id": "migration_execution",
+      "status": "pending_external",
+      "needed": "Execute JSON-to-database migration or seed import in a controlled environment."
+    },
+    {
+      "id": "database_backup_restore_drill",
+      "status": "pending_external",
+      "needed": "Run and record production database backup/restore and rollback drills."
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:backend-persistence",
+    "npm run check:production-database",
+    "npm run check:production-database-drill",
+    "npm run check:alpha-backup-restore",
+    "node --test apps/backend/src/persistence-contract.test.js",
+    "node scripts/check-release-readiness.mjs --gate=closed_beta"
+  ]
+}

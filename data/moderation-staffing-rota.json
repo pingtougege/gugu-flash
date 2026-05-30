@@ -1,0 +1,207 @@
+{
+  "schemaVersion": "gugu_moderation_staffing_rota_v1",
+  "updatedAt": "2026-05-27",
+  "status": "draft_pending_named_human_rota",
+  "timezone": "Asia/Shanghai",
+  "launchWindow": {
+    "name": "Public MVP launch window",
+    "coverageDays": 7,
+    "reviewCoverage": "09:00-21:00",
+    "s0s1Escalation": "24x7"
+  },
+  "roleSlots": [
+    {
+      "id": "trust_lead",
+      "title": "Trust Lead",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "trainingRequired": ["content_safety_basics", "ip_rights_and_store_freeze", "appeal_second_review"]
+    },
+    {
+      "id": "operator_lead",
+      "title": "Operator Lead",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "trainingRequired": ["content_safety_basics"]
+    },
+    {
+      "id": "commerce_lead",
+      "title": "Commerce Lead",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "trainingRequired": ["ip_rights_and_store_freeze"]
+    },
+    {
+      "id": "hardware_lead",
+      "title": "Hardware Lead",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "trainingRequired": ["hardware_device_safety"]
+    },
+    {
+      "id": "support_lead",
+      "title": "Support Lead",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "trainingRequired": ["content_safety_basics"]
+    },
+    {
+      "id": "product_owner",
+      "title": "Product Owner",
+      "minimumNamedHumans": 1,
+      "assignmentStatus": "pending_external",
+      "trainingRequired": ["appeal_second_review"]
+    },
+    {
+      "id": "reviewer_l1",
+      "title": "Reviewer L1",
+      "minimumNamedHumans": 2,
+      "assignmentStatus": "pending_external",
+      "trainingRequired": ["content_safety_basics"]
+    },
+    {
+      "id": "reviewer_l2",
+      "title": "Reviewer L2",
+      "minimumNamedHumans": 2,
+      "assignmentStatus": "pending_external",
+      "trainingRequired": ["content_safety_basics", "ip_rights_and_store_freeze", "appeal_second_review", "hardware_device_safety"]
+    }
+  ],
+  "coverageWindows": [
+    {
+      "id": "closed_beta_daytime",
+      "queues": ["h5_publish_review", "store_listing_review", "comment_report_governance", "rights_claim_governance", "appeal_review"],
+      "minimumActiveReviewers": 2,
+      "backupReviewers": 1,
+      "requiredLeadRoles": ["trust_lead", "operator_lead"],
+      "status": "pending_external"
+    },
+    {
+      "id": "public_mvp_daytime",
+      "queues": ["h5_publish_review", "store_listing_review", "hardware_adaptation_review", "comment_report_governance", "rights_claim_governance", "appeal_review"],
+      "minimumActiveReviewers": 2,
+      "backupReviewers": 1,
+      "requiredLeadRoles": ["trust_lead", "operator_lead", "commerce_lead", "hardware_lead"],
+      "status": "pending_external"
+    },
+    {
+      "id": "s0_s1_escalation",
+      "queues": ["rights_claim_governance", "appeal_review", "store_listing_review"],
+      "minimumActiveReviewers": 1,
+      "backupReviewers": 1,
+      "requiredLeadRoles": ["product_owner", "trust_lead"],
+      "status": "pending_external"
+    }
+  ],
+  "queueAssignments": [
+    {
+      "queueId": "h5_publish_review",
+      "primaryRole": "trust_lead",
+      "backupRole": "operator_lead",
+      "reviewerPool": "reviewer_l1",
+      "minimumReviewers": 2,
+      "slaHours": 24
+    },
+    {
+      "queueId": "store_listing_review",
+      "primaryRole": "commerce_lead",
+      "backupRole": "trust_lead",
+      "reviewerPool": "reviewer_l2",
+      "minimumReviewers": 2,
+      "slaHours": 48
+    },
+    {
+      "queueId": "hardware_adaptation_review",
+      "primaryRole": "hardware_lead",
+      "backupRole": "operator_lead",
+      "reviewerPool": "reviewer_l2",
+      "minimumReviewers": 1,
+      "slaHours": 72
+    },
+    {
+      "queueId": "comment_report_governance",
+      "primaryRole": "trust_lead",
+      "backupRole": "operator_lead",
+      "reviewerPool": "reviewer_l1",
+      "minimumReviewers": 2,
+      "slaHours": 24
+    },
+    {
+      "queueId": "rights_claim_governance",
+      "primaryRole": "trust_lead",
+      "backupRole": "commerce_lead",
+      "reviewerPool": "reviewer_l2",
+      "minimumReviewers": 2,
+      "slaHours": 72
+    },
+    {
+      "queueId": "appeal_review",
+      "primaryRole": "trust_lead",
+      "backupRole": "product_owner",
+      "reviewerPool": "reviewer_l2",
+      "minimumReviewers": 2,
+      "slaHours": 72,
+      "requiresSecondReviewer": true
+    }
+  ],
+  "dailyQueueReview": [
+    "review_tasks",
+    "open_reports",
+    "open_rights_claims",
+    "open_appeals",
+    "frozen_settlements",
+    "failed_sync_jobs",
+    "payment_callbacks",
+    "refund_callbacks",
+    "operator_actions_without_reason"
+  ],
+  "trainingModules": [
+    "content_safety_basics",
+    "ip_rights_and_store_freeze",
+    "appeal_second_review",
+    "hardware_device_safety"
+  ],
+  "drills": [
+    {
+      "id": "s1_rights_store_freeze",
+      "status": "pending_external",
+      "requiredEvidence": ["case_id", "primary_owner", "backup_owner", "freeze_action", "support_handoff"]
+    },
+    {
+      "id": "appeal_second_reviewer",
+      "status": "pending_external",
+      "requiredEvidence": ["original_reviewer", "second_reviewer", "decision_reason", "operation_log"]
+    },
+    {
+      "id": "queue_sla_dashboard_review",
+      "status": "pending_external",
+      "requiredEvidence": ["oldest_case_age", "breach_count", "reviewer_on_duty", "daily_signoff"]
+    }
+  ],
+  "externalBlockers": [
+    {
+      "id": "named_human_rota",
+      "owner": "Ops Lead",
+      "status": "pending_external",
+      "exitCriteria": ["named people assigned", "coverage calendar approved", "backup owners confirmed"]
+    },
+    {
+      "id": "training_completion",
+      "owner": "Trust Lead",
+      "status": "pending_external",
+      "exitCriteria": ["all reviewers trained", "lead modules complete", "records archived"]
+    },
+    {
+      "id": "escalation_drill",
+      "owner": "Trust Lead",
+      "status": "pending_external",
+      "exitCriteria": ["S1 drill run", "support handoff captured", "lessons recorded"]
+    },
+    {
+      "id": "queue_sla_dashboard",
+      "owner": "Operator Lead",
+      "status": "pending_external",
+      "exitCriteria": ["production dashboard wired", "daily review signoff", "breach counters visible"]
+    }
+  ]
+}

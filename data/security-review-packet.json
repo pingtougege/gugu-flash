@@ -1,0 +1,217 @@
+{
+  "schemaVersion": "gugu_security_review_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_external_security_signoff",
+  "reviewMode": "public_mvp_security_review",
+  "scope": [
+    {
+      "id": "identity_and_session",
+      "owner": "Backend Lead",
+      "requiredControls": [
+        "external_identity_token_verification",
+        "issuer_audience_expiry_validation",
+        "session_issue_refresh_revoke",
+        "demo_auth_disabled_for_release",
+        "operator_invite_required"
+      ],
+      "evidence": [
+        "apps/backend/src/flash-identity-token.js",
+        "apps/backend/src/flash-auth-policy.js",
+        "docs/identity-provider-readiness.json",
+        "data/identity-provider-integration-packet.json"
+      ]
+    },
+    {
+      "id": "operator_rbac_and_audit",
+      "owner": "Trust Lead",
+      "requiredControls": [
+        "route_level_permissions",
+        "operator_permission_for_route",
+        "sensitive_action_reason_required",
+        "operation_log_retention",
+        "second_reviewer_conflict_detection"
+      ],
+      "evidence": [
+        "docs/auth-rbac-readiness.json",
+        "docs/review-governance-policy.json",
+        "apps/backend/src/review-sla.js",
+        "packages/api-client/src/http-flash-api.test.js"
+      ]
+    },
+    {
+      "id": "payment_and_refund_callbacks",
+      "owner": "Commerce Lead",
+      "requiredControls": [
+        "hmac_signature_verification",
+        "provider_event_id_idempotency",
+        "amount_currency_match",
+        "refund_revoke_consistency",
+        "secret_rotation_drill"
+      ],
+      "evidence": [
+        "docs/payment-provider-readiness.json",
+        "data/payment-provider-integration-packet.json",
+        "scripts/replay-payment-provider-callbacks.mjs"
+      ]
+    },
+    {
+      "id": "asset_upload_and_storage",
+      "owner": "Security",
+      "requiredControls": [
+        "content_type_allowlist",
+        "blocked_extension_policy",
+        "private_url_rejection",
+        "source_statement_validation",
+        "malware_scan_before_delivery",
+        "storage_isolation_review"
+      ],
+      "evidence": [
+        "docs/asset-security-readiness.json",
+        "data/security-infrastructure-review-packet.json",
+        "apps/backend/src/asset-security.js",
+        "apps/backend/src/asset-security.test.js"
+      ]
+    },
+    {
+      "id": "production_infrastructure",
+      "owner": "DevOps Lead",
+      "requiredControls": [
+        "tls_and_hosting_review",
+        "secret_manager_required",
+        "database_backup_restore_drill",
+        "rollback_drill",
+        "production_alert_delivery"
+      ],
+      "evidence": [
+        "docs/deployment-readiness.json",
+        "data/production-environment-preflight.json",
+        "data/production-monitoring-alerting-packet.json",
+        "data/production-database-migration-packet.json",
+        "data/production-database-drill-packet.json",
+        "data/security-infrastructure-review-packet.json"
+      ]
+    },
+    {
+      "id": "privacy_logs_and_support",
+      "owner": "Support Lead",
+      "requiredControls": [
+        "support_diagnostic_minimum_fields",
+        "payment_identifier_lookup",
+        "device_identifier_handling",
+        "privacy_owner_approval",
+        "support_access_read_boundary"
+      ],
+      "evidence": [
+        "docs/support-diagnostics-readiness.json",
+        "apps/backend/src/support-diagnostics.js",
+        "docs/legal-terms-coverage.json",
+        "data/legal-approval-packet.json"
+      ]
+    }
+  ],
+  "externalReviewChecklist": [
+    {
+      "id": "production_identity_review",
+      "owner": "Security Reviewer",
+      "status": "pending_external",
+      "exitCriteria": [
+        "real identity provider selected",
+        "token lifetime accepted",
+        "logout and revoked token behavior verified",
+        "operator role mapping reviewed"
+      ]
+    },
+    {
+      "id": "payment_provider_review",
+      "owner": "Security Reviewer",
+      "status": "pending_external",
+      "exitCriteria": [
+        "real sandbox callback replay",
+        "signature key rotation evidence",
+        "refund idempotency verified",
+        "merchant approval recorded"
+      ]
+    },
+    {
+      "id": "upload_storage_review",
+      "owner": "Security Reviewer",
+      "status": "pending_external",
+      "exitCriteria": [
+        "malware scanning connected",
+        "private object storage verified",
+        "signed delivery URL policy reviewed",
+        "retention and deletion workflow accepted"
+      ]
+    },
+    {
+      "id": "infrastructure_review",
+      "owner": "Security Reviewer",
+      "status": "pending_external",
+      "exitCriteria": [
+        "TLS and domain review",
+        "secret manager review",
+        "backup and restore evidence",
+        "rollback drill evidence",
+        "alert delivery evidence"
+      ]
+    },
+    {
+      "id": "external_security_signoff",
+      "owner": "Security Reviewer",
+      "status": "pending_external",
+      "exitCriteria": [
+        "critical findings fixed",
+        "high findings fixed or accepted",
+        "residual risk register signed",
+        "Product Owner approval recorded"
+      ]
+    }
+  ],
+  "riskRegister": [
+    {
+      "id": "risk_prod_identity_not_connected",
+      "severity": "high",
+      "status": "open_pending_external",
+      "mitigation": "Keep release in demo-disabled free-only candidate mode until production identity provider is configured and reviewed."
+    },
+    {
+      "id": "risk_real_upload_scanning_pending",
+      "severity": "high",
+      "status": "open_pending_external",
+      "mitigation": "Keep upload policy enforcement active and block public asset delivery until malware scanning and storage isolation are approved."
+    },
+    {
+      "id": "risk_payment_provider_pending",
+      "severity": "high",
+      "status": "open_pending_external",
+      "mitigation": "Keep paid checkout disabled until provider sandbox replay, key rotation, merchant approval, and reconciliation evidence pass."
+    },
+    {
+      "id": "risk_production_ops_pending",
+      "severity": "medium",
+      "status": "open_pending_external",
+      "mitigation": "Require production preflight, monitoring alerting, backup/restore, and rollback evidence before Public MVP."
+    }
+  ],
+  "releasePolicy": {
+    "publicMvpRequires": [
+      "npm run check:security",
+      "npm run check:security-review-packet",
+      "npm run check:security-infrastructure",
+      "npm run check:asset-security",
+      "npm run check:auth-rbac",
+      "npm run check:identity-provider",
+      "npm run check:payment-provider-packet",
+      "npm run check:production-preflight",
+      "npm run check:production-monitoring",
+      "npm run check:production-database-drill"
+    ],
+    "mustRemainInProgressUntil": [
+      "production_identity_review",
+      "payment_provider_review",
+      "upload_storage_review",
+      "infrastructure_review",
+      "external_security_signoff"
+    ]
+  }
+}

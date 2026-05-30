@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "gugu_app_release_packet_v1",
+  "updatedAt": "2026-05-27",
+  "releaseName": "Gugu Flash Public MVP Candidate",
+  "app": {
+    "name": "Gugu Flash",
+    "bundleId": "app.gugu.flash",
+    "androidPackage": "app.gugu.flash",
+    "versionName": "0.1.0",
+    "versionCode": 1,
+    "buildNumber": "1",
+    "apiBaseUrl": "pending_production_api"
+  },
+  "versionName": "0.1.0",
+  "buildNumber": "0.1.0-alpha.1",
+  "gitRevisionRequired": true,
+  "releaseMode": "free_only_until_payment_approval",
+  "api": {
+    "contract": "packages/api-client/src/flash-api-contract.js",
+    "targets": ["web", "native", "miniprogram", "operator"],
+    "requiresProductionBaseUrl": true
+  },
+  "channels": [
+    {
+      "id": "ios_testflight_internal",
+      "platform": "ios",
+      "status": "pending_external_signed_build",
+      "requiredArtifacts": ["signed_ipa_or_testflight_build", "bundle_id", "build_number", "tester_group"]
+    },
+    {
+      "id": "android_internal_testing",
+      "platform": "android",
+      "status": "pending_external_signed_build",
+      "requiredArtifacts": ["signed_aab_or_apk", "package_name", "version_code", "tester_group"]
+    },
+    {
+      "id": "web_h5_fallback",
+      "platform": "web",
+      "status": "available",
+      "requiredArtifacts": ["pages_deploy", "web_smoke", "release_note"]
+    }
+  ],
+  "storeReview": {
+    "storeAssetsPacket": "data/native-store-assets-packet.json",
+    "appName": "Gugu Flash",
+    "subtitle": "Create and sync tiny interactive badge stories",
+    "supportContact": "support@gugu-flash.example",
+    "privacyPolicyUrl": "https://gugu-flash.example/privacy",
+    "termsUrl": "https://gugu-flash.example/terms",
+    "paidContentCopy": "disabled_until_payment_provider_approval",
+    "ugcModerationDisclosure": true,
+    "rightsClaimDisclosure": true,
+    "refundSupportDisclosure": true,
+    "requiredScreenshots": [
+      "feed",
+      "creator",
+      "store",
+      "device_dashboard",
+      "support_or_settings"
+    ]
+  },
+  "permissions": [
+    {
+      "id": "bluetooth",
+      "platforms": ["ios", "android"],
+      "rationale": "Used to discover and sync supported Gugu badge devices."
+    },
+    {
+      "id": "notifications",
+      "platforms": ["ios", "android"],
+      "rationale": "Used for review results, sync status, claims, appeals, and support updates."
+    },
+    {
+      "id": "photo_media",
+      "platforms": ["ios", "android"],
+      "rationale": "Used only when a creator uploads artwork or audio assets."
+    },
+    {
+      "id": "camera",
+      "platforms": ["ios", "android"],
+      "rationale": "Reserved for future device QR pairing; disabled for Public MVP unless implemented."
+    }
+  ],
+  "featureFlags": {
+    "paidCheckout": false,
+    "paidContentEnabled": false,
+    "demoAuthEnabled": false,
+    "hardwareSync": true,
+    "assetUploads": true,
+    "pushNotifications": false,
+    "externalIdentityProvider": true
+  },
+  "qaSmoke": [
+    "login_session",
+    "feed_load",
+    "create_original_h5",
+    "fanwork_ip_selection_block",
+    "store_claim_or_purchase",
+    "device_dashboard",
+    "device_sync_handoff",
+    "support_diagnostics",
+    "legal_links",
+    "support_legal_links"
+  ],
+  "releaseSignoff": {
+    "product": "pending_external",
+    "qa": "pending_external",
+    "legal": "pending_external",
+    "support": "pending_external",
+    "releaseManager": "pending_external"
+  },
+  "externalBlockers": [
+    {
+      "id": "apple_developer_access",
+      "owner": "Native Lead",
+      "status": "pending_external",
+      "exitCriteria": ["Apple Developer account", "bundle id", "signing certificate", "TestFlight access"]
+    },
+    {
+      "id": "google_play_console_access",
+      "owner": "Native Lead",
+      "status": "pending_external",
+      "exitCriteria": ["Google Play Console app", "package name", "signing setup", "internal testing access"]
+    },
+    {
+      "id": "native_shell_build",
+      "owner": "Native Lead",
+      "status": "pending_external",
+      "exitCriteria": ["signed iOS shell", "signed Android shell", "shared API contract wired", "native smoke record"]
+    },
+    {
+      "id": "store_review_packet",
+      "owner": "Product Owner",
+      "status": "pending_external",
+      "exitCriteria": ["screenshots", "icon", "privacy labels", "terms URL", "privacy policy URL", "support contact"]
+    },
+    {
+      "id": "release_manager_signoff",
+      "owner": "Release Manager",
+      "status": "pending_external",
+      "exitCriteria": ["QA pass", "legal approval", "support coverage", "rollout decision"]
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "version": "2026.05.auth-rbac-readiness",
+  "updatedAt": "2026-05-27",
+  "status": "ready_for_closed_beta_rbac",
+  "documents": [
+    {
+      "id": "auth_rbac_plan",
+      "file": "docs/auth-rbac-plan.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Session Model",
+        "## Operator Role Issuance",
+        "## RBAC Matrix",
+        "## Route Permissions",
+        "## External Boundary"
+      ],
+      "requiredClauses": [
+        "GUGU_FLASH_REQUIRE_AUTH",
+        "GUGU_FLASH_ALLOW_DEMO_AUTH",
+        "GUGU_FLASH_OPERATOR_INVITE_SECRET",
+        "X-Gugu-Role",
+        "payment-callbacks",
+        "HMAC"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "auth_policy_module",
+      "file": "apps/backend/src/flash-auth-policy.js",
+      "requiredMarkers": [
+        "gugu_flash_auth_rbac_v1",
+        "FLASH_ROLE_PERMISSIONS",
+        "operatorPermissionForRoute",
+        "requiresOperatorInvite",
+        "staticDemoRoleFromToken"
+      ]
+    },
+    {
+      "id": "http_auth_enforcement",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "GUGU_FLASH_ALLOW_DEMO_AUTH",
+        "GUGU_FLASH_OPERATOR_INVITE_SECRET",
+        "operatorInviteSecret",
+        "operatorPermissionForRoute",
+        "permissionsForRole"
+      ]
+    },
+    {
+      "id": "auth_policy_unit_tests",
+      "file": "apps/backend/src/flash-auth-policy.test.js",
+      "requiredMarkers": [
+        "route-level RBAC",
+        "role permissions",
+        "operator route policy",
+        "operator invite"
+      ]
+    },
+    {
+      "id": "auth_http_tests",
+      "file": "packages/api-client/src/http-flash-api.test.js",
+      "requiredMarkers": [
+        "can enforce user and operator permissions",
+        "operator_invite_required",
+        "X-Gugu-Role",
+        "hardware_operator",
+        "reviewer"
+      ]
+    }
+  ],
+  "requiredRoles": [
+    "creator",
+    "reviewer",
+    "hardware_operator",
+    "support",
+    "operator",
+    "admin",
+    "super_admin"
+  ],
+  "requiredPermissions": [
+    "operator:read",
+    "ops:read",
+    "review:write",
+    "governance:write",
+    "store_review:write",
+    "hardware:write",
+    "payment:read",
+    "payment:write"
+  ],
+  "releaseCommands": [
+    "npm run check:auth-rbac",
+    "node --test apps/backend/src/flash-auth-policy.test.js",
+    "node --test packages/api-client/src/http-flash-api.test.js",
+    "node scripts/check-release-readiness.mjs --gate=closed_beta"
+  ]
+}

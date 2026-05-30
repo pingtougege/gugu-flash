@@ -1,0 +1,237 @@
+{
+  "schemaVersion": "gugu_security_infrastructure_review_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_ready_for_external_security_replay",
+  "reviewMode": "public_mvp_infrastructure_and_upload_security",
+  "sourcePackets": [
+    "data/security-review-packet.json",
+    "data/production-environment-preflight.json",
+    "data/production-monitoring-alerting-packet.json",
+    "data/production-database-drill-packet.json",
+    "data/production-rollout-packet.json",
+    "docs/asset-security-readiness.json"
+  ],
+  "infrastructureControls": [
+    {
+      "id": "tls_and_hosting_review",
+      "owner": "DevOps Lead",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "production domain and API host",
+        "TLS certificate issuer, expiry, and renewal owner",
+        "HSTS and HTTP security header verification",
+        "CDN/proxy origin access rules"
+      ]
+    },
+    {
+      "id": "secret_manager_required",
+      "owner": "DevOps Lead",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "production secret manager inventory",
+        "payment, identity, database, and upload scanner secret owners",
+        "rotation cadence and emergency rotation drill",
+        "log scrubbing proof for raw tokens and secrets"
+      ]
+    },
+    {
+      "id": "production_alert_delivery",
+      "owner": "Ops Lead",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "production alert route and escalation owner",
+        "synthetic API health alert",
+        "payment callback error alert",
+        "upload scanner failure alert",
+        "on-call acknowledgement transcript"
+      ]
+    },
+    {
+      "id": "database_backup_restore_drill",
+      "owner": "DevOps Lead",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "data/production-database-drill-packet.json",
+        "restore time objective result",
+        "migration rollback evidence",
+        "post-restore data integrity diff"
+      ]
+    },
+    {
+      "id": "rollback_drill",
+      "owner": "Release Manager",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "data/production-rollout-packet.json",
+        "previous build rollback command",
+        "database compatibility check",
+        "incident communication owner"
+      ]
+    }
+  ],
+  "uploadStorageControls": [
+    {
+      "id": "malware_scan_before_delivery",
+      "owner": "Security",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "scanner vendor or engine configured",
+        "positive malware sample quarantined",
+        "clean sample promoted to review queue",
+        "scanner outage blocks public delivery"
+      ]
+    },
+    {
+      "id": "storage_isolation_review",
+      "owner": "Security",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "private object bucket or equivalent ACL",
+        "no direct public object URL",
+        "review-only service account boundary",
+        "delivery path requires approved asset state"
+      ]
+    },
+    {
+      "id": "signed_delivery_url_policy",
+      "owner": "Backend Lead",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "short-lived signed URL expiry",
+        "approved asset state check",
+        "cache invalidation on takedown",
+        "no source URL leak in response body"
+      ]
+    },
+    {
+      "id": "retention_and_deletion_workflow",
+      "owner": "Support Lead",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "asset deletion request owner",
+        "retention period documented",
+        "backup purge expectation documented",
+        "audit log entry for deletion"
+      ]
+    },
+    {
+      "id": "quarantine_before_review",
+      "owner": "Trust Lead",
+      "replayStatus": "pending_external",
+      "requiredEvidence": [
+        "uploaded asset remains quarantined before scanner pass",
+        "moderator cannot publish quarantined asset",
+        "failed scan emits operator-visible reason",
+        "retry path preserves audit history"
+      ]
+    }
+  ],
+  "scannerReplayMatrix": [
+    {
+      "id": "safe_image_allowed",
+      "input": "small image/png with source statement",
+      "expected": "accepted into pending_review after scan pass",
+      "status": "ready_for_external_scanner_replay"
+    },
+    {
+      "id": "executable_blocked",
+      "input": "application/x-msdownload or .exe payload",
+      "expected": "blocked with asset_security_violation",
+      "status": "ready_for_external_scanner_replay"
+    },
+    {
+      "id": "private_source_blocked",
+      "input": "source URL from localhost, private IP, or internal host",
+      "expected": "blocked before storage write",
+      "status": "ready_for_external_scanner_replay"
+    },
+    {
+      "id": "oversized_blocked",
+      "input": "payload larger than allowed upload limit",
+      "expected": "blocked with oversized_file reason",
+      "status": "ready_for_external_scanner_replay"
+    },
+    {
+      "id": "malware_positive_quarantined",
+      "input": "scanner-positive test sample",
+      "expected": "quarantined and unavailable for delivery",
+      "status": "pending_external"
+    },
+    {
+      "id": "public_delivery_requires_scan_and_signed_url",
+      "input": "approved asset delivery request",
+      "expected": "requires scan pass, approved review state, and signed delivery URL",
+      "status": "pending_external"
+    }
+  ],
+  "privacyLogControls": [
+    {
+      "id": "no_raw_auth_tokens",
+      "owner": "Backend Lead",
+      "requiredEvidence": ["request logs redact Authorization headers", "identity tokens are never stored in diagnostics"]
+    },
+    {
+      "id": "no_payment_secrets",
+      "owner": "Commerce Lead",
+      "requiredEvidence": ["webhook signatures are redacted", "provider secret values never appear in support exports"]
+    },
+    {
+      "id": "hash_device_serial_in_support_exports",
+      "owner": "Support Lead",
+      "requiredEvidence": ["device serials are hashed or truncated", "support diagnostics include minimum viable fields only"]
+    },
+    {
+      "id": "support_diagnostic_minimum_fields",
+      "owner": "Support Lead",
+      "requiredEvidence": ["support bundle schema review", "privacy owner approval before public MVP"]
+    },
+    {
+      "id": "request_id_correlation",
+      "owner": "QA Lead",
+      "requiredEvidence": [
+        "request IDs correlate API logs, ops metrics, and incident tickets without exposing secrets",
+        "incident replay shows a failed upload can be traced across API, scanner, alert, and support ticket records"
+      ]
+    }
+  ],
+  "releasePolicy": {
+    "publicMvpRequires": [
+      "npm run check:security",
+      "npm run check:security-review-packet",
+      "npm run check:security-infrastructure",
+      "npm run check:asset-security",
+      "npm run check:production-preflight",
+      "npm run check:production-monitoring",
+      "npm run check:production-database-drill"
+    ],
+    "mustRemainInProgressUntil": [
+      "production_identity_review",
+      "payment_provider_review",
+      "upload_storage_review",
+      "infrastructure_review",
+      "external_security_signoff"
+    ]
+  },
+  "externalBlockers": [
+    {
+      "id": "production_identity_review",
+      "status": "pending_external"
+    },
+    {
+      "id": "payment_provider_review",
+      "status": "pending_external"
+    },
+    {
+      "id": "upload_storage_review",
+      "status": "pending_external"
+    },
+    {
+      "id": "infrastructure_review",
+      "status": "pending_external"
+    },
+    {
+      "id": "external_security_signoff",
+      "status": "pending_external"
+    }
+  ]
+}

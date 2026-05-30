@@ -1,0 +1,106 @@
+{
+  "version": "2026.05.asset-security",
+  "updatedAt": "2026-05-27",
+  "status": "alpha_policy_ready_pending_storage_review",
+  "policy": {
+    "schemaVersion": "gugu_flash_asset_security_v1",
+    "allowedMediaTypes": [
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "image/gif",
+      "audio/mpeg",
+      "audio/wav",
+      "audio/ogg",
+      "application/json"
+    ],
+    "blockedControls": [
+      "executable_media_type",
+      "blocked_extension",
+      "private_source_url",
+      "oversized_file",
+      "missing_source_statement",
+      "external_contact_in_source_note"
+    ],
+    "requiredReviewChecks": [
+      "malware_scan",
+      "content_type_validation",
+      "source_statement",
+      "storage_isolation"
+    ]
+  },
+  "endpointControls": [
+    {
+      "method": "POST",
+      "path": "/flash/assets",
+      "rejectsWith": "asset_security_violation"
+    },
+    {
+      "method": "PATCH",
+      "path": "/flash/assets/:id/source-statement",
+      "rejectsWith": "asset_source_statement_invalid"
+    },
+    {
+      "method": "POST",
+      "path": "/flash/assets/:id/submit-review",
+      "requiresChecks": ["malware_scan", "content_type_validation", "source_statement", "storage_isolation"]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "asset_security_policy",
+      "file": "apps/backend/src/asset-security.js",
+      "requiredMarkers": [
+        "ASSET_SECURITY_POLICY_VERSION",
+        "validateAssetUploadSecurity",
+        "validateAssetSourceStatement",
+        "private or localhost"
+      ]
+    },
+    {
+      "id": "asset_security_tests",
+      "file": "apps/backend/src/asset-security.test.js",
+      "requiredMarkers": [
+        "asset security policy",
+        "private url",
+        "external contact"
+      ]
+    },
+    {
+      "id": "asset_http_enforcement",
+      "file": "apps/backend/src/flash-http-server.js",
+      "requiredMarkers": [
+        "asset_security_violation",
+        "asset_source_statement_invalid",
+        "malware_scan"
+      ]
+    },
+    {
+      "id": "asset_http_tests",
+      "file": "packages/api-client/src/http-flash-api.test.js",
+      "requiredMarkers": [
+        "enforces asset upload security policy",
+        "asset_security_violation",
+        "asset_source_statement_invalid"
+      ]
+    }
+  ],
+  "externalAcceptance": [
+    {
+      "id": "production_malware_scanning",
+      "status": "pending_external",
+      "needed": "Connect uploaded objects to production malware/content scanning before public delivery."
+    },
+    {
+      "id": "storage_isolation_review",
+      "status": "pending_external",
+      "needed": "Verify private object storage, signed delivery URLs, retention policy, and deletion workflow."
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:asset-security",
+    "node --test apps/backend/src/asset-security.test.js",
+    "node --test packages/api-client/src/http-flash-api.test.js",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ]
+}

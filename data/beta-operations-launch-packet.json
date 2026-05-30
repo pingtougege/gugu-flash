@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "gugu_beta_operations_launch_packet_v1",
+  "updatedAt": "2026-05-29",
+  "status": "draft_ready_for_named_launch_rehearsal",
+  "launchMode": "closed_beta_operations",
+  "sourcePackets": [
+    "docs/support-readiness.json",
+    "data/support-oncall-packet.json",
+    "data/support-training-handoff-drill.json",
+    "docs/support-diagnostics-readiness.json",
+    "data/review-operations-certification-packet.json",
+    "data/device-sync-regression-drill.json",
+    "data/payment-settlement-reconciliation-drill.json",
+    "data/legal-release-signoff-packet.json"
+  ],
+  "launchChannels": [
+    {
+      "id": "closed_beta_support_queue",
+      "purpose": "S2/S3 support ticket intake and daily macro triage",
+      "ownerRole": "support_agent_primary",
+      "backupRole": "support_agent_backup",
+      "status": "pending_external_channel"
+    },
+    {
+      "id": "closed_beta_ops_room",
+      "purpose": "S1 payment, sync, rights, appeal, and operator-action escalations",
+      "ownerRole": "support_lead",
+      "backupRole": "on_call_operator",
+      "status": "pending_external_channel"
+    },
+    {
+      "id": "closed_beta_s0_room",
+      "purpose": "S0 launch stop, safety incident, privacy issue, or production outage command room",
+      "ownerRole": "product_s0_owner",
+      "backupRole": "trust_escalation",
+      "status": "pending_external_channel"
+    }
+  ],
+  "calendarTemplate": [
+    {
+      "id": "day_0_launch_watch",
+      "window": "launch_day_09:00-21:00",
+      "requiredRoles": [
+        "support_agent_primary",
+        "support_lead",
+        "on_call_operator",
+        "commerce_escalation",
+        "hardware_escalation",
+        "trust_escalation",
+        "product_s0_owner"
+      ],
+      "status": "pending_named_staff"
+    },
+    {
+      "id": "day_1_to_day_3_stabilization",
+      "window": "beta_day_1_to_3_09:00-21:00",
+      "requiredRoles": [
+        "support_agent_primary",
+        "support_agent_backup",
+        "support_lead",
+        "on_call_operator",
+        "commerce_escalation",
+        "hardware_escalation",
+        "trust_escalation"
+      ],
+      "status": "pending_named_staff"
+    },
+    {
+      "id": "day_4_to_day_7_sustained_support",
+      "window": "beta_day_4_to_7_09:00-21:00",
+      "requiredRoles": [
+        "support_agent_primary",
+        "support_agent_backup",
+        "support_lead",
+        "on_call_operator",
+        "commerce_escalation",
+        "hardware_escalation",
+        "trust_escalation"
+      ],
+      "status": "pending_named_staff"
+    },
+    {
+      "id": "s0_s1_after_hours",
+      "window": "7_day_24x7_escalation",
+      "requiredRoles": ["support_lead", "product_s0_owner", "trust_escalation", "on_call_operator"],
+      "status": "pending_named_staff"
+    }
+  ],
+  "dailyOperatingRhythm": [
+    {
+      "id": "morning_queue_review",
+      "time": "09:30 Asia/Shanghai",
+      "ownerRole": "support_lead",
+      "requiredInputs": ["open_reports", "open_rights_claims", "open_appeals", "failed_sync_jobs"],
+      "output": "daily_support_status_note"
+    },
+    {
+      "id": "midday_cross_function_check",
+      "time": "14:00 Asia/Shanghai",
+      "ownerRole": "on_call_operator",
+      "requiredInputs": ["payment_callbacks", "refund_callbacks", "frozen_settlements", "operator_actions_without_reason"],
+      "output": "risk_and_escalation_update"
+    },
+    {
+      "id": "end_of_day_handoff",
+      "time": "20:30 Asia/Shanghai",
+      "ownerRole": "support_agent_primary",
+      "requiredInputs": ["open_s0_s1_cases", "pending_user_replies", "pending_owner_acknowledgements"],
+      "output": "handoff_note_for_next_shift"
+    }
+  ],
+  "goNoGoChecklist": [
+    {
+      "id": "support_roster_confirmed",
+      "ownerRole": "support_lead",
+      "status": "pending_external",
+      "requiredEvidence": ["named humans for all role slots", "backup owner for S0/S1", "coverage calendar approved"]
+    },
+    {
+      "id": "channels_created",
+      "ownerRole": "ops_lead",
+      "status": "pending_external",
+      "requiredEvidence": ["support queue URL", "ops room URL", "S0 room URL"]
+    },
+    {
+      "id": "training_replay_complete",
+      "ownerRole": "support_lead",
+      "status": "pending_external",
+      "requiredEvidence": ["training attendance", "quiz pass evidence", "handoff drill replay notes"]
+    },
+    {
+      "id": "diagnostic_access_verified",
+      "ownerRole": "support_agent_primary",
+      "status": "pending_external",
+      "requiredEvidence": ["support diagnostic endpoint access", "requestId lookup", "redaction check"]
+    },
+    {
+      "id": "payment_sync_rights_handoffs_verified",
+      "ownerRole": "release_manager",
+      "status": "pending_external",
+      "requiredEvidence": ["payment S1 drill", "sync S1 drill", "rights S1 drill"]
+    }
+  ],
+  "launchMetrics": [
+    {
+      "id": "first_response_sla",
+      "source": "support queue",
+      "threshold": "S1 <= 24h, S2 <= 48h",
+      "ownerRole": "support_lead"
+    },
+    {
+      "id": "failed_sync_jobs",
+      "source": "operator review SLA dashboard and support diagnostics",
+      "threshold": "all S1 sync failures have hardware owner acknowledgement",
+      "ownerRole": "hardware_escalation"
+    },
+    {
+      "id": "payment_entitlement_mismatches",
+      "source": "payment callback replay and support diagnostic bundle",
+      "threshold": "all payment_no_entitlement cases have commerce owner acknowledgement",
+      "ownerRole": "commerce_escalation"
+    },
+    {
+      "id": "rights_and_appeal_backlog",
+      "source": "review SLA dashboard",
+      "threshold": "no S1 rights claim remains unowned after daily review",
+      "ownerRole": "trust_escalation"
+    },
+    {
+      "id": "operator_reason_audit",
+      "source": "operation log",
+      "threshold": "zero sensitive operator actions without reason",
+      "ownerRole": "on_call_operator"
+    }
+  ],
+  "releasePolicy": {
+    "requiredCommands": [
+      "npm run check:support",
+      "npm run check:support-oncall",
+      "npm run check:support-training-handoff",
+      "npm run check:beta-operations",
+      "npm run check:support-diagnostics",
+      "node scripts/check-release-readiness.mjs --gate=closed_beta"
+    ],
+    "mustRemainInProgressUntil": [
+      "real_staffing_assignment",
+      "beta_oncall_calendar",
+      "support_training_completion",
+      "support_handoff_drill",
+      "launch_channels_created"
+    ]
+  },
+  "externalBlockers": [
+    {
+      "id": "real_staffing_assignment",
+      "owner": "Support Lead",
+      "status": "pending_external",
+      "exitCriteria": ["named support agents", "named escalation owners", "backup coverage accepted"]
+    },
+    {
+      "id": "beta_oncall_calendar",
+      "owner": "Ops Lead",
+      "status": "pending_external",
+      "exitCriteria": ["7-day calendar", "day-0 launch watch", "after-hours S0/S1 escalation"]
+    },
+    {
+      "id": "support_training_completion",
+      "owner": "Support Lead",
+      "status": "pending_external",
+      "exitCriteria": ["training attendance", "quiz pass evidence", "role matrix completion"]
+    },
+    {
+      "id": "support_handoff_drill",
+      "owner": "Release Manager",
+      "status": "pending_external",
+      "exitCriteria": ["payment drill complete", "sync drill complete", "rights drill complete"]
+    },
+    {
+      "id": "launch_channels_created",
+      "owner": "Ops Lead",
+      "status": "pending_external",
+      "exitCriteria": ["support queue created", "ops room created", "S0 room created"]
+    }
+  ]
+}

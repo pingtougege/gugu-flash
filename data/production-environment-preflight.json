@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "gugu_production_environment_preflight_v1",
+  "updatedAt": "2026-05-27",
+  "status": "draft_pending_production_hosting",
+  "environment": "public_mvp_production",
+  "appVersion": "0.1.0",
+  "service": {
+    "name": "gugu-flash-backend-api",
+    "apiBaseUrl": "pending_production_api_host",
+    "webOrigin": "pending_public_web_origin",
+    "tlsRequired": true,
+    "readinessRequiredBeforeTraffic": true
+  },
+  "requiredEnv": [
+    {
+      "name": "API_HOST",
+      "required": true,
+      "expected": "0.0.0.0 or platform runtime bind host",
+      "status": "pending_external"
+    },
+    {
+      "name": "API_PORT",
+      "required": true,
+      "expected": "platform runtime port",
+      "status": "pending_external"
+    },
+    {
+      "name": "GUGU_FLASH_REQUIRE_AUTH",
+      "required": true,
+      "expected": "1",
+      "status": "pending_external"
+    },
+    {
+      "name": "GUGU_FLASH_ALLOW_DEMO_AUTH",
+      "required": true,
+      "expected": "0",
+      "status": "pending_external"
+    },
+    {
+      "name": "GUGU_FLASH_CORS_ORIGIN",
+      "required": true,
+      "expected": "public Web origin only",
+      "status": "pending_external"
+    },
+    {
+      "name": "GUGU_FLASH_IDENTITY_ISSUER",
+      "required": true,
+      "expected": "production identity provider issuer",
+      "status": "pending_external"
+    },
+    {
+      "name": "GUGU_FLASH_IDENTITY_AUDIENCE",
+      "required": true,
+      "expected": "gugu-flash-api",
+      "status": "pending_external"
+    }
+  ],
+  "requiredSecrets": [
+    {
+      "name": "GUGU_FLASH_OPERATOR_INVITE_SECRET",
+      "source": "secrets_manager",
+      "rotation": "before_public_mvp",
+      "status": "pending_external"
+    },
+    {
+      "name": "GUGU_FLASH_IDENTITY_TOKEN_SECRET",
+      "source": "secrets_manager",
+      "rotation": "before_public_mvp",
+      "status": "pending_external"
+    },
+    {
+      "name": "GUGU_FLASH_PAYMENT_CALLBACK_SECRET",
+      "source": "secrets_manager",
+      "rotation": "before_public_mvp",
+      "status": "pending_external"
+    },
+    {
+      "name": "PRODUCTION_DATABASE_URL",
+      "source": "secrets_manager",
+      "rotation": "managed_by_database_platform",
+      "status": "pending_external"
+    }
+  ],
+  "probes": [
+    {
+      "id": "health",
+      "method": "GET",
+      "path": "/flash/health",
+      "expectedStatus": 200
+    },
+    {
+      "id": "readiness",
+      "method": "GET",
+      "path": "/flash/ready",
+      "expectedStatus": 200,
+      "requiredFields": ["status", "checks.api", "checks.runtimeState", "checks.persistence", "deployment.authMode"]
+    },
+    {
+      "id": "ops_metrics",
+      "method": "GET",
+      "path": "/flash/operator/ops-metrics",
+      "expectedStatus": 200,
+      "requiresRole": "ops"
+    }
+  ],
+  "smokeScenarios": [
+    "web_http_publish_listing_claim_sync",
+    "required_auth_session_issue_refresh_revoke",
+    "payment_callback_signature_idempotency",
+    "support_diagnostics_lookup",
+    "monitoring_alert_delivery",
+    "pre_deploy_backup_restore",
+    "rollback_to_previous_release"
+  ],
+  "dataControls": {
+    "preDeployBackupRequired": true,
+    "backupSchema": "gugu_flash_json_backup_v1",
+    "productionDatabaseRequired": true,
+    "pointInTimeRecoveryRequired": true,
+    "rollbackSnapshotRequired": true
+  },
+  "externalBlockers": [
+    {
+      "id": "production_api_hosting",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "exitCriteria": ["TLS endpoint", "health probe", "readiness probe", "runtime logs"]
+    },
+    {
+      "id": "production_database",
+      "owner": "Backend Lead",
+      "status": "pending_external",
+      "exitCriteria": ["database provisioned", "repositories wired", "migrations run", "PITR configured"]
+    },
+    {
+      "id": "secrets_management",
+      "owner": "Security",
+      "status": "pending_external",
+      "exitCriteria": ["auth secrets", "payment callback secret", "operator invite secret", "rotation record"]
+    },
+    {
+      "id": "backup_restore_drill",
+      "owner": "DevOps Lead",
+      "status": "pending_external",
+      "exitCriteria": ["production backup taken", "restore rehearsed", "checksum or DB verification recorded"]
+    },
+    {
+      "id": "rollback_drill",
+      "owner": "Release Manager",
+      "status": "pending_external",
+      "exitCriteria": ["previous release available", "traffic rollback rehearsed", "smoke record captured"]
+    }
+  ]
+}

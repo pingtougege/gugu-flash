@@ -1,0 +1,108 @@
+{
+  "version": "2026.05.closed-beta-support-diagnostics",
+  "updatedAt": "2026-05-27",
+  "status": "alpha_ready_pending_real_staffing",
+  "endpoint": {
+    "method": "GET",
+    "path": "/flash/operator/support-diagnostics",
+    "auth": "support",
+    "requestIdHeaders": ["X-Request-Id", "X-Gugu-Request-Id"],
+    "responseSchemaVersion": "gugu_flash_support_diagnostic_v1"
+  },
+  "queryFields": [
+    "caseId",
+    "deviceId",
+    "orderId",
+    "providerEventId",
+    "providerPaymentId",
+    "providerRefundId",
+    "syncJobId",
+    "diagnosticCode",
+    "targetId",
+    "storeId",
+    "hardwarePackId",
+    "entitlementId",
+    "settlementId",
+    "reportId",
+    "claimId",
+    "appealId",
+    "operationLogId"
+  ],
+  "macroCoverage": [
+    {
+      "id": "sync_low_battery",
+      "source": "device_sync",
+      "requiredFields": ["diagnosticCode", "deviceId", "batteryLevel", "firmwareVersion", "storeId"]
+    },
+    {
+      "id": "sync_write_failed",
+      "source": "device_sync",
+      "requiredFields": ["diagnosticCode", "failureReason", "rollbackStatus", "transport.events", "firmwareVersion", "previousStoreId"]
+    },
+    {
+      "id": "payment_no_entitlement",
+      "source": "payment",
+      "requiredFields": ["orderId", "providerPaymentId", "providerEventId", "deviceId", "storeId"]
+    },
+    {
+      "id": "refund_provider_mismatch",
+      "source": "refund",
+      "requiredFields": ["orderId", "providerEventId", "providerRefundId", "entitlementId", "settlementId"]
+    },
+    {
+      "id": "takedown_legacy_use",
+      "source": "trust",
+      "requiredFields": ["targetId", "storeStatus", "hardwarePack.status", "deviceInstall.status", "sourceCaseId"]
+    },
+    {
+      "id": "rights_claim_received",
+      "source": "rights_claim",
+      "requiredFields": ["claimId", "targetType", "targetId", "claimType", "sourceEvidence", "settlementStatus"]
+    },
+    {
+      "id": "appeal_received",
+      "source": "appeal",
+      "requiredFields": ["appealId", "sourceActionId", "targetId", "appellantUserId", "supplementalEvidence"]
+    },
+    {
+      "id": "operator_reason_missing",
+      "source": "operation_log",
+      "requiredFields": ["operationLogId", "operatorId", "targetType", "targetId", "missingReason"]
+    }
+  ],
+  "codeEvidence": [
+    "apps/backend/src/support-diagnostics.js",
+    "apps/backend/src/support-diagnostics.test.js",
+    "apps/backend/src/flash-http-server.js",
+    "apps/backend/src/alpha-route-coverage.js",
+    "packages/api-client/src/flash-api-contract.js",
+    "packages/api-client/src/http-flash-api.js",
+    "packages/api-client/src/http-flash-api.test.js",
+    "docs/support-diagnostics-readiness.md",
+    "docs/support-diagnostics-readiness.json",
+    "scripts/check-support-diagnostics-readiness.mjs"
+  ],
+  "closedBetaAcceptance": [
+    {
+      "id": "diagnostic_bundle_builder",
+      "status": "ready",
+      "evidence": ["apps/backend/src/support-diagnostics.js", "apps/backend/src/support-diagnostics.test.js"]
+    },
+    {
+      "id": "operator_endpoint",
+      "status": "ready",
+      "evidence": ["apps/backend/src/flash-http-server.js", "packages/api-client/src/http-flash-api.test.js"]
+    },
+    {
+      "id": "api_contract",
+      "status": "ready",
+      "evidence": ["packages/api-client/src/flash-api-contract.js", "apps/backend/src/alpha-route-coverage.js"]
+    },
+    {
+      "id": "real_staffing_assignment",
+      "status": "pending_external",
+      "needed": "Assign named Support, Commerce, Trust, Hardware, and Operator leads to own diagnostic bundle review during closed beta.",
+      "evidence": []
+    }
+  ]
+}

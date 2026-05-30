@@ -1,0 +1,221 @@
+{
+  "version": "2026.05.app-distribution-readiness",
+  "updatedAt": "2026-05-29",
+  "status": "draft_pending_native_release_channel",
+  "documents": [
+    {
+      "id": "app_distribution_plan",
+      "file": "docs/app-distribution-plan.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Channels",
+        "## Release Artifacts",
+        "## Store Review",
+        "## Rollout",
+        "## External Work"
+      ],
+      "requiredClauses": [
+        "iOS internal TestFlight",
+        "Android internal testing",
+        "BLE/device permission rationale",
+        "payment provider approval",
+        "support contact",
+        "release manager signoff"
+      ]
+    },
+    {
+      "id": "native_readme",
+      "file": "apps/native/README.md",
+      "requiredHeadings": [
+        "## Scope",
+        "## Release Channels",
+        "## Build Inputs",
+        "## Store Review Checklist",
+        "## External Work"
+      ],
+      "requiredClauses": [
+        "TestFlight",
+        "Android internal testing",
+        "packages/core",
+        "packages/api-client",
+        "GUGU_FLASH_CLIENT_TARGETS",
+        "support contact"
+      ]
+    }
+  ],
+  "codeControls": [
+    {
+      "id": "shared_client_targets",
+      "file": "packages/core/src/gugu-domain.js",
+      "requiredMarkers": [
+        "GUGU_FLASH_CLIENT_TARGETS",
+        "native",
+        "miniprogram",
+        "operator"
+      ]
+    },
+    {
+      "id": "api_contract_targets_native",
+      "file": "packages/api-client/src/flash-api-contract.js",
+      "requiredMarkers": [
+        "GUGU_FLASH_CLIENT_TARGETS",
+        "native",
+        "FLASH_API_ROUTES"
+      ]
+    },
+    {
+      "id": "native_distribution_readme",
+      "file": "apps/native/README.md",
+      "requiredMarkers": [
+        "iOS internal TestFlight",
+        "Android internal testing",
+        "Store review package",
+        "Paid content copy is disabled"
+      ]
+    },
+    {
+      "id": "app_release_packet_gate",
+      "file": "scripts/check-app-release-packet.mjs",
+      "requiredMarkers": [
+        "gugu_app_release_packet_v1",
+        "REQUIRED_CHANNELS",
+        "REQUIRED_EXTERNAL_BLOCKERS",
+        "pending_production_api"
+      ]
+    },
+    {
+      "id": "native_build_certification_gate",
+      "file": "scripts/check-native-build-certification.mjs",
+      "requiredMarkers": [
+        "gugu_native_build_certification_packet_v1",
+        "REQUIRED_TARGETS",
+        "permissionsAndPrivacy",
+        "native_build_certification_packet"
+      ]
+    },
+    {
+      "id": "native_store_assets_gate",
+      "file": "scripts/check-native-store-assets.mjs",
+      "requiredMarkers": [
+        "gugu_native_store_assets_packet_v1",
+        "REQUIRED_PRIVACY_LABELS",
+        "pending_final_native_capture",
+        "native_store_assets_packet"
+      ]
+    }
+  ],
+  "dataArtifacts": [
+    {
+      "id": "app_release_packet",
+      "file": "data/app-release-packet.json",
+      "requiredMarkers": [
+        "gugu_app_release_packet_v1",
+        "ios_testflight_internal",
+        "android_internal_testing",
+        "web_h5_fallback",
+        "free_only_until_payment_approval",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "native_build_certification_packet",
+      "file": "data/native-build-certification-packet.json",
+      "requiredMarkers": [
+        "gugu_native_build_certification_packet_v1",
+        "ios_testflight_internal",
+        "android_internal_testing",
+        "disabled_until_payment_provider_approval",
+        "pending_external"
+      ]
+    },
+    {
+      "id": "native_store_assets_packet",
+      "file": "data/native-store-assets-packet.json",
+      "requiredMarkers": [
+        "gugu_native_store_assets_packet_v1",
+        "pending_final_native_capture",
+        "device_sync_diagnostics",
+        "disabled_until_payment_provider_approval",
+        "pending_external"
+      ]
+    }
+  ],
+  "releaseScenarios": [
+    {
+      "id": "ios_testflight_internal",
+      "owner": "Native Lead",
+      "channel": "ios_testflight",
+      "expectedResult": "signed_build_available_to_internal_testers",
+      "requiredEvidence": ["build_number", "signing_identity", "tester_access", "smoke_record"]
+    },
+    {
+      "id": "android_internal_testing",
+      "owner": "Native Lead",
+      "channel": "android_internal_testing",
+      "expectedResult": "signed_build_available_to_internal_testers",
+      "requiredEvidence": ["version_code", "signing_key", "tester_access", "smoke_record"]
+    },
+    {
+      "id": "store_review_materials",
+      "owner": "Product Owner",
+      "channel": "app_store_and_google_play",
+      "expectedResult": "review_packet_ready",
+      "requiredEvidence": ["screenshots", "privacy_policy_url", "terms_url", "support_contact"]
+    },
+    {
+      "id": "permission_privacy_review",
+      "owner": "Legal",
+      "channel": "app_store_and_google_play",
+      "expectedResult": "privacy_labels_and_permissions_ready",
+      "requiredEvidence": ["ble_rationale", "push_rationale", "media_upload_rationale", "ugc_moderation_disclosure"]
+    },
+    {
+      "id": "native_smoke_critical_paths",
+      "owner": "QA Lead",
+      "channel": "native_internal",
+      "expectedResult": "critical_paths_pass",
+      "requiredEvidence": ["login_session", "feed", "store_claim", "device_dashboard", "sync_handoff"]
+    },
+    {
+      "id": "web_h5_fallback",
+      "owner": "Frontend Lead",
+      "channel": "web_h5",
+      "expectedResult": "fallback_available_while_store_review_pending",
+      "requiredEvidence": ["web_smoke", "deep_link_copy", "release_note"]
+    }
+  ],
+  "releaseCommands": [
+    "npm run check:app-distribution",
+    "npm run check:app-release-packet",
+    "npm run check:native-build-certification",
+    "npm run check:native-store-assets",
+    "node scripts/check-release-readiness.mjs --gate=public_mvp"
+  ],
+  "externalAcceptance": [
+    {
+      "id": "apple_developer_access",
+      "status": "pending_external",
+      "needed": "Confirm Apple Developer account, bundle id, signing certificate, and TestFlight access."
+    },
+    {
+      "id": "google_play_console_access",
+      "status": "pending_external",
+      "needed": "Confirm Google Play Console app, package name, signing setup, and internal testing access."
+    },
+    {
+      "id": "native_shell_build",
+      "status": "pending_external",
+      "needed": "Build signed native iOS and Android shells consuming the shared API and core packages."
+    },
+    {
+      "id": "store_review_packet",
+      "status": "pending_external",
+      "needed": "Alpha release packet manifest exists; real screenshots, icon, copy, privacy labels, permissions, terms, policy URLs, and support contact still need final store assets and approval."
+    },
+    {
+      "id": "release_manager_signoff",
+      "status": "pending_external",
+      "needed": "Release manager signs the rollout plan after QA, legal, support, and product checks."
+    }
+  ]
+}

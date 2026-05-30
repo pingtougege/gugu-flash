@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "gugu_launch_hardware_packs_v1",
+  "updatedAt": "2026-05-27",
+  "releaseChannel": "public_mvp_seed",
+  "targetDeviceProfileId": "circle_185",
+  "launchCriteria": {
+    "minimumAvailableHardwarePacks": 1,
+    "pricingTypes": ["official_free"],
+    "requiredStatus": "available",
+    "requiresOfflineUse": true
+  },
+  "hardwarePacks": [
+    {
+      "id": "hw_h5_rain_gugu",
+      "sourcePackId": "h5_rain_gugu",
+      "title": "雨天咕咕",
+      "pricingType": "official_free",
+      "status": "available",
+      "reviewStatus": "approved",
+      "compatibilityReport": {
+        "id": "compat_h5_rain_gugu_launch",
+        "hardwarePackId": "hw_h5_rain_gugu",
+        "workId": "work_h5_rain_gugu",
+        "workVersionId": "wv_h5_rain_gugu_1760000000000",
+        "sourceWorkVersionId": "wv_h5_rain_gugu_1760000000000",
+        "sourceSchemaVersion": "gugu_h5_pack_v1",
+        "targetProfileId": "circle_185",
+        "targetDeviceModels": ["Circle 185"],
+        "minFirmwareVersion": "1.2.0",
+        "formatVersion": "hw_pack_v1",
+        "status": "passed",
+        "statusLabel": "检测通过",
+        "compatibilityLevel": "compatible",
+        "compatibilityLevelLabel": "可直接制作",
+        "supportedCapabilities": ["scene_graph", "branching"],
+        "degradableCapabilities": [],
+        "unsupportedCapabilities": [],
+        "degradeActions": [],
+        "resourceBudget": {
+          "maxScenes": 30,
+          "maxNodes": 80,
+          "maxSizeKb": 512,
+          "maxImageCount": 24,
+          "maxAudioCount": 6,
+          "actual": {
+            "sceneCount": 4,
+            "actionCount": 6,
+            "nodeCount": 10,
+            "imageCount": 5,
+            "audioCount": 0,
+            "estimatedSizeKb": 184
+          }
+        },
+        "findings": ["可按当前内容结构直接制作设备包。"],
+        "canCreateHardwarePack": true,
+        "createdAt": 1760000000000,
+        "updatedAt": 1760000000000
+      },
+      "hardwarePack": {
+        "id": "hw_h5_rain_gugu",
+        "sourceWorkId": "work_h5_rain_gugu",
+        "sourceWorkVersionId": "wv_h5_rain_gugu_1760000000000",
+        "sourceSchemaVersion": "gugu_h5_pack_v1",
+        "storeListingId": "listing_h5_rain_gugu",
+        "version": "1.0.0",
+        "formatVersion": "hw_pack_v1",
+        "compatibilityReportId": "compat_h5_rain_gugu_launch",
+        "status": "available",
+        "targetDeviceModels": ["Circle 185"],
+        "minFirmwareVersion": "1.2.0",
+        "checksum": "sha256:65c1d939a61fb10a997c03e43d077f8bf95a9e408d5c584c4a4232723ab85f14",
+        "downloadUrl": "/packs/hw_h5_rain_gugu-1.0.0.json",
+        "resourceBudget": {
+          "maxScenes": 30,
+          "maxNodes": 80,
+          "maxSizeKb": 512,
+          "maxImageCount": 24,
+          "maxAudioCount": 6,
+          "actual": {
+            "sceneCount": 4,
+            "actionCount": 6,
+            "nodeCount": 10,
+            "imageCount": 5,
+            "audioCount": 0,
+            "estimatedSizeKb": 184
+          }
+        },
+        "packageSizeKb": 184,
+        "degradationRecords": [],
+        "reviewStatus": "approved",
+        "createdAt": 1760000000000,
+        "updatedAt": 1760000000000
+      },
+      "payload": {
+        "payloadVersion": "gugu_hardware_payload_v1",
+        "sourcePackId": "h5_rain_gugu",
+        "title": "雨天咕咕",
+        "personaId": "rain_gugu",
+        "personaName": "雨天咕咕",
+        "hardwarePackId": "hw_h5_rain_gugu",
+        "hardwarePackVersion": "1.0.0",
+        "entrySceneId": "start",
+        "sceneCount": 4,
+        "actionCount": 6,
+        "renderMode": "static_scene_graph",
+        "offlineUseAllowed": true,
+        "generatedAt": 1760000000000,
+        "scenes": [
+          {
+            "id": "start",
+            "speaker": "雨天咕咕",
+            "text": "今天的雨很轻，像有人在玻璃外面偷偷练习温柔。",
+            "character": "☔",
+            "actionCount": 2,
+            "actions": [
+              { "label": "摸摸头", "goto": "touch" },
+              { "label": "一起听雨", "goto": "listen" }
+            ]
+          },
+          {
+            "id": "touch",
+            "speaker": "雨天咕咕",
+            "text": "收到摸摸。电量好像多了 3%，但开心多了 300%。",
+            "character": "✨",
+            "actionCount": 2,
+            "actions": [
+              { "label": "再看一个结局", "goto": "listen" },
+              { "label": "结束", "goto": "end" }
+            ]
+          },
+          {
+            "id": "listen",
+            "speaker": "雨天咕咕",
+            "text": "如果今天很累，就把没说完的话先放在雨里。我会帮你保管。",
+            "character": "🌧",
+            "actionCount": 1,
+            "actions": [
+              { "label": "收藏这句话", "goto": "end" }
+            ]
+          },
+          {
+            "id": "end",
+            "speaker": "雨天咕咕",
+            "text": "下次下雨，也来找我。",
+            "character": "💙",
+            "actionCount": 1,
+            "actions": [
+              { "label": "重新播放", "goto": "start" }
+            ]
+          }
+        ]
+      },
+      "smokeCases": [
+        "launch_pack_schema_valid",
+        "circle185_compatibility_passed",
+        "checksum_matches_payload",
+        "offline_use_allowed",
+        "support_copy_ready"
+      ]
+    }
+  ],
+  "fallbackH5Packs": [
+    {
+      "id": "h5_midnight_train",
+      "title": "零点列车",
+      "contentOrigin": "original",
+      "storeStatus": "not_applied",
+      "hardwareStatus": "h5_only",
+      "use": "web_h5_fallback"
+    },
+    {
+      "id": "h5_soda_planet",
+      "title": "汽水星球",
+      "contentOrigin": "fanwork",
+      "storeStatus": "rights_review",
+      "hardwareStatus": "h5_only",
+      "use": "web_h5_after_rights_review"
+    }
+  ],
+  "supportHandoff": {
+    "launchPackCount": 1,
+    "supportMacroRefs": ["device_sync_failed", "payment_success_without_entitlement"],
+    "rollbackPolicy": "Installed launch packs remain usable offline after delist unless legal or device-safety removal is required."
+  }
+}
