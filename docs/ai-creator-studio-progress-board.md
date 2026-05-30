@@ -59,6 +59,9 @@ Allowed statuses:
 | API Platform Round 8 | Descartes | Scene background and character portrait asset filters | verified | Base visual asset contract |
 | Frontend Experience Round 8 | Meitner | Creator Studio background and portrait generation UI | verified | Base visual production panel |
 | QA And Release Round 8 | Einstein | Base visual asset risk review | verified | Read-only risk checklist |
+| API Platform Round 9 | Peirce / Codex | Independent asset and render job index | verified | JSON asset repository + HTTP indexed routes |
+| Frontend Experience Round 9 | Confucius | Base visual restore regression | verified | Restore e2e for background and portrait bindings |
+| QA And Release Round 9 | Herschel | Asset index migration risk review | verified | Read-only risk checklist |
 
 ## 3. Phase 0 Board
 
@@ -110,7 +113,7 @@ Next 24h:
 
 Date: 2026-05-31
 
-Overall status: `verified_round_8`
+Overall status: `verified_round_9`
 
 Verified since last update:
 
@@ -136,6 +139,10 @@ Verified since last update:
 - StoryProject scenes persist `backgroundAssetId`, `backgroundImageUrl`, and `backgroundVisualPrompt`; characters persist `portraitAssetId`, `portraitImageUrl`, and `portraitVisualPrompt`.
 - Mock and HTTP asset listing now support `usage`, `sceneId`, `characterId`, and `panelId` filters for project-scoped visual assets.
 - Real Seedream image success preserves character metadata and sanitized asset IDs; timeout, network, and non-JSON provider failures fall back safely.
+- HTTP asset routes now persist indexed `Asset` records instead of alpha stubs while still mirroring bindings into StoryProject for current Creator Studio compatibility.
+- HTTP image generation now registers an indexed asset and linked render job, then mirrors both back to the project asset library/render queue.
+- The production schema and persistence contract now include `render_jobs` plus StoryProject/usage/render-job indexes for visual production lookup.
+- Creator Studio e2e now verifies that restoring a base visual version keeps the scene background, character portrait, and base asset library bindings intact.
 
 Tests run:
 
@@ -151,9 +158,12 @@ node --check apps/backend/src/ai-image-generator.js
 node --check apps/backend/src/flash-http-server.js
 node --check packages/api-client/src/mock-flash-api.js
 node --test apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/http-flash-api.test.js apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/alpha-route-coverage.test.js packages/api-client/src/flash-api-contract.test.js
+node --test apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/json-flash-store.test.js apps/backend/src/persistence-contract.test.js packages/api-client/src/http-flash-api.test.js
+node --test packages/api-client/src/mock-flash-api.test.js apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/flash-api-contract.test.js apps/backend/src/alpha-route-coverage.test.js
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio switches back|creator studio scene inspector|creator studio opens|mobile guide defaults"
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "mobile guide defaults|creator studio generates scene background|creator studio comic panel"
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "basic visual"
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js
 browser smoke: example prompt -> draft -> Creator Studio -> select panel -> save snapshot -> bind PNG visual -> verify asset library and render queue
 browser smoke in real API mode: draft -> Creator Studio -> generate scene background -> generate character portrait -> verify bound image previews and base visual library
@@ -161,10 +171,59 @@ browser smoke in real API mode: draft -> Creator Studio -> generate scene backgr
 
 Next 24h:
 
-- Build the production asset table and asynchronous render worker behind the current alpha stubs.
+- Wire the asynchronous render worker execution loop behind the indexed render job records.
+- Add Creator Studio hydration from independent asset/render-job indexes instead of relying on StoryProject mirror fields.
 - Add production storage/auth hardening for StoryProject and StoryProjectVersion.
-- Add deeper version restore e2e coverage for base visual asset bindings.
+- Add true mobile viewport regression coverage for the simple guided flow.
 - Add version diff UI and restore audit filters.
+
+### 2026-05-31 Agent Execution Round 9 Started
+
+Goal:
+
+- Move visual production from StoryProject-only embedded records toward an independent asset and render job index.
+- Keep existing Creator Studio compatibility by mirroring indexed assets/jobs back into the project during the migration.
+- Add restore regression coverage so base visual bindings survive version rollback.
+- Keep mobile creation simple while professional web gains deeper production infrastructure.
+
+Assignments:
+
+- Peirce owns backend/API persistence shape for indexed assets and render jobs.
+- Confucius owns base visual restore e2e coverage.
+- Herschel owns read-only migration risk review.
+- Codex owns integration, route compatibility, final verification, progress reporting, commit, and push.
+
+### 2026-05-31 Agent Execution Round 9 Completed
+
+Completed by Codex and assigned agents:
+
+- Added an `assets` JSON repository and production schema/index contract for project-scoped visual assets plus `render_jobs`.
+- Converted real HTTP `/flash/assets` create/get/list/source/update/review routes from alpha stubs into persistent indexed records with security reports.
+- Made real HTTP `/flash/ai/generate-image` register the generated image as an indexed `Asset`, create or update a linked render job, and mirror both into the current StoryProject for existing Studio UI compatibility.
+- Indexed embedded StoryProject `assets` and `renderJobs` on create/update/version/restore/publish/apply paths so older project snapshots remain queryable during the migration.
+- Added e2e coverage proving scene background and character portrait bindings remain visible after restoring a “基础视觉素材” version.
+- QA identified the remaining risk that the frontend still hydrates mostly from StoryProject mirror fields; that becomes the next implementation target.
+
+Verification:
+
+```text
+node --check apps/backend/src/flash-http-server.js
+node --check apps/backend/src/json-flash-store.js
+node --test apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/json-flash-store.test.js apps/backend/src/persistence-contract.test.js packages/api-client/src/http-flash-api.test.js
+node --test packages/api-client/src/mock-flash-api.test.js apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/flash-api-contract.test.js apps/backend/src/alpha-route-coverage.test.js
+npm run test:unit
+npm run check:backend-persistence
+npm run check:content
+npm run check:ai-creation-maturity
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "basic visual"
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js
+git diff --check
+```
+
+Remaining risk:
+
+- Render jobs are now indexed and traceable, but not yet consumed by an asynchronous worker loop.
+- Creator Studio still uses StoryProject mirror fields for most asset/render queue display; independent index hydration should replace that next.
 
 ### 2026-05-31 Agent Execution Round 8 Started
 

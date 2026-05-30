@@ -174,7 +174,7 @@ test("HTTP backend alpha sends security headers and rejects oversized JSON bodie
 });
 
 test("HTTP backend alpha enforces asset upload security policy", async () => {
-  await withHttpApi("gugu-flash-api-http-asset-security-", async (api, baseUrl) => {
+  await withHttpApi("gugu-flash-api-http-asset-security-", async (api, baseUrl, { statePath }) => {
     const safeAsset = await api.createAsset({
       filename: "cover.png",
       mediaType: "image/png",
@@ -206,15 +206,30 @@ test("HTTP backend alpha enforces asset upload security policy", async () => {
         note: "微信交易 vx123",
       }),
     }).then((response) => response.json());
+    const updatedStatement = await api.updateAssetSourceStatement(safeAsset.item.id, {
+      sourceType: "original",
+      creatorName: "Creator",
+      rightsAcknowledged: true,
+      note: "owned source file",
+    });
+    const fetched = await api.getAsset(safeAsset.item.id);
+    const listed = await api.listAssets({ status: safeAsset.item.status });
     const review = await api.submitAssetReview(safeAsset.item.id);
+    const state = JSON.parse(await readFile(statePath, "utf8"));
 
     assert.equal(safeAsset.item.securityPolicyVersion, "gugu_flash_asset_security_v1");
     assert.equal(safeAsset.item.securityReport.status, "passed");
+    assert.equal(fetched.item.id, safeAsset.item.id);
+    assert.ok(listed.items.some((item) => item.id === safeAsset.item.id));
+    assert.equal(updatedStatement.item.sourceStatement.sourceType, "original");
+    assert.equal(updatedStatement.item.sourceStatementStatus, "accepted");
     assert.equal(invalidAsset.code, 400);
     assert.equal(invalidAsset.message, "asset_security_violation");
     assert.equal(badSourceStatement.code, 400);
     assert.equal(badSourceStatement.message, "asset_source_statement_invalid");
+    assert.equal(review.item.status, "open");
     assert.ok(review.item.requiredChecks.includes("malware_scan"));
+    assert.ok(state.assets.some((item) => item.id === safeAsset.item.id));
   });
 });
 

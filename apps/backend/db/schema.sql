@@ -106,13 +106,48 @@ CREATE TABLE work_drafts (
 CREATE TABLE assets (
   id TEXT PRIMARY KEY,
   uploader_user_id TEXT NOT NULL REFERENCES users(id),
+  story_project_id TEXT,
+  story_project_version_id TEXT,
+  render_job_id TEXT,
+  panel_id TEXT,
+  scene_id TEXT,
+  character_id TEXT,
   kind TEXT NOT NULL,
   usage TEXT NOT NULL,
+  filename TEXT,
+  media_type TEXT,
+  source_url TEXT,
+  image_url TEXT,
   source_statement_json TEXT NOT NULL DEFAULT '{}',
+  security_policy_version TEXT,
+  security_report_json TEXT NOT NULL DEFAULT '{}',
   status TEXT NOT NULL DEFAULT 'uploaded',
   storage_key TEXT,
   checksum TEXT,
   metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE render_jobs (
+  id TEXT PRIMARY KEY,
+  story_project_id TEXT,
+  story_project_version_id TEXT,
+  asset_id TEXT REFERENCES assets(id),
+  stage TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'queued',
+  provider TEXT,
+  model TEXT,
+  prompt TEXT,
+  request_json TEXT NOT NULL DEFAULT '{}',
+  result_json TEXT NOT NULL DEFAULT '{}',
+  errors_json TEXT NOT NULL DEFAULT '[]',
+  input_snapshot_id TEXT,
+  output_snapshot_id TEXT,
+  queued_at INTEGER,
+  started_at INTEGER,
+  completed_at INTEGER,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -399,6 +434,10 @@ CREATE INDEX idx_works_status_created_at ON works(status, created_at);
 CREATE INDEX idx_work_versions_work_id ON work_versions(work_id);
 CREATE INDEX idx_zone_applications_status ON zone_applications(status);
 CREATE INDEX idx_assets_status ON assets(status);
+CREATE INDEX idx_assets_story_project_usage ON assets(story_project_id, usage, updated_at);
+CREATE INDEX idx_assets_render_job_id ON assets(render_job_id);
+CREATE INDEX idx_render_jobs_story_project_status ON render_jobs(story_project_id, status, updated_at);
+CREATE INDEX idx_render_jobs_asset_id ON render_jobs(asset_id);
 CREATE INDEX idx_uploads_status ON uploads(status);
 CREATE INDEX idx_comments_work_id ON comments(work_id);
 CREATE INDEX idx_block_relations_blocker_user_id ON block_relations(blocker_user_id);

@@ -262,8 +262,21 @@ test("StoryProject HTTP slice filters base visual assets by usage scene and char
         storyProjectId: project.id,
         sceneId: "start",
         panelId: "panel_start",
+        renderJobId: "ai_job_panel_visual_start",
         imageUrl: "https://cdn.example.test/panel/start.png",
         sourceStatement: { sourceType: "ai_generated", rightsAcknowledged: true },
+      },
+    ];
+    project.renderJobs = [
+      {
+        id: "ai_job_panel_visual_start",
+        storyProjectId: project.id,
+        stage: "comic_panel_visual_render",
+        kind: "comic_panel_visual",
+        status: "succeeded",
+        panelId: "panel_start",
+        sceneId: "start",
+        assetId: "asset_panel_visual_start",
       },
     ];
     await api.updateStoryProject(project.id, project);
@@ -281,11 +294,94 @@ test("StoryProject HTTP slice filters base visual assets by usage scene and char
       storyProjectId: project.id,
       panelId: "panel_start",
     });
+    const indexedAsset = await api.createAsset({
+      storyProjectId: project.id,
+      kind: "image",
+      usage: "scene_background",
+      sceneId: "inspect",
+      filename: "indexed-background.png",
+      mediaType: "image/png",
+      sizeBytes: 1024,
+      imageUrl: "https://cdn.example.test/background/indexed.png",
+      sourceStatement: {
+        sourceType: "ai_generated",
+        provider: "seedream",
+        model: "seedream",
+        prompt: "indexed scene background",
+        rightsAcknowledged: true,
+      },
+    });
+    const fetchedIndexedAsset = await api.getAsset(indexedAsset.item.id);
+    const indexedSceneAssets = await api.listStoryProjectAssets(project.id, {
+      usage: "scene_background",
+      sceneId: "inspect",
+    });
+    const refetchedProject = await api.getStoryProject(project.id);
+    const embeddedJob = await api.getAiGenerationJob("ai_job_panel_visual_start");
 
     assert.deepEqual(sceneBackgrounds.items.map((item) => item.id), ["asset_scene_background_start"]);
     assert.deepEqual(portraits.items.map((item) => item.id), ["asset_character_portrait_detective"]);
     assert.deepEqual(panelAssets.items.map((item) => item.id), ["asset_panel_visual_start"]);
+    assert.equal(embeddedJob.item.result.assetId, "asset_panel_visual_start");
+    assert.equal(embeddedJob.item.stage, "comic_panel_visual_render");
+    assert.match(indexedAsset.item.id, /^asset_/);
+    assert.equal(indexedAsset.item.storyProjectId, project.id);
+    assert.equal(indexedAsset.item.securityReport.status, "passed");
+    assert.equal(fetchedIndexedAsset.item.id, indexedAsset.item.id);
+    assert.deepEqual(indexedSceneAssets.items.map((item) => item.id), [indexedAsset.item.id]);
+    assert.ok(refetchedProject.item.assets.some((item) => item.id === indexedAsset.item.id));
   });
+});
+
+test("StoryProject HTTP image generation registers an indexed asset and render job", async () => {
+  const previousDisabled = process.env.GUGU_FLASH_IMAGE_AI_DISABLED;
+  process.env.GUGU_FLASH_IMAGE_AI_DISABLED = "1";
+  try {
+    await withStoryProjectBackend(async (api) => {
+      const created = await api.createStoryProject(makeStoryProject({
+        id: "story_project_image_index",
+      }));
+      const generated = await api.generateAiImage({
+        id: "asset_http_background_seed",
+        storyProjectId: created.item.id,
+        sceneId: "start",
+        usage: "scene_background",
+        prompt: "indexed rainy storefront background",
+        renderJobId: "ai_job_http_background_seed",
+        filename: "http-background.png",
+      });
+      const fetchedAsset = await api.getAsset(generated.item.id);
+      const fetchedJob = await api.getAiGenerationJob("ai_job_http_background_seed");
+      const listedAssets = await api.listAssets({
+        storyProjectId: created.item.id,
+        usage: "scene_background",
+        sceneId: "start",
+      });
+      const projectAssets = await api.listStoryProjectAssets(created.item.id, {
+        renderJobId: "ai_job_http_background_seed",
+      });
+      const refetchedProject = await api.getStoryProject(created.item.id);
+
+      assert.equal(generated.item.id, "asset_http_background_seed");
+      assert.equal(generated.item.storyProjectId, created.item.id);
+      assert.equal(generated.item.sceneId, "start");
+      assert.equal(generated.item.renderJobId, "ai_job_http_background_seed");
+      assert.equal(generated.renderJob.id, "ai_job_http_background_seed");
+      assert.equal(generated.renderJob.stage, "scene_background_render");
+      assert.equal(generated.renderJob.status, "succeeded");
+      assert.equal(generated.renderJob.result.assetId, generated.item.id);
+      assert.equal(fetchedAsset.item.id, generated.item.id);
+      assert.equal(fetchedAsset.item.sourceStatement.sourceType, "ai_generated");
+      assert.equal(fetchedJob.item.result.assetId, generated.item.id);
+      assert.ok(listedAssets.items.some((item) => item.id === generated.item.id));
+      assert.deepEqual(projectAssets.items.map((item) => item.id), [generated.item.id]);
+      assert.ok(refetchedProject.item.assets.some((item) => item.id === generated.item.id));
+      assert.ok(refetchedProject.item.renderJobs.some((item) => item.id === "ai_job_http_background_seed"));
+    });
+  } finally {
+    if (previousDisabled === undefined) delete process.env.GUGU_FLASH_IMAGE_AI_DISABLED;
+    else process.env.GUGU_FLASH_IMAGE_AI_DISABLED = previousDisabled;
+  }
 });
 
 test("StoryProject HTTP slice publishes a playable project as a public H5 Work", async () => {

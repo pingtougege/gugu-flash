@@ -23,7 +23,7 @@ test("Backend Alpha route coverage stays aligned with the shared API contract", 
 });
 
 test("Backend Alpha keeps stubbed production routes explicit", () => {
-  assert.ok(BACKEND_ALPHA_STUB_ROUTE_IDS.has("assets.create"));
+  assert.equal(BACKEND_ALPHA_STUB_ROUTE_IDS.has("assets.create"), false);
   assert.ok(BACKEND_ALPHA_STUB_ROUTE_IDS.has("drafts.validate"));
   assert.ok(BACKEND_ALPHA_STUB_ROUTE_IDS.has("storyProjects.compileH5"));
   assert.ok(BACKEND_ALPHA_STUB_ROUTE_IDS.has("ai.storyProjectJobs.create"));

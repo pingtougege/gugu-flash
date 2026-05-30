@@ -169,10 +169,22 @@ test("JSON flash store exposes StoryProject repositories", async () => {
       createdAt: 1760000000200,
       updatedAt: 1760000000200,
     };
+    const asset = {
+      id: "asset_repo_scene_background",
+      storyProjectId: project.id,
+      renderJobId: job.id,
+      kind: "image",
+      usage: "scene_background",
+      sceneId: "start",
+      status: "ready",
+      createdAt: 1760000000300,
+      updatedAt: 1760000000300,
+    };
 
     await store.storyProjects.save(project);
     await store.storyProjectVersions.save(version);
     await store.aiGenerationJobs.save(job);
+    await store.assets.save(asset);
 
     const second = createJsonFlashStore({ dataPath, statePath, seedPath });
     assert.deepEqual(await second.storyProjects.get(project.id), project);
@@ -180,6 +192,9 @@ test("JSON flash store exposes StoryProject repositories", async () => {
     assert.deepEqual(await second.storyProjectVersions.listForProject(project.id), [version]);
     assert.deepEqual(await second.aiGenerationJobs.get(job.id), job);
     assert.deepEqual(await second.aiGenerationJobs.listForProject(project.id), [job]);
+    assert.deepEqual(await second.assets.get(asset.id), asset);
+    assert.deepEqual(await second.assets.listForProject(project.id, { usage: "scene_background" }), [asset]);
+    assert.deepEqual(await second.assets.list({ renderJobId: job.id }), [asset]);
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

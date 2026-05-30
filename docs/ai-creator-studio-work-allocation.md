@@ -754,3 +754,51 @@ Status:
 Round 8 closes the first usable visual pre-production loop: professional web users can now create reusable scene backgrounds and character portraits before rendering individual comic panels.
 Next implementation slice should move visual assets from alpha StoryProject-embedded storage into a production asset table with an asynchronous render worker and restore-focused e2e coverage.
 ```
+
+### 2026-05-31 Phase 1 Indexed Asset And Render Job Infrastructure Start
+
+Started by Codex and assigned agents:
+
+- Peirce: move HTTP visual assets from alpha stubs toward an indexed asset/render job persistence model without breaking existing Creator Studio project mirrors.
+- Confucius: add restore regression coverage for scene backgrounds, character portraits, and base asset library bindings.
+- Herschel: review migration risks around StoryProject-embedded assets, independent indexes, render job state, and mobile default hiding.
+- Codex: integrate backend/API changes, preserve compatibility, update docs, verify, commit, and push.
+
+Acceptance target:
+
+```text
+HTTP mode can persist visual Assets independently, link generated images to render jobs, list/filter assets by project and production target, preserve current Studio bindings through StoryProject mirrors, and verify base visual bindings after version restore.
+```
+
+### 2026-05-31 Phase 1 Indexed Asset And Render Job Infrastructure Complete
+
+Completed by Codex and assigned agents:
+
+- Added the JSON `assets` repository and production schema support for `render_jobs` plus project/usage/render-job indexes.
+- Converted HTTP asset create/get/list/source/update/review routes from alpha stubs into persistent indexed records with security reports and source statements.
+- Made HTTP image generation register a persistent `Asset`, create or update a linked render job, and mirror both records into StoryProject for current Creator Studio compatibility.
+- Indexed embedded StoryProject assets/render jobs during create, update, version, restore, publish, and AI-apply paths so existing snapshots remain queryable.
+- Added e2e coverage that restores a “基础视觉素材” version and confirms background preview, character portrait, and asset library entries remain intact.
+
+Verification:
+
+```text
+node --check apps/backend/src/flash-http-server.js
+node --check apps/backend/src/json-flash-store.js
+node --test apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/json-flash-store.test.js apps/backend/src/persistence-contract.test.js packages/api-client/src/http-flash-api.test.js
+node --test packages/api-client/src/mock-flash-api.test.js apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/flash-api-contract.test.js apps/backend/src/alpha-route-coverage.test.js
+npm run test:unit
+npm run check:backend-persistence
+npm run check:content
+npm run check:ai-creation-maturity
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "basic visual"
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js
+git diff --check
+```
+
+Status:
+
+```text
+Round 9 removes the biggest HTTP/mock gap for visual production: assets and render jobs now have a real backend index while the existing Studio UI keeps working through mirrored StoryProject fields.
+Next implementation slice should make Creator Studio hydrate directly from independent indexes and then run render jobs through a background worker loop.
+```

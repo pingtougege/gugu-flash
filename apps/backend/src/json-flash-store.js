@@ -273,6 +273,23 @@ export function createJsonFlashStore({ dataPath, statePath, seedPath }) {
       return this.list({ storyProjectId });
     },
   };
+  const assets = {
+    ...createArrayRepository("assets", {
+      filter: (item, query = {}) => (
+        (!query.storyProjectId || item.storyProjectId === query.storyProjectId || item.projectId === query.storyProjectId) &&
+        (!query.usage || item.usage === query.usage) &&
+        (!query.kind || item.kind === query.kind) &&
+        (!query.status || item.status === query.status) &&
+        (!query.panelId || item.panelId === query.panelId) &&
+        (!query.sceneId || item.sceneId === query.sceneId) &&
+        (!query.characterId || item.characterId === query.characterId) &&
+        (!query.renderJobId || item.renderJobId === query.renderJobId)
+      ),
+    }),
+    listForProject(storyProjectId, query = {}) {
+      return this.list({ ...query, storyProjectId });
+    },
+  };
 
   return {
     async loadPacks() {
@@ -310,5 +327,6 @@ export function createJsonFlashStore({ dataPath, statePath, seedPath }) {
     storyProjects,
     storyProjectVersions,
     aiGenerationJobs,
+    assets,
   };
 }

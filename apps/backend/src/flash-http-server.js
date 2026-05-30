@@ -129,6 +129,7 @@ function assetFiltersFromSearch(searchParams = new URLSearchParams()) {
     panelId: searchParams.get("panelId") || null,
     sceneId: searchParams.get("sceneId") || null,
     characterId: searchParams.get("characterId") || null,
+    renderJobId: searchParams.get("renderJobId") || searchParams.get("jobId") || null,
   };
 }
 
@@ -140,7 +141,8 @@ function filterAssets(assets = [], filters = {}) {
     .filter((asset) => !filters.status || asset.status === filters.status)
     .filter((asset) => !filters.panelId || asset.panelId === filters.panelId)
     .filter((asset) => !filters.sceneId || asset.sceneId === filters.sceneId)
-    .filter((asset) => !filters.characterId || asset.characterId === filters.characterId);
+    .filter((asset) => !filters.characterId || asset.characterId === filters.characterId)
+    .filter((asset) => !filters.renderJobId || asset.renderJobId === filters.renderJobId || asset.createdByJobId === filters.renderJobId);
 }
 
 function normalizeHeaderValue(value) {
@@ -318,6 +320,219 @@ function alphaStub(id, fields = {}) {
 
 function prefixedId(prefix) {
   return `${prefix}_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+}
+
+function safeAssetIdFromPayload(asset = {}) {
+  const raw = String(asset.id || asset.assetId || "").trim();
+  const safe = raw
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .replace(/_+/g, "_")
+    .slice(0, 96);
+  if (safe.startsWith("asset_") && safe.length > "asset_".length) return safe;
+  if (safe) return `asset_${safe}`;
+  return prefixedId("asset");
+}
+
+function assetKindFromMediaType(mediaType = "") {
+  if (mediaType.startsWith("image/")) return "image";
+  if (mediaType.startsWith("audio/")) return "audio";
+  if (mediaType === "application/json") return "json";
+  return "image";
+}
+
+function mediaTypeForAsset(asset = {}, kind = "image") {
+  if (asset.mediaType || asset.contentType) return String(asset.mediaType || asset.contentType);
+  if (kind === "audio") return "audio/mpeg";
+  if (kind === "json") return "application/json";
+  return "image/png";
+}
+
+function extensionForMediaType(mediaType = "image/png") {
+  if (mediaType === "image/jpeg") return "jpg";
+  if (mediaType === "image/webp") return "webp";
+  if (mediaType === "image/gif") return "gif";
+  if (mediaType === "audio/mpeg") return "mp3";
+  if (mediaType === "audio/wav") return "wav";
+  if (mediaType === "audio/ogg") return "ogg";
+  if (mediaType === "application/json") return "json";
+  return "png";
+}
+
+function renderStageForAssetUsage(usage = "") {
+  if (usage === "scene_background") return "scene_background_render";
+  if (usage === "character_portrait") return "character_portrait_render";
+  if (usage === "comic_panel_visual") return "comic_panel_visual_render";
+  return `${String(usage || "project_asset").replace(/[^a-zA-Z0-9_]+/g, "_")}_render`;
+}
+
+function fallbackAssetSourceStatement(asset = {}, { uploaderUserId = "user_local", prompt = "" } = {}) {
+  if (asset.sourceStatement && typeof asset.sourceStatement === "object") {
+    return structuredClone(asset.sourceStatement);
+  }
+  if (asset.provider || prompt || asset.usage === "scene_background" || asset.usage === "character_portrait" || asset.usage === "comic_panel_visual") {
+    return {
+      sourceType: "ai_generated",
+      provider: asset.provider || "unknown",
+      model: asset.model || asset.provider || "unknown",
+      prompt,
+      rightsAcknowledged: true,
+      policyVersion: ASSET_SECURITY_POLICY_VERSION,
+      generatedAt: asset.generatedAt || Date.now(),
+    };
+  }
+  return {
+    sourceType: asset.source === "original" ? "original" : "platform_seed",
+    creatorUserId: uploaderUserId,
+    rightsAcknowledged: true,
+    policyVersion: ASSET_SECURITY_POLICY_VERSION,
+  };
+}
+
+function uncheckedAssetSecurityReport(asset = {}) {
+  return {
+    policyVersion: ASSET_SECURITY_POLICY_VERSION,
+    status: "unchecked",
+    mediaType: asset.mediaType || asset.contentType || null,
+    mediaKind: asset.kind || null,
+    sizeBytes: Number(asset.sizeBytes ?? asset.byteLength ?? asset.fileSizeBytes ?? 0),
+    storageIsolation: "indexed_from_story_project",
+    malwareScan: "pending_if_public_delivery",
+    sourceStatementRequired: true,
+    errors: [],
+  };
+}
+
+function normalizeAssetForPersistence(asset = {}, {
+  existing = null,
+  session = null,
+  timestamp = Date.now(),
+  securityReport = null,
+} = {}) {
+  const source = structuredClone(asset || {});
+  const id = safeAssetIdFromPayload(source);
+  const rawMediaType = source.mediaType || source.contentType || existing?.mediaType || "";
+  const kindCandidate = String(source.kind || existing?.kind || "").toLowerCase();
+  const kind = ["image", "audio", "json"].includes(kindCandidate) ? kindCandidate : assetKindFromMediaType(rawMediaType);
+  const mediaType = mediaTypeForAsset(source, kind);
+  const uploaderUserId = source.uploaderUserId || source.authorUserId || existing?.uploaderUserId || session?.userId || "user_local";
+  const prompt = source.prompt || source.visualPrompt || existing?.prompt || "";
+  const filename = source.filename || source.name || existing?.filename || `${id}.${extensionForMediaType(mediaType)}`;
+  const sizeBytes = Number(source.sizeBytes ?? source.byteLength ?? source.fileSizeBytes ?? existing?.sizeBytes ?? 1);
+  const normalized = {
+    ...structuredClone(existing || {}),
+    ...source,
+    id,
+    assetId: source.assetId || existing?.assetId || id,
+    targetType: "Asset",
+    kind,
+    usage: source.usage || source.purpose || existing?.usage || (kind === "image" ? "project_visual_asset" : "project_asset"),
+    status: source.status || existing?.status || "uploaded",
+    uploaderUserId,
+    storyProjectId: source.storyProjectId || source.projectId || existing?.storyProjectId || null,
+    storyProjectVersionId: source.storyProjectVersionId || source.projectVersionId || existing?.storyProjectVersionId || null,
+    panelId: source.panelId || existing?.panelId || null,
+    sceneId: source.sceneId || existing?.sceneId || null,
+    characterId: source.characterId || existing?.characterId || null,
+    characterName: source.characterName || existing?.characterName || null,
+    renderJobId: source.renderJobId || source.jobId || existing?.renderJobId || null,
+    createdByJobId: source.createdByJobId || source.renderJobId || source.jobId || existing?.createdByJobId || null,
+    provider: source.provider || existing?.provider || null,
+    model: source.model || existing?.model || null,
+    prompt,
+    visualPrompt: source.visualPrompt || existing?.visualPrompt || prompt,
+    filename,
+    mediaType,
+    sizeBytes,
+    imageUrl: source.imageUrl || source.previewUrl || source.assetUrl || existing?.imageUrl || null,
+    sourceUrl: source.sourceUrl || existing?.sourceUrl || null,
+    sourceStatement: fallbackAssetSourceStatement(source, { uploaderUserId, prompt }),
+    sourceStatementStatus: source.sourceStatementStatus || existing?.sourceStatementStatus || "accepted",
+    securityPolicyVersion: source.securityPolicyVersion || existing?.securityPolicyVersion || ASSET_SECURITY_POLICY_VERSION,
+    createdAt: existing?.createdAt || source.createdAt || timestamp,
+    updatedAt: timestamp,
+  };
+  normalized.securityReport = securityReport || source.securityReport || existing?.securityReport || uncheckedAssetSecurityReport(normalized);
+  return normalized;
+}
+
+function mergeAssetRecords(...assetGroups) {
+  const byId = new Map();
+  for (const group of assetGroups) {
+    for (const asset of Array.isArray(group) ? group : []) {
+      const id = asset?.id || asset?.assetId;
+      if (!id || byId.has(id)) continue;
+      byId.set(id, structuredClone(asset));
+    }
+  }
+  return Array.from(byId.values());
+}
+
+function storyProjectRenderJobs(project = {}) {
+  return [
+    ...(Array.isArray(project.renderJobs) ? project.renderJobs : []),
+    ...(Array.isArray(project.aiJobs) ? project.aiJobs : []),
+    ...(Array.isArray(project.aiGenerationJobs) ? project.aiGenerationJobs : []),
+  ].filter((job) => job?.id);
+}
+
+function normalizeIndexedRenderJob(job = {}, {
+  project = null,
+  existing = null,
+  asset = null,
+  timestamp = Date.now(),
+} = {}) {
+  const stage = job.stage || existing?.stage || renderStageForAssetUsage(asset?.usage || job.kind);
+  const request = {
+    ...(structuredClone(existing?.request || {})),
+    ...(structuredClone(job.request || {})),
+    assetId: asset?.id || job.assetId || existing?.request?.assetId || null,
+    panelId: job.panelId || asset?.panelId || existing?.request?.panelId || null,
+    sceneId: job.sceneId || asset?.sceneId || existing?.request?.sceneId || null,
+    characterId: job.characterId || asset?.characterId || existing?.request?.characterId || null,
+    characterName: job.characterName || asset?.characterName || existing?.request?.characterName || null,
+  };
+  const result = {
+    ...(structuredClone(existing?.result || {})),
+    ...(structuredClone(job.result || {})),
+    assetId: asset?.id || job.assetId || job.result?.assetId || existing?.result?.assetId || null,
+    assetIds: Array.from(new Set([
+      ...(existing?.result?.assetIds || []),
+      ...(job.result?.assetIds || []),
+      ...(asset?.id ? [asset.id] : []),
+    ])),
+    panelId: job.panelId || asset?.panelId || job.result?.panelId || existing?.result?.panelId || null,
+    sceneId: job.sceneId || asset?.sceneId || job.result?.sceneId || existing?.result?.sceneId || null,
+    characterId: job.characterId || asset?.characterId || job.result?.characterId || existing?.result?.characterId || null,
+    characterName: job.characterName || asset?.characterName || job.result?.characterName || existing?.result?.characterName || null,
+    provider: job.provider || asset?.provider || job.result?.provider || existing?.result?.provider || null,
+    imageUrl: asset?.imageUrl || job.result?.imageUrl || existing?.result?.imageUrl || null,
+  };
+  return {
+    ...structuredClone(existing || {}),
+    ...structuredClone(job),
+    id: job.id,
+    storyProjectId: job.storyProjectId || project?.id || existing?.storyProjectId || null,
+    storyProjectVersionId: job.storyProjectVersionId || project?.versionId || existing?.storyProjectVersionId || asset?.storyProjectVersionId || null,
+    stage,
+    kind: job.kind || asset?.usage || existing?.kind || stage,
+    status: job.status || existing?.status || "queued",
+    provider: job.provider || asset?.provider || existing?.provider || null,
+    model: job.model || asset?.model || existing?.model || null,
+    prompt: job.prompt || asset?.prompt || existing?.prompt || "",
+    panelId: job.panelId || asset?.panelId || existing?.panelId || null,
+    sceneId: job.sceneId || asset?.sceneId || existing?.sceneId || null,
+    characterId: job.characterId || asset?.characterId || existing?.characterId || null,
+    characterName: job.characterName || asset?.characterName || existing?.characterName || null,
+    assetId: asset?.id || job.assetId || existing?.assetId || null,
+    inputSnapshotId: job.inputSnapshotId || existing?.inputSnapshotId || project?.versionId || null,
+    outputSnapshotId: job.outputSnapshotId || existing?.outputSnapshotId || null,
+    request,
+    result,
+    errors: Array.isArray(job.errors) ? job.errors : (Array.isArray(existing?.errors) ? existing.errors : []),
+    authorUserId: job.authorUserId || project?.authorUserId || project?.author?.id || asset?.uploaderUserId || existing?.authorUserId || "user_local",
+    createdAt: existing?.createdAt || job.createdAt || timestamp,
+    updatedAt: timestamp,
+  };
 }
 
 function validationFailed(res, message, errors = []) {
@@ -631,6 +846,221 @@ export function createFlashBackendApp(options = {}) {
     await persistRuntimeRecord(collectionName, repository, result?.item?.id);
   }
 
+  async function saveIndexedAsset(asset = {}, {
+    session = null,
+    timestamp = Date.now(),
+    securityReport = null,
+  } = {}) {
+    const id = safeAssetIdFromPayload(asset);
+    const existing = await persistence.assets.get(id);
+    const item = normalizeAssetForPersistence(asset, {
+      existing,
+      session,
+      timestamp,
+      securityReport,
+    });
+    await persistence.assets.save(item);
+    return item;
+  }
+
+  async function mirrorAssetToStoryProject(asset = {}) {
+    const storyProjectId = asset.storyProjectId || asset.projectId;
+    if (!storyProjectId) return null;
+    const project = await persistence.storyProjects.get(storyProjectId);
+    if (!project) return null;
+    const nextProject = structuredClone(project);
+    nextProject.assets = Array.isArray(nextProject.assets) ? nextProject.assets : [];
+    const assetId = asset.id || asset.assetId;
+    const index = nextProject.assets.findIndex((item) => (item.id || item.assetId) === assetId);
+    const nextAsset = {
+      ...(index >= 0 ? nextProject.assets[index] : {}),
+      ...structuredClone(asset),
+      id: assetId,
+      assetId: asset.assetId || assetId,
+      storyProjectId,
+      updatedAt: asset.updatedAt || Date.now(),
+    };
+    if (index >= 0) nextProject.assets[index] = nextAsset;
+    else nextProject.assets.unshift(nextAsset);
+    nextProject.updatedAt = Date.now();
+    await persistence.storyProjects.save(nextProject);
+    return nextProject;
+  }
+
+  async function mirrorRenderJobToStoryProject(job = {}) {
+    if (!job?.id || !job.storyProjectId) return null;
+    const project = await persistence.storyProjects.get(job.storyProjectId);
+    if (!project) return null;
+    const nextProject = structuredClone(project);
+    nextProject.renderJobs = Array.isArray(nextProject.renderJobs) ? nextProject.renderJobs : [];
+    const index = nextProject.renderJobs.findIndex((item) => item.id === job.id);
+    const nextJob = {
+      ...(index >= 0 ? nextProject.renderJobs[index] : {}),
+      ...structuredClone(job),
+      updatedAt: job.updatedAt || Date.now(),
+    };
+    if (index >= 0) nextProject.renderJobs[index] = nextJob;
+    else nextProject.renderJobs.unshift(nextJob);
+    nextProject.renderJobs = nextProject.renderJobs.slice(0, 50);
+    nextProject.updatedAt = Date.now();
+    await persistence.storyProjects.save(nextProject);
+    return nextProject;
+  }
+
+  async function indexStoryProjectAssets(project = {}, {
+    session = null,
+    timestamp = Date.now(),
+  } = {}) {
+    if (!project?.id) return [];
+    const indexed = [];
+    for (const asset of Array.isArray(project.assets) ? project.assets : []) {
+      if (!asset?.id && !asset?.assetId) continue;
+      indexed.push(await saveIndexedAsset({
+        ...asset,
+        storyProjectId: asset.storyProjectId || project.id,
+        storyProjectVersionId: asset.storyProjectVersionId || project.versionId || null,
+      }, {
+        session,
+        timestamp,
+        securityReport: asset.securityReport || uncheckedAssetSecurityReport(asset),
+      }));
+    }
+    const assetsByRenderJobId = new Map(indexed
+      .filter((asset) => asset.renderJobId || asset.createdByJobId)
+      .map((asset) => [asset.renderJobId || asset.createdByJobId, asset]));
+    const indexedRenderJobIds = new Set();
+    for (const job of storyProjectRenderJobs(project)) {
+      const linkedAsset = assetsByRenderJobId.get(job.id)
+        || indexed.find((asset) => asset.id === job.assetId || asset.assetId === job.assetId)
+        || null;
+      const existing = await persistence.aiGenerationJobs.get(job.id);
+      const item = normalizeIndexedRenderJob(job, {
+        project,
+        existing,
+        asset: linkedAsset,
+        timestamp: Number(job.updatedAt || job.createdAt || timestamp),
+      });
+      indexedRenderJobIds.add(item.id);
+      await persistence.aiGenerationJobs.save(item);
+    }
+    for (const asset of indexed) {
+      const renderJobId = asset.renderJobId || asset.createdByJobId;
+      if (!renderJobId || indexedRenderJobIds.has(renderJobId)) continue;
+      const renderJob = await upsertAssetRenderJob({
+        project,
+        asset,
+        payload: {
+          renderJobId,
+          stage: renderStageForAssetUsage(asset.usage),
+          jobStatus: asset.status === "failed" ? "failed" : "succeeded",
+        },
+        timestamp: Number(asset.updatedAt || asset.createdAt || timestamp),
+      });
+      if (renderJob?.id) indexedRenderJobIds.add(renderJob.id);
+    }
+    return indexed;
+  }
+
+  async function listAssetsWithEmbeddedFallback(filters = {}) {
+    const indexed = await persistence.assets.list(filters);
+    if (filters.storyProjectId) {
+      const project = await persistence.storyProjects.get(filters.storyProjectId);
+      return mergeAssetRecords(indexed, filterAssets(project?.assets || [], filters));
+    }
+    const projects = await persistence.storyProjects.list();
+    const embedded = projects.flatMap((project) => filterAssets(project.assets || [], filters));
+    return mergeAssetRecords(indexed, embedded);
+  }
+
+  async function findAssetWithEmbeddedFallback(assetId) {
+    const indexed = await persistence.assets.get(assetId);
+    if (indexed) return indexed;
+    const projects = await persistence.storyProjects.list();
+    for (const project of projects) {
+      const match = (project.assets || []).find((asset) => asset.id === assetId || asset.assetId === assetId);
+      if (match) {
+        return normalizeAssetForPersistence({
+          ...match,
+          storyProjectId: match.storyProjectId || project.id,
+          storyProjectVersionId: match.storyProjectVersionId || project.versionId || null,
+        }, {
+          securityReport: match.securityReport || uncheckedAssetSecurityReport(match),
+        });
+      }
+    }
+    return null;
+  }
+
+  async function upsertAssetRenderJob({
+    project = null,
+    asset = {},
+    payload = {},
+    timestamp = Date.now(),
+  } = {}) {
+    if (!project?.id || !asset?.id) return null;
+    const renderJobId = payload.renderJobId || payload.jobId || asset.renderJobId || asset.createdByJobId || prefixedId("ai_job");
+    const existing = await persistence.aiGenerationJobs.get(renderJobId);
+    let inputSnapshotId = payload.inputSnapshotId || existing?.inputSnapshotId || asset.storyProjectVersionId || project.versionId || null;
+    let inputSnapshot = null;
+    if (!inputSnapshotId) {
+      inputSnapshot = createStoryProjectVersionSnapshot(project, {
+        status: "draft",
+        label: "Visual render input",
+        reason: payload.prompt || payload.stage || renderStageForAssetUsage(asset.usage),
+        timestamp,
+      });
+      inputSnapshotId = inputSnapshot.id;
+      await persistence.storyProjectVersions.save(inputSnapshot);
+    }
+    const stage = payload.stage || existing?.stage || renderStageForAssetUsage(asset.usage);
+    const job = {
+      ...structuredClone(existing || {}),
+      id: renderJobId,
+      storyProjectId: project.id,
+      stage,
+      kind: payload.kind || existing?.kind || stage,
+      status: payload.jobStatus || payload.status || "succeeded",
+      inputSnapshotId,
+      outputSnapshotId: payload.outputSnapshotId || existing?.outputSnapshotId || null,
+      prompt: payload.prompt || asset.prompt || existing?.prompt || "",
+      panelId: asset.panelId || payload.panelId || existing?.panelId || null,
+      sceneId: asset.sceneId || payload.sceneId || existing?.sceneId || null,
+      characterId: asset.characterId || payload.characterId || existing?.characterId || null,
+      characterName: asset.characterName || payload.characterName || existing?.characterName || null,
+      request: {
+        ...(structuredClone(existing?.request || {})),
+        ...structuredClone(payload),
+        assetId: asset.id,
+        panelId: asset.panelId || payload.panelId || null,
+        sceneId: asset.sceneId || payload.sceneId || null,
+        characterId: asset.characterId || payload.characterId || null,
+        characterName: asset.characterName || payload.characterName || null,
+      },
+      result: {
+        ...(structuredClone(existing?.result || {})),
+        assetId: asset.id,
+        assetIds: Array.from(new Set([...(existing?.result?.assetIds || []), asset.id])),
+        panelId: asset.panelId || payload.panelId || null,
+        sceneId: asset.sceneId || payload.sceneId || null,
+        characterId: asset.characterId || payload.characterId || null,
+        characterName: asset.characterName || payload.characterName || null,
+        provider: asset.provider || payload.provider || existing?.result?.provider || null,
+        imageUrl: asset.imageUrl || existing?.result?.imageUrl || null,
+      },
+      errors: Array.isArray(payload.errors) ? payload.errors : (existing?.errors || []),
+      authorUserId: project.authorUserId || project.author?.id || asset.uploaderUserId || "user_local",
+      inputSnapshot: inputSnapshot || existing?.inputSnapshot || null,
+      queuedAt: existing?.queuedAt || timestamp,
+      startedAt: existing?.startedAt || timestamp,
+      completedAt: timestamp,
+      createdAt: existing?.createdAt || timestamp,
+      updatedAt: timestamp,
+    };
+    await persistence.aiGenerationJobs.save(job);
+    await mirrorRenderJobToStoryProject(job);
+    return job;
+  }
+
   async function handle(req, res) {
     const requestUrl = new URL(req.url || "/", "http://127.0.0.1");
     const parts = splitPath(requestUrl.pathname);
@@ -897,6 +1327,7 @@ export function createFlashBackendApp(options = {}) {
           return;
         }
         await persistence.storyProjects.save(project);
+        await indexStoryProjectAssets(project, { session: requestSession });
         ok(res, { item: project });
         return;
       }
@@ -930,6 +1361,7 @@ export function createFlashBackendApp(options = {}) {
           return;
         }
         await persistence.storyProjects.save(project);
+        await indexStoryProjectAssets(project, { session: requestSession });
         ok(res, { item: project });
         return;
       }
@@ -940,12 +1372,17 @@ export function createFlashBackendApp(options = {}) {
       }
 
       if (parts[0] === "flash" && parts[1] === "story-projects" && parts[2] && parts[3] === "assets" && req.method === "GET") {
-        const project = await persistence.storyProjects.get(decodePart(parts[2]));
+        const projectId = decodePart(parts[2]);
+        const project = await persistence.storyProjects.get(projectId);
         if (!project) {
           notFound(res, "story_project_not_found");
           return;
         }
-        ok(res, { items: filterAssets(project.assets, assetFiltersFromSearch(requestUrl.searchParams)) });
+        const filters = {
+          ...assetFiltersFromSearch(requestUrl.searchParams),
+          storyProjectId: projectId,
+        };
+        ok(res, { items: await listAssetsWithEmbeddedFallback(filters), filters });
         return;
       }
 
@@ -1003,6 +1440,7 @@ export function createFlashBackendApp(options = {}) {
         });
         await persistence.storyProjectVersions.save(restoreVersion);
         await persistence.storyProjects.save(savedProject);
+        await indexStoryProjectAssets(savedProject, { session: requestSession, timestamp });
         ok(res, { item: savedProject, project: savedProject, version: restoreVersion, restoredFromVersion: version });
         return;
       }
@@ -1037,6 +1475,7 @@ export function createFlashBackendApp(options = {}) {
         };
         await persistence.storyProjectVersions.save(version);
         await persistence.storyProjects.save(savedProject);
+        await indexStoryProjectAssets(savedProject, { session: requestSession, timestamp });
         ok(res, { item: version, project: savedProject });
         return;
       }
@@ -1206,6 +1645,7 @@ export function createFlashBackendApp(options = {}) {
         });
         await persistence.storyProjectVersions.save(version);
         await persistence.storyProjects.save(savedProject);
+        await indexStoryProjectAssets(savedProject, { session: requestSession, timestamp });
         ok(res, {
           item: publishedWork,
           project: savedProject,
@@ -1244,6 +1684,10 @@ export function createFlashBackendApp(options = {}) {
           inputSnapshotId,
           outputSnapshotId: body.outputSnapshotId || null,
           prompt: body.prompt || body.instruction || "",
+          panelId: body.panelId || body.request?.panelId || null,
+          sceneId: body.sceneId || body.request?.sceneId || null,
+          characterId: body.characterId || body.request?.characterId || null,
+          characterName: body.characterName || body.request?.characterName || null,
           request: structuredClone(body),
           result: body.result || null,
           errors: Array.isArray(body.errors) ? body.errors : [],
@@ -1252,6 +1696,7 @@ export function createFlashBackendApp(options = {}) {
           updatedAt: timestamp,
         };
         await persistence.aiGenerationJobs.save(job);
+        await mirrorRenderJobToStoryProject(job);
         ok(res, { item: job, inputSnapshot });
         return;
       }
@@ -1324,6 +1769,7 @@ export function createFlashBackendApp(options = {}) {
         };
         await persistence.storyProjectVersions.save(version);
         await persistence.storyProjects.save(savedProject);
+        await indexStoryProjectAssets(savedProject, { session: requestSession, timestamp });
         await persistence.aiGenerationJobs.save(updatedJob);
         ok(res, { item: savedProject, job: updatedJob, version });
         return;
@@ -1367,6 +1813,7 @@ export function createFlashBackendApp(options = {}) {
             response.item.sourceProjectId = project.id;
             response.item.storyProjectId = project.id;
           }
+          await indexStoryProjectAssets(project, { session: requestSession, timestamp });
         }
         ok(res, response);
         return;
@@ -1385,7 +1832,53 @@ export function createFlashBackendApp(options = {}) {
       }
 
       if (requestUrl.pathname === "/flash/ai/generate-image" && req.method === "POST") {
-        ok(res, await generateAiImage(await readJsonBody(req)));
+        const body = await readJsonBody(req);
+        const generated = await generateAiImage(body);
+        const generatedAsset = generated.item || generated.asset || generated;
+        const timestamp = Date.now();
+        let asset = await saveIndexedAsset({
+          ...body,
+          ...generatedAsset,
+          sourceStatement: generatedAsset.sourceStatement || body.sourceStatement,
+        }, {
+          session: requestSession,
+          timestamp,
+          securityReport: generatedAsset.securityReport || createAssetSecurityReport({
+            ...body,
+            ...generatedAsset,
+            sourceStatement: generatedAsset.sourceStatement || body.sourceStatement,
+          }),
+        });
+        const project = asset.storyProjectId ? await persistence.storyProjects.get(asset.storyProjectId) : null;
+        const renderJob = await upsertAssetRenderJob({
+          project,
+          asset,
+          payload: {
+            ...body,
+            renderJobId: body.renderJobId || generatedAsset.renderJobId || generatedAsset.createdByJobId || null,
+            jobStatus: "succeeded",
+          },
+          timestamp,
+        });
+        if (renderJob?.id && asset.renderJobId !== renderJob.id) {
+          asset = await saveIndexedAsset({
+            ...asset,
+            renderJobId: renderJob.id,
+            createdByJobId: renderJob.id,
+          }, {
+            session: requestSession,
+            timestamp,
+            securityReport: asset.securityReport,
+          });
+        }
+        await mirrorAssetToStoryProject(asset);
+        ok(res, {
+          ...generated,
+          item: asset,
+          asset,
+          renderJob,
+          job: renderJob,
+        });
         return;
       }
 
@@ -1468,14 +1961,7 @@ export function createFlashBackendApp(options = {}) {
 
       if (requestUrl.pathname === "/flash/assets" && req.method === "GET") {
         const filters = assetFiltersFromSearch(requestUrl.searchParams);
-        let items = [];
-        if (filters.storyProjectId) {
-          const project = await persistence.storyProjects.get(filters.storyProjectId);
-          items = filterAssets(project?.assets || [], filters);
-        } else {
-          const projects = await persistence.storyProjects.list();
-          items = projects.flatMap((project) => filterAssets(project.assets || [], filters));
-        }
+        const items = await listAssetsWithEmbeddedFallback(filters);
         ok(res, {
           items,
           filters,
@@ -1490,21 +1976,35 @@ export function createFlashBackendApp(options = {}) {
           badRequest(res, "asset_security_violation");
           return;
         }
-        ok(res, alphaStub(`asset_${Date.now()}`, {
-          targetType: "Asset",
-          status: "pending_review",
-          securityPolicyVersion: ASSET_SECURITY_POLICY_VERSION,
+        const asset = await saveIndexedAsset(body, {
+          session: requestSession,
           securityReport,
-          ...body,
-        }));
+        });
+        const project = asset.storyProjectId ? await persistence.storyProjects.get(asset.storyProjectId) : null;
+        const renderJob = project && asset.renderJobId
+          ? await upsertAssetRenderJob({
+            project,
+            asset,
+            payload: {
+              ...body,
+              renderJobId: asset.renderJobId,
+              stage: body.stage || renderStageForAssetUsage(asset.usage),
+              jobStatus: body.jobStatus || "succeeded",
+            },
+          })
+          : null;
+        await mirrorAssetToStoryProject(asset);
+        ok(res, { item: asset, asset, renderJob, job: renderJob });
         return;
       }
 
       if (parts[0] === "flash" && parts[1] === "assets" && parts[2] && !parts[3] && req.method === "GET") {
-        ok(res, alphaStub(decodePart(parts[2]), {
-          targetType: "Asset",
-          securityPolicyVersion: ASSET_SECURITY_POLICY_VERSION,
-        }));
+        const asset = await findAssetWithEmbeddedFallback(decodePart(parts[2]));
+        if (!asset) {
+          notFound(res, "asset_not_found");
+          return;
+        }
+        ok(res, { item: asset });
         return;
       }
 
@@ -1515,23 +2015,57 @@ export function createFlashBackendApp(options = {}) {
           badRequest(res, "asset_source_statement_invalid");
           return;
         }
-        ok(res, alphaStub(decodePart(parts[2]), {
-          targetType: "Asset",
-          securityPolicyVersion: ASSET_SECURITY_POLICY_VERSION,
+        const assetId = decodePart(parts[2]);
+        const existing = await findAssetWithEmbeddedFallback(assetId);
+        if (!existing) {
+          notFound(res, "asset_not_found");
+          return;
+        }
+        const item = await saveIndexedAsset({
+          ...existing,
           sourceStatement: body,
           sourceStatementStatus: "accepted",
-        }));
+        }, {
+          session: requestSession,
+          securityReport: existing.securityReport,
+        });
+        await mirrorAssetToStoryProject(item);
+        ok(res, { item });
         return;
       }
 
       if (parts[0] === "flash" && parts[1] === "assets" && parts[2] && parts[3] === "submit-review" && req.method === "POST") {
-        ok(res, alphaStub(`review_asset_${decodePart(parts[2])}`, {
-          targetType: "Asset",
-          targetId: decodePart(parts[2]),
-          reviewType: "asset_safety",
-          securityPolicyVersion: ASSET_SECURITY_POLICY_VERSION,
-          requiredChecks: ["malware_scan", "content_type_validation", "source_statement", "storage_isolation"],
-        }));
+        const assetId = decodePart(parts[2]);
+        const existing = await findAssetWithEmbeddedFallback(assetId);
+        if (!existing) {
+          notFound(res, "asset_not_found");
+          return;
+        }
+        const updated = await saveIndexedAsset({
+          ...existing,
+          reviewStatus: "submitted",
+          status: existing.status === "uploaded" ? "pending_review" : existing.status,
+          submittedForReviewAt: Date.now(),
+        }, {
+          session: requestSession,
+          securityReport: existing.securityReport,
+        });
+        await mirrorAssetToStoryProject(updated);
+        const timestamp = Date.now();
+        ok(res, {
+          item: {
+            id: `review_asset_${assetId}`,
+            targetType: "Asset",
+            targetId: assetId,
+            reviewType: "asset_safety",
+            status: "open",
+            securityPolicyVersion: ASSET_SECURITY_POLICY_VERSION,
+            requiredChecks: ["malware_scan", "content_type_validation", "source_statement", "storage_isolation"],
+            asset: updated,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+        });
         return;
       }
 

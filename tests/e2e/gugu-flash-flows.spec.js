@@ -67,6 +67,28 @@ async function publishDraft(page) {
   await publishButton.click();
 }
 
+async function expectBasicVisualBindings(studio) {
+  const library = studio.locator('[data-testid="studio-basic-asset-library"]');
+  const sceneGroup = library.locator('[data-basic-asset-type="scene_background"]');
+  const portraitGroup = library.locator('[data-basic-asset-type="character_portrait"]');
+  const sceneAsset = sceneGroup.locator('[data-testid="studio-basic-asset-item"]').first();
+  const portraitAsset = portraitGroup.locator('[data-testid="studio-basic-asset-item"]').first();
+
+  await expect(studio.locator("#studioBasicVisualAssetCount")).toHaveText("2 assets");
+  await expect(library.locator('[data-testid="studio-basic-asset-item"]')).toHaveCount(2);
+  await expect(sceneGroup.locator(".studio-basic-asset-group-title")).toContainText("1 assets");
+  await expect(portraitGroup.locator(".studio-basic-asset-group-title")).toContainText("1 assets");
+
+  await expect(studio.locator('[data-testid="studio-scene-background-preview"] img')).toHaveAttribute("src", /data:image/);
+  await expect(studio.locator("#studioCharacterPortraitTarget img")).toHaveAttribute("src", /data:image/);
+  await expect(sceneAsset).toContainText(/scene_background.*Asset ID/s);
+  await expect(sceneAsset).toContainText(/可用|本地保存|已绑定|AI 已生成/);
+  await expect(sceneAsset.locator("img")).toHaveAttribute("src", /data:image/);
+  await expect(portraitAsset).toContainText(/character_portrait.*Asset ID/s);
+  await expect(portraitAsset).toContainText(/可用|本地保存|已绑定|AI 已生成/);
+  await expect(portraitAsset.locator("img")).toHaveAttribute("src", /data:image/);
+}
+
 async function createAndPublishOriginal(page, title) {
   await openCreate(page);
   await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill(title);
@@ -256,6 +278,34 @@ test("creator studio generates scene background and character portrait basic vis
   const portraitAsset = library.locator('[data-testid="studio-basic-asset-item"]').filter({ hasText: "character_portrait" }).first();
   await expect(portraitAsset).toContainText(/Asset ID/);
   await expect(portraitAsset).toContainText(/可用|本地保存|已绑定|AI 已生成/);
+});
+
+test("creator studio restores a basic visual asset version with bindings intact", async ({ page }) => {
+  await openCreate(page);
+  await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill("雨夜便利店基础视觉素材恢复校验");
+  await generateDraft(page);
+
+  await page.locator("[data-create-advanced-toggle]").click();
+
+  const studio = page.locator("#creatorStudioPanel");
+  await expect(studio).toBeVisible();
+  await studio.locator("[data-studio-scene-select]").first().click();
+
+  await page.locator('[data-testid="studio-scene-generate-background"]').click();
+  await expect(page.locator("#studioBasicVisualMessage")).toContainText(/场景背景图已绑定|版本快照/);
+  await page.locator('[data-testid="studio-character-generate-portrait"]').click();
+  await expect(page.locator("#studioBasicVisualMessage")).toContainText(/人物立绘图已绑定|版本快照/);
+  await expectBasicVisualBindings(studio);
+  await expect(studio.locator("#studioVersionHistory")).toContainText("基础视觉素材");
+
+  const visualVersion = studio.locator(".studio-version-item").filter({ hasText: "基础视觉素材" }).first();
+  await expect(visualVersion).toBeVisible();
+  await visualVersion.getByRole("button", { name: "恢复", exact: true }).click();
+  await expect(page.locator("#studioSceneSaveMessage")).toContainText("已恢复");
+
+  await studio.locator("[data-studio-scene-select]").first().click();
+  await expectBasicVisualBindings(studio);
+  await expect(studio.locator("#studioVersionHistory")).toContainText("恢复：基础视觉素材");
 });
 
 test("creator studio scene inspector saves one scene back to the project", async ({ page }) => {
