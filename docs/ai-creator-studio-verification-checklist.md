@@ -31,6 +31,7 @@ StoryProject backend/API is not complete until these are true:
 - `PATCH /flash/story-projects/:id` updates one project.
 - `POST /flash/story-projects/:id/versions` creates a version snapshot.
 - `POST /flash/story-projects/:id/compile/h5` returns a compiled H5 preview draft.
+- Core compiler can produce a `ComicEpisode` storyboard contract from the same StoryProject.
 - `POST /flash/story-projects/:id/publish` publishes only after server-side playability and publish checks pass.
 - `POST /flash/ai/jobs/:id/apply` validates and snapshots an output StoryProject.
 - Invalid story graphs return validation errors and do not pretend success.
@@ -69,12 +70,14 @@ Closest existing tests:
 Web Creator Studio skeleton is not complete until these are true:
 
 - Project list opens.
+- Project list can load StoryProject records in mock and HTTP-compatible facades.
 - Project detail opens.
 - Scene list is visible.
 - Basic scene inspector is visible.
 - Quality checks are visible.
 - H5 phone preview can compile from the project.
 - One scene can be edited and saved.
+- Saved scene edits update the current StoryProject when one exists.
 - Publish diagnostics are shown.
 
 Explicitly out of scope for Phase 2:
@@ -89,7 +92,8 @@ Current status:
 
 ```text
 Round 2 added a professional workspace skeleton inside the current web app.
-Dedicated scene editing and project list loading remain next-step work.
+Round 3 added StoryProject list loading and a save-capable scene Inspector.
+Project switching, version snapshots from web saves, and backend comic compile remain next-step work.
 ```
 
 ## 5. Existing Test Map

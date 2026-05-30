@@ -41,6 +41,9 @@ Allowed statuses:
 | Backend Platform Round 2 | Mendel | StoryProject publish and AI apply | verified | `/publish`, `/ai/jobs/:id/apply` implementation + tests |
 | Frontend Experience Round 2 | Averroes | Professional web Creator Studio skeleton | verified | Web project workspace panel + focused e2e |
 | QA And Release Round 2 | Wegener | Phase 1 risk and verification review | verified | Read-only risk checklist |
+| Backend Platform Round 3 | Locke | Mock/API StoryProject list and update support | verified | Mock facade StoryProject methods + tests |
+| Frontend Experience Round 3 | Harvey | Project list loading and scene inspector save | verified | Editable Creator Studio scene inspector + e2e |
+| QA And Release Round 3 | Euclid | Save-flow risk and verification review | verified | Read-only risk checklist |
 
 ## 3. Phase 0 Board
 
@@ -48,6 +51,7 @@ Allowed statuses:
 | --- | --- | --- | --- | --- | --- |
 | Story project schema | Codex | verified | `packages/core/src/gugu-story-project.js` | `npm run test:unit` | Extend only when API/UI needs fields |
 | Story project compiler | Codex | verified | `compileStoryProjectToH5Pack` | `npm run test:unit` | Extend for comic/manju outputs later |
+| Comic storyboard compiler | Codex | verified | `compileStoryProjectToComicEpisode` | `node --test packages/core/src/gugu-story-project.test.js` | Add backend `/compile/comic` behavior later |
 | Playability validation | Codex | verified | `validateStoryProject`, `createStoryProjectPlayabilityReport` | `npm run test:unit` | Surface errors in mobile wizard |
 | Domain entities | Codex | verified | `StoryProject`, `StoryProjectVersion`, `AiGenerationJob` | `npm run test:unit` | Add production DB migration later |
 | API contract routes | Codex | verified | `storyProjects.*`, `ai.storyProjectJobs.*` | `npm run test:unit` | Keep comic route deferred |
@@ -91,7 +95,7 @@ Next 24h:
 
 Date: 2026-05-31
 
-Overall status: `verified_round_2`
+Overall status: `verified_round_3`
 
 Verified since last update:
 
@@ -112,9 +116,67 @@ browser smoke at 1280x900 and 375x667
 
 Next 24h:
 
-- Add first editable scene inspector save path on top of StoryProject.
-- Add project list loading from `/flash/story-projects`.
-- Prepare comic/manju storyboard compile contract.
+- Add backend `/flash/story-projects/:id/compile/comic` behavior.
+- Add project switch/open behavior for existing StoryProjects.
+- Add version snapshot creation from the web editor save flow.
+
+### 2026-05-31 Agent Execution Round 3 Started
+
+Goal:
+
+- Turn Creator Studio from a read-only professional panel into a save-capable workspace.
+- Load real StoryProject records into the professional project list.
+- Establish the comic/manju storyboard output contract without yet expanding full comic production.
+
+Assignments:
+
+- Locke owns mock/API StoryProject list and update support.
+- Harvey owns frontend project loading and scene inspector save.
+- Euclid owns read-only QA risk review.
+- Codex owns comic storyboard compiler contract, integration, progress board, and final verification.
+
+Completed locally by Codex:
+
+- Added `GUGU_COMIC_EPISODE_SCHEMA_VERSION`.
+- Added `compileStoryProjectToComicEpisode`.
+- Added core test coverage for StoryProject-to-ComicEpisode storyboard output.
+
+Verification:
+
+```text
+node --test packages/core/src/gugu-story-project.test.js
+```
+
+### 2026-05-31 Agent Execution Round 3 Completed
+
+Completed by Backend Platform Worker Locke:
+
+- Added mock StoryProject, StoryProjectVersion, and AiGenerationJob in-memory stores.
+- Added mock facade methods for StoryProject list/create/get/update/version/compile/publish/job/apply parity with HTTP.
+- Persisted generated StoryProjects from mock `createDraft` and `createAiDraft`.
+- Added mock tests for project list loading and single-scene update persistence.
+
+Completed by Frontend Experience Worker Harvey:
+
+- Added StoryProject state to Creator Studio.
+- Loaded StoryProject lists when advanced Creator Studio opens.
+- Bound generated `storyProject` responses into the current workspace.
+- Added a scene Inspector that edits title/body, saves to local draft, and calls `updateStoryProject` when a StoryProject exists.
+- Kept mobile default guided creation unchanged.
+
+Completed by QA Explorer Euclid:
+
+- Confirmed generic StoryProject `PATCH` is sufficient if the frontend submits a complete project payload.
+- Identified mock/http parity as the main risk, now covered by mock tests and HTTP update assertion.
+- Flagged script-modal/inspector state overlap, handled by shared draft scene state and focused e2e.
+
+Lead verification:
+
+```text
+node --test packages/api-client/src/flash-api-contract.test.js packages/core/src/gugu-domain.test.js apps/backend/src/alpha-route-coverage.test.js
+node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/core/src/gugu-story-project.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio scene inspector|creator studio opens|mobile guide defaults"
+```
 
 ### 2026-05-30 Agent Execution Round 1
 

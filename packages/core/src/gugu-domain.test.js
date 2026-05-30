@@ -14,6 +14,7 @@ test("domain schemas cover the P1 backend entity set", () => {
     "StoryProject",
     "StoryProjectVersion",
     "AiGenerationJob",
+    "ComicEpisode",
     "WorkDraft",
     "Work",
     "WorkVersion",
@@ -78,10 +79,19 @@ test("domain validation covers story projects and AI generation jobs", () => {
     createdAt: 1760000000000,
     updatedAt: 1760000000000,
   };
+  const comicEpisode = {
+    id: "comic_001",
+    storyProjectId: "story_project_001",
+    schemaVersion: "gugu_comic_episode_v1",
+    title: "雨夜便利店漫剧",
+    status: "draft_storyboard",
+    updatedAt: 1760000000000,
+  };
 
   assert.deepEqual(validateDomainEntity("StoryProject", project), []);
   assert.deepEqual(validateDomainEntity("StoryProjectVersion", version), []);
   assert.deepEqual(validateDomainEntity("AiGenerationJob", aiJob), []);
+  assert.deepEqual(validateDomainEntity("ComicEpisode", comicEpisode), []);
   assert.deepEqual(validateDomainEntity("AiGenerationJob", { ...aiJob, status: "pretending" }), [
     "AiGenerationJob.status invalid: pretending",
   ]);

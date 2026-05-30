@@ -3103,6 +3103,26 @@ input:focus-visible {
   background: rgba(14, 165, 233, 0.08);
 }
 
+button.studio-scene-item {
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.studio-scene-item:hover,
+button.studio-scene-item.active {
+  border-color: rgba(17, 138, 178, 0.26);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+button.studio-scene-item:focus-visible {
+  outline: 2px solid rgba(17, 138, 178, 0.36);
+  outline-offset: 2px;
+}
+
 .studio-project-card > span,
 .studio-diagnostic-item > span {
   justify-self: start;
@@ -3239,6 +3259,80 @@ input:focus-visible {
   display: block;
   margin-bottom: 2px;
   font-size: 13px;
+}
+
+.studio-inspector-form {
+  display: grid;
+  gap: 8px;
+}
+
+.studio-inspector-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.studio-inspector-form small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.studio-inspector-form input,
+.studio-inspector-form textarea {
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fbfcfe;
+  color: var(--text);
+  font: inherit;
+}
+
+.studio-inspector-form textarea {
+  min-height: 118px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.studio-inspector-preview {
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.studio-inspector-preview strong {
+  font-size: 12px;
+}
+
+.studio-inspector-preview p,
+.studio-save-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.studio-inspector-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.studio-save-message.saved,
+.studio-save-message.local {
+  color: #047857;
+}
+
+.studio-save-message.error {
+  color: #be123c;
+}
+
+.studio-save-message.saving {
+  color: #0f5f73;
 }
 
 .create-card-deck {

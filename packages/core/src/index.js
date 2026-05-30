@@ -78,8 +78,10 @@ export {
 
 export {
   GUGU_STORY_NODE_TYPES,
+  GUGU_COMIC_EPISODE_SCHEMA_VERSION,
   GUGU_STORY_PROJECT_SCHEMA_VERSION,
   GUGU_STORY_PROJECT_STATUSES,
+  compileStoryProjectToComicEpisode,
   compileStoryProjectToH5Pack,
   createStoryProjectFromH5Pack,
   createStoryProjectFromPrompt,

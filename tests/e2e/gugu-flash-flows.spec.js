@@ -170,6 +170,31 @@ test("creator studio opens with scene count and publish diagnostics after draft 
   await expect(studio.locator(".studio-scene-item").first()).toContainText(/脚本|入口|结局|可达/);
 });
 
+test("creator studio scene inspector saves one scene back to the project", async ({ page }) => {
+  await openCreate(page);
+  await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill("雨夜便利店可保存场景");
+  await generateDraft(page);
+
+  await page.locator("[data-create-advanced-toggle]").click();
+
+  const studio = page.locator("#creatorStudioPanel");
+  await expect(studio).toBeVisible();
+  await expect(studio.locator("#studioProjectCount")).toContainText("StoryProject");
+  await studio.locator("[data-studio-scene-select]").first().click();
+
+  const savedText = "工作台保存后的正文会写回 StoryProject。";
+  await page.locator('[data-testid="studio-scene-title"]').fill("工作台改过的入口");
+  await page.locator('[data-testid="studio-scene-text"]').fill(savedText);
+  await page.locator('[data-testid="studio-scene-save"]').click();
+
+  await expect(page.locator("#studioSceneSaveMessage")).toContainText("保存成功");
+  await expect(studio.locator(".studio-scene-item").first()).toContainText("工作台改过的入口");
+  await expect(studio.locator(".studio-scene-item").first()).toContainText(savedText);
+
+  await page.locator('[data-create-step-target="playtest"]').click();
+  await expect(page.locator("#draftPlaytestPanel")).toContainText(savedText);
+});
+
 test("generated creation deck keeps ownership as an editable card", async ({ page }) => {
   await openCreate(page);
   await expect(page.locator("#createWizardNav")).toBeVisible();

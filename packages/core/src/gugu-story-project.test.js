@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  GUGU_COMIC_EPISODE_SCHEMA_VERSION,
   GUGU_H5_SCHEMA_VERSION,
   GUGU_STORY_PROJECT_SCHEMA_VERSION,
+  compileStoryProjectToComicEpisode,
   compileStoryProjectToH5Pack,
   createStoryProjectFromH5Pack,
   createStoryProjectFromPrompt,
@@ -186,6 +188,23 @@ test("createStoryProjectPlayabilityReport passes compiled playable projects", ()
   assert.equal(report.status, "passed");
   assert.equal(report.errors.length, 0);
   assert.equal(report.playtest.summary.endingCount, 2);
+});
+
+test("compileStoryProjectToComicEpisode creates a storyboard contract", () => {
+  const project = makeStoryProject();
+  const episode = compileStoryProjectToComicEpisode(project, {
+    episodeId: "comic_rain_store",
+    timestamp: 1760000000000,
+  });
+
+  assert.equal(episode.schemaVersion, GUGU_COMIC_EPISODE_SCHEMA_VERSION);
+  assert.equal(episode.targetType, "ComicEpisode");
+  assert.equal(episode.storyProjectId, project.id);
+  assert.equal(episode.panelCount, project.storyGraph.nodes.length);
+  assert.equal(episode.panels[0].sceneId, "start");
+  assert.equal(episode.panels[0].shotType, "establishing");
+  assert.equal(episode.panels.some((panel) => panel.ending), true);
+  assert.deepEqual(episode.validationErrors, []);
 });
 
 test("validateStoryProject blocks broken graph targets and accidental dead ends", () => {

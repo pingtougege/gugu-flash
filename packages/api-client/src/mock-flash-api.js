@@ -8,18 +8,22 @@ import {
   createCompatibilityReport,
   createDraftQualityChecks,
   createPublishChecklist,
+  compileStoryProjectToH5Pack,
   createStoryProjectFromPrompt,
+  createStoryProjectPlayabilityReport,
   contentOriginLabel,
   discoverWebwideIpCandidates,
   formatNumber,
   importAnimeIpCandidates,
   mergeCandidateLists,
   getZone,
+  GUGU_STORY_PROJECT_SCHEMA_VERSION,
   GUGU_IP_POOL,
   ROLE_PERSONAS,
   normalizePack,
   scorePack,
   STORE_STATUS_ADVANCE,
+  validateStoryProject,
   ZONE_APPLICATION_THRESHOLDS,
 } from "../../core/src/index.js";
 
@@ -72,6 +76,12 @@ export function createMockFlashApi({
   let refundCallbacksCache = null;
   let zoneApplicationsCache = null;
   let ipZoneOverridesCache = null;
+  let storyProjectsCache = null;
+  let storyProjectVersionsCache = null;
+  let aiGenerationJobsCache = null;
+  let storyProjectsDirty = false;
+  let storyProjectVersionsDirty = false;
+  let aiGenerationJobsDirty = false;
   let activeDeviceId = "badge_s3_01";
 
   function importRuntimeState(state = {}) {
@@ -93,6 +103,12 @@ export function createMockFlashApi({
     refundCallbacksCache = state.refundCallbacks ?? refundCallbacksCache;
     zoneApplicationsCache = state.zoneApplications ?? zoneApplicationsCache;
     ipZoneOverridesCache = state.ipZoneOverrides ?? ipZoneOverridesCache;
+    storyProjectsCache = state.storyProjects ?? storyProjectsCache;
+    storyProjectVersionsCache = state.storyProjectVersions ?? storyProjectVersionsCache;
+    aiGenerationJobsCache = state.aiGenerationJobs ?? aiGenerationJobsCache;
+    storyProjectsDirty = false;
+    storyProjectVersionsDirty = false;
+    aiGenerationJobsDirty = false;
     activeDeviceId = state.activeDeviceId ?? activeDeviceId;
   }
 
@@ -110,7 +126,7 @@ export function createMockFlashApi({
   }
 
   function exportRuntimeState() {
-    return structuredClone({
+    const state = {
       devices: devicesCache,
       deviceEntitlements: deviceEntitlementsCache,
       deviceInstalls: deviceInstallsCache,
@@ -129,7 +145,11 @@ export function createMockFlashApi({
       zoneApplications: zoneApplicationsCache,
       ipZoneOverrides: ipZoneOverridesCache,
       activeDeviceId,
-    });
+    };
+    if (storyProjectsDirty) state.storyProjects = storyProjectsCache;
+    if (storyProjectVersionsDirty) state.storyProjectVersions = storyProjectVersionsCache;
+    if (aiGenerationJobsDirty) state.aiGenerationJobs = aiGenerationJobsCache;
+    return structuredClone(state);
   }
 
   importRuntimeState(initialState);
@@ -333,6 +353,154 @@ export function createMockFlashApi({
     };
     if (storeStatus === "listed") pack.hardwareStatus = "hardware_ready";
     return pack;
+  }
+
+  function makeMockId(prefix) {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  }
+
+  function ensureStoryProjectState() {
+    if (!storyProjectsCache) storyProjectsCache = [];
+    if (!storyProjectVersionsCache) storyProjectVersionsCache = [];
+    if (!aiGenerationJobsCache) aiGenerationJobsCache = [];
+  }
+
+  function storyProjectFromPayload(payload = {}) {
+    return payload.project || payload.item || payload.storyProject || payload;
+  }
+
+  function normalizeStoryProjectForMock(project = {}, {
+    id = null,
+    existing = null,
+    timestamp = Date.now(),
+  } = {}) {
+    const source = structuredClone(project || {});
+    const author = source.author || existing?.author || {
+      id: source.authorUserId || existing?.authorUserId || "user_local",
+      name: "你",
+    };
+    const contentOrigin = source.contentOrigin ||
+      source.origin?.contentOrigin ||
+      existing?.contentOrigin ||
+      existing?.origin?.contentOrigin ||
+      "original";
+
+    return {
+      ...structuredClone(existing || {}),
+      ...source,
+      id: id || source.id || existing?.id || makeMockId("story_project"),
+      schemaVersion: source.schemaVersion || existing?.schemaVersion || GUGU_STORY_PROJECT_SCHEMA_VERSION,
+      title: source.title || existing?.title || source.brief?.title || "未命名故事工程",
+      status: source.status || existing?.status || "draft",
+      author,
+      authorUserId: source.authorUserId || author.id || existing?.authorUserId || "user_local",
+      contentOrigin,
+      origin: {
+        ...(existing?.origin || {}),
+        ...(source.origin || {}),
+        contentOrigin,
+      },
+      createdAt: existing?.createdAt || source.createdAt || timestamp,
+      updatedAt: timestamp,
+    };
+  }
+
+  function saveStoryProject(project = {}) {
+    ensureStoryProjectState();
+    const item = structuredClone(project);
+    const index = storyProjectsCache.findIndex((candidate) => candidate.id === item.id);
+    if (index >= 0) storyProjectsCache.splice(index, 1, item);
+    else storyProjectsCache.unshift(item);
+    storyProjectsDirty = true;
+    return structuredClone(item);
+  }
+
+  function findStoryProject(id) {
+    ensureStoryProjectState();
+    const item = storyProjectsCache.find((project) => project.id === id);
+    return item ? structuredClone(item) : null;
+  }
+
+  function createStoryProjectVersionSnapshot(project, {
+    id = makeMockId("spv"),
+    status = "locked",
+    label = "",
+    reason = "",
+    timestamp = Date.now(),
+  } = {}) {
+    return {
+      id,
+      storyProjectId: project.id,
+      schemaVersion: project.schemaVersion || GUGU_STORY_PROJECT_SCHEMA_VERSION,
+      projectSnapshot: structuredClone(project),
+      status,
+      label,
+      reason,
+      createdAt: timestamp,
+    };
+  }
+
+  function saveStoryProjectVersion(version = {}) {
+    ensureStoryProjectState();
+    const item = structuredClone(version);
+    const index = storyProjectVersionsCache.findIndex((candidate) => candidate.id === item.id);
+    if (index >= 0) storyProjectVersionsCache.splice(index, 1, item);
+    else storyProjectVersionsCache.unshift(item);
+    storyProjectVersionsDirty = true;
+    return structuredClone(item);
+  }
+
+  function saveAiGenerationJob(job = {}) {
+    ensureStoryProjectState();
+    const item = structuredClone(job);
+    const index = aiGenerationJobsCache.findIndex((candidate) => candidate.id === item.id);
+    if (index >= 0) aiGenerationJobsCache.splice(index, 1, item);
+    else aiGenerationJobsCache.unshift(item);
+    aiGenerationJobsDirty = true;
+    return structuredClone(item);
+  }
+
+  function storyProjectPackId(project = {}, payload = {}) {
+    const suffix = String(project.id || "")
+      .replace(/^story_project_/, "")
+      .replace(/[^a-zA-Z0-9_]+/g, "_")
+      .slice(0, 40) || Math.random().toString(36).slice(2, 8);
+    return payload.packId || payload.h5PackId || project.outputWorkId || `h5_${suffix}`;
+  }
+
+  function createCompiledStoryDraft(project, pack, {
+    draftId = makeMockId("draft"),
+    timestamp = Date.now(),
+    report = null,
+  } = {}) {
+    const qualityChecks = createDraftQualityChecks(pack);
+    const checklist = createPublishChecklist(pack, { qualityChecks, target: "h5" });
+    return {
+      id: draftId,
+      targetType: "WorkDraft",
+      storyProjectId: project.id,
+      storyProjectVersionId: project.versionId || null,
+      authorUserId: project.authorUserId || project.author?.id || "user_local",
+      contentOrigin: pack.contentOrigin || project.contentOrigin || project.origin?.contentOrigin || "original",
+      ipId: pack.ipId || null,
+      personaId: pack.persona?.id || project.persona?.id || null,
+      status: "ready_to_preview",
+      publishStatus: checklist.status,
+      pack,
+      h5Pack: pack,
+      qualityChecks,
+      checklist,
+      playabilityReport: report,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+  }
+
+  async function upsertGeneratedStoryProject(project = {}) {
+    const saved = saveStoryProject(normalizeStoryProjectForMock(project, {
+      timestamp: Date.now(),
+    }));
+    return saved;
   }
 
   function setStoreStatus(pack, status) {
@@ -1407,12 +1575,250 @@ export function createMockFlashApi({
 
     async createDraft(prompt, template, options = {}) {
       const { draft, project } = createStoryProjectFromPrompt(prompt, template, options);
-      return { item: draft, storyProject: project };
+      const storyProject = await upsertGeneratedStoryProject(project);
+      draft.sourceProjectId = storyProject.id;
+      draft.storyProjectId = storyProject.id;
+      return { item: draft, storyProject };
     },
 
     async createAiDraft(prompt, template, options = {}) {
       const { draft, project } = createStoryProjectFromPrompt(prompt, template, options);
-      return { item: draft, storyProject: project };
+      const storyProject = await upsertGeneratedStoryProject(project);
+      draft.sourceProjectId = storyProject.id;
+      draft.storyProjectId = storyProject.id;
+      return { item: draft, storyProject };
+    },
+
+    async listStoryProjects() {
+      ensureStoryProjectState();
+      return { items: structuredClone(storyProjectsCache) };
+    },
+
+    async createStoryProject(project = {}) {
+      const item = saveStoryProject(normalizeStoryProjectForMock(storyProjectFromPayload(project)));
+      return { item };
+    },
+
+    async getStoryProject(id) {
+      return { item: findStoryProject(id) };
+    },
+
+    async updateStoryProject(id, project = {}) {
+      const existing = findStoryProject(id);
+      if (!existing) return { item: null, reason: "not_found" };
+      const item = saveStoryProject(normalizeStoryProjectForMock(storyProjectFromPayload(project), {
+        id,
+        existing,
+      }));
+      return { item };
+    },
+
+    async listStoryProjectVersions(id) {
+      ensureStoryProjectState();
+      return {
+        items: structuredClone(storyProjectVersionsCache.filter((version) => version.storyProjectId === id)),
+      };
+    },
+
+    async createStoryProjectVersion(id, payload = {}) {
+      const existing = findStoryProject(id);
+      if (!existing) return { item: null, project: null, reason: "not_found" };
+      const timestamp = Date.now();
+      const snapshotProject = payload.project
+        ? normalizeStoryProjectForMock(payload.project, { id, existing, timestamp })
+        : normalizeStoryProjectForMock(existing, { id, existing, timestamp });
+      const version = saveStoryProjectVersion(createStoryProjectVersionSnapshot(snapshotProject, {
+        status: payload.status || "locked",
+        label: payload.label || "",
+        reason: payload.reason || "",
+        timestamp,
+      }));
+      const savedProject = saveStoryProject({
+        ...snapshotProject,
+        versionId: version.id,
+        updatedAt: timestamp,
+      });
+      return { item: version, project: savedProject };
+    },
+
+    async compileStoryProjectH5(id, payload = {}) {
+      const existing = findStoryProject(id);
+      if (!existing) return { item: null, reason: "not_found" };
+      const timestamp = Date.now();
+      const project = payload.project
+        ? normalizeStoryProjectForMock(payload.project, { id, existing, timestamp })
+        : normalizeStoryProjectForMock(existing, { id, existing, timestamp });
+      const errors = validateStoryProject(project);
+      const packId = storyProjectPackId(project, payload);
+      const report = createStoryProjectPlayabilityReport(project, {
+        packId,
+        generatedAt: timestamp,
+        timestamp,
+      });
+      if (errors.length || report.errors.length) {
+        return {
+          item: null,
+          errors: [...errors, ...report.errors],
+          report,
+        };
+      }
+      const pack = compileStoryProjectToH5Pack(project, {
+        packId,
+        status: "draft_h5",
+        timestamp,
+        throwOnInvalid: true,
+      });
+      const draft = createCompiledStoryDraft(project, pack, {
+        draftId: payload.draftId || makeMockId("draft"),
+        report,
+        timestamp,
+      });
+      return {
+        item: draft,
+        pack,
+        h5Pack: pack,
+        report,
+      };
+    },
+
+    async publishStoryProject(id, payload = {}) {
+      const existing = findStoryProject(id);
+      if (!existing) return { item: null, project: null, reason: "not_found" };
+      const timestamp = Date.now();
+      const candidate = payload.project
+        ? normalizeStoryProjectForMock(payload.project, { id, existing, timestamp })
+        : normalizeStoryProjectForMock(existing, { id, existing, timestamp });
+      const versionId = makeMockId("spv");
+      const packId = storyProjectPackId(candidate, payload);
+      const project = {
+        ...candidate,
+        status: "published",
+        versionId,
+        outputWorkId: packId,
+        publishedAt: candidate.publishedAt || timestamp,
+        updatedAt: timestamp,
+      };
+      const report = createStoryProjectPlayabilityReport(project, {
+        packId,
+        status: "public_h5",
+        generatedAt: timestamp,
+        timestamp,
+        target: "h5",
+      });
+      if (report.errors.length || report.publishChecklist?.status === "blocked") {
+        return {
+          item: null,
+          project: candidate,
+          report,
+          blocked: true,
+          errors: report.errors,
+        };
+      }
+      const pack = compileStoryProjectToH5Pack(project, {
+        packId,
+        status: "public_h5",
+        timestamp,
+        throwOnInvalid: true,
+      });
+      const packs = await getPacks();
+      const existingPackIndex = packs.findIndex((packItem) => packItem.id === pack.id);
+      if (existingPackIndex >= 0) packs.splice(existingPackIndex, 1);
+      packs.unshift(normalizePack(pack));
+      await commit(packs);
+      const savedProject = saveStoryProject(project);
+      const version = saveStoryProjectVersion(createStoryProjectVersionSnapshot(savedProject, {
+        id: versionId,
+        status: "published",
+        label: payload.label || "Published H5",
+        reason: payload.reason || "StoryProject published as H5 Work.",
+        timestamp,
+      }));
+      return {
+        item: packs[0],
+        project: savedProject,
+        version,
+        report,
+      };
+    },
+
+    async createStoryProjectAiJob(id, payload = {}) {
+      const project = findStoryProject(id);
+      if (!project) return { item: null, inputSnapshot: null, reason: "not_found" };
+      const timestamp = Date.now();
+      let inputSnapshot = null;
+      let inputSnapshotId = payload.inputSnapshotId || project.versionId || null;
+      if (!inputSnapshotId) {
+        inputSnapshot = saveStoryProjectVersion(createStoryProjectVersionSnapshot(project, {
+          status: "draft",
+          label: "AI job input",
+          reason: payload.stage || payload.prompt || "",
+          timestamp,
+        }));
+        inputSnapshotId = inputSnapshot.id;
+      }
+      const job = saveAiGenerationJob({
+        id: payload.id || makeMockId("ai_job"),
+        storyProjectId: project.id,
+        stage: payload.stage || payload.kind || "story_project_generation",
+        status: payload.status || "queued",
+        inputSnapshotId,
+        outputSnapshotId: payload.outputSnapshotId || null,
+        prompt: payload.prompt || payload.instruction || "",
+        request: structuredClone(payload),
+        result: payload.result || null,
+        errors: Array.isArray(payload.errors) ? payload.errors : [],
+        authorUserId: project.authorUserId || project.author?.id || "user_local",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+      return { item: job, inputSnapshot };
+    },
+
+    async getAiGenerationJob(id) {
+      ensureStoryProjectState();
+      const job = aiGenerationJobsCache.find((item) => item.id === id);
+      return { item: job ? structuredClone(job) : null };
+    },
+
+    async applyAiGenerationJob(id, payload = {}) {
+      ensureStoryProjectState();
+      const job = aiGenerationJobsCache.find((item) => item.id === id);
+      if (!job) return { item: null, job: null, reason: "not_found" };
+      const existing = findStoryProject(job.storyProjectId);
+      if (!existing) return { item: null, job: structuredClone(job), reason: "story_project_not_found" };
+      const outputProject = payload.project || job.result?.project;
+      if (!outputProject) return { item: null, job: structuredClone(job), reason: "ai_job_output_project_missing" };
+      const timestamp = Date.now();
+      const project = normalizeStoryProjectForMock(outputProject, {
+        id: existing.id,
+        existing,
+        timestamp,
+      });
+      const versionId = makeMockId("spv");
+      const savedProject = saveStoryProject({
+        ...project,
+        versionId,
+        updatedAt: timestamp,
+      });
+      const version = saveStoryProjectVersion(createStoryProjectVersionSnapshot(savedProject, {
+        id: versionId,
+        status: payload.versionStatus || "locked",
+        label: payload.label || "AI job output",
+        reason: payload.reason || job.prompt || job.stage || "",
+        timestamp,
+      }));
+      const updatedJob = saveAiGenerationJob({
+        ...job,
+        status: "applied",
+        outputSnapshotId: version.id,
+        appliedAt: timestamp,
+        updatedAt: timestamp,
+        result: {
+          ...(job.result || {}),
+          project: structuredClone(savedProject),
+        },
+      });
+      return { item: savedProject, job: updatedJob, version };
     },
 
     async createAiEditProposal(payload = {}) {

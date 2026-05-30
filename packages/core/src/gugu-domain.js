@@ -6,6 +6,7 @@ export const DOMAIN_ENTITY_TYPES = {
   StoryProject: "StoryProject",
   StoryProjectVersion: "StoryProjectVersion",
   AiGenerationJob: "AiGenerationJob",
+  ComicEpisode: "ComicEpisode",
   WorkDraft: "WorkDraft",
   Work: "Work",
   WorkVersion: "WorkVersion",
@@ -43,6 +44,7 @@ export const DOMAIN_STATUS = {
   StoryProject: ["draft", "validating", "ready_to_preview", "ready_to_publish", "published", "archived"],
   StoryProjectVersion: ["draft", "locked", "published", "archived"],
   AiGenerationJob: ["queued", "running", "waiting_user", "succeeded", "failed", "canceled"],
+  ComicEpisode: ["draft_storyboard", "ready_to_render", "published", "archived"],
   WorkDraft: ["editing", "validating", "ready_to_publish", "archived"],
   Work: ["public_limited", "public", "taken_down", "deleted"],
   WorkVersion: ["active", "locked", "replaced", "removed"],
@@ -120,6 +122,11 @@ export const DOMAIN_ENTITY_SCHEMAS = {
   AiGenerationJob: {
     idPrefix: "ai_job_",
     required: ["id", "storyProjectId", "stage", "status", "inputSnapshotId", "createdAt", "updatedAt"],
+    statusField: "status",
+  },
+  ComicEpisode: {
+    idPrefix: "comic_",
+    required: ["id", "storyProjectId", "schemaVersion", "title", "status", "updatedAt"],
     statusField: "status",
   },
   WorkDraft: {

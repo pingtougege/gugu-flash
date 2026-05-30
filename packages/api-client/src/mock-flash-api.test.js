@@ -86,11 +86,29 @@ function createMemoryApi(seedPacks, options = {}) {
 test("mock AI draft generation also returns a StoryProject", async () => {
   const { api } = createMemoryApi([]);
   const response = await api.createAiDraft("一个雨夜便利店分支故事", "adventure");
+  const listed = await api.listStoryProjects();
 
   assert.equal(response.item.storyProjectId, response.storyProject.id);
   assert.equal(response.storyProject.schemaVersion, GUGU_STORY_PROJECT_SCHEMA_VERSION);
   assert.equal(response.storyProject.status, "ready_to_preview");
   assert.deepEqual(validateStoryProject(response.storyProject), []);
+  assert.equal(listed.items.some((item) => item.id === response.storyProject.id), true);
+});
+
+test("mock StoryProject update persists a single scene body edit", async () => {
+  const { api } = createMemoryApi([]);
+  const created = await api.createAiDraft("一间深夜修理铺遇到会说话的旧钟", "healing");
+  const project = structuredClone(created.storyProject);
+  const scene = project.script.scenes.find((item) => item.id === project.storyGraph.entryNodeId) || project.script.scenes[0];
+  scene.text = "改过的单场景正文会被专业工作台读回。";
+
+  const updated = await api.updateStoryProject(project.id, project);
+  const fetched = await api.getStoryProject(project.id);
+  const updatedScene = updated.item.script.scenes.find((item) => item.id === scene.id);
+  const fetchedScene = fetched.item.script.scenes.find((item) => item.id === scene.id);
+
+  assert.equal(updatedScene.text, "改过的单场景正文会被专业工作台读回。");
+  assert.equal(fetchedScene.text, "改过的单场景正文会被专业工作台读回。");
 });
 
 test("applyStoreListing requires the rights acknowledgement", async () => {

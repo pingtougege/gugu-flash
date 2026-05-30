@@ -186,6 +186,14 @@ test("StoryProject HTTP slice creates, fetches, snapshots, records jobs, and com
     const fetched = await api.getStoryProject(created.item.id);
     assert.equal(fetched.item.title, "Backend Slice Mystery");
 
+    const sceneEditedProject = structuredClone(fetched.item);
+    sceneEditedProject.script.scenes[0].text = "The first scene was revised through the professional inspector.";
+    const updated = await api.updateStoryProject(created.item.id, sceneEditedProject);
+    assert.equal(updated.item.script.scenes[0].text, "The first scene was revised through the professional inspector.");
+    assert.equal(updated.item.storyGraph.edges.length, 4);
+    const refetched = await api.getStoryProject(created.item.id);
+    assert.equal(refetched.item.script.scenes[0].text, "The first scene was revised through the professional inspector.");
+
     const version = await api.createStoryProjectVersion(created.item.id, {
       label: "Phase 0 snapshot",
       reason: "Prove project snapshots persist.",

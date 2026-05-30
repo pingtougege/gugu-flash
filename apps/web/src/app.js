@@ -24,6 +24,15 @@ import { loadPacks, savePacks } from "./adapters/local-pack-store.js";
 
 const flashApi = createFlashApi({ loadPacks, savePacks });
 const apiRuntime = flashApi.runtime || { mode: "mock", baseUrl: "" };
+if (!flashApi.updateStoryProject) {
+  flashApi.updateStoryProject = async (id, project = {}) => ({
+    item: {
+      ...project,
+      id: project.id || id,
+      updatedAt: Date.now(),
+    },
+  });
+}
 
 const state = {
   packs: [],
@@ -44,6 +53,12 @@ const state = {
   animeCollectionResult: null,
   draft: null,
   draftPlaySceneId: null,
+  storyProjects: [],
+  storyProject: null,
+  storyProjectListStatus: "idle",
+  storyProjectSaveStatus: "idle",
+  storyProjectSaveMessage: "",
+  selectedStudioSceneId: null,
   storeApplyPackId: null,
   storeTermsAccepted: false,
   deviceSyncTermsAccepted: false,
@@ -1361,35 +1376,314 @@ function studioStatusLabel(status) {
   return "提醒";
 }
 
+function normalizeStoryProjectResponse(response = {}) {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response.items)) return response.items;
+  if (Array.isArray(response.projects)) return response.projects;
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response.item)) return response.item;
+  return response.item ? [response.item] : [];
+}
+
+function mergeStoryProjects(projects = []) {
+  const byId = new Map();
+  for (const project of projects) {
+    if (!project?.id) continue;
+    byId.set(project.id, structuredClone(project));
+  }
+  return Array.from(byId.values());
+}
+
+function storyProjectSceneCount(project = {}) {
+  return project.script?.scenes?.length || project.storyGraph?.nodes?.length || 0;
+}
+
+function storyProjectOriginText(project = {}) {
+  const origin = project.origin || {};
+  const originType = origin.contentOrigin === "fanwork" ? "fanwork" : "original";
+  const ipName = origin.ipName || getIpEntry(origin.ipId)?.name || "";
+  return originType === "fanwork"
+    ? `${contentOriginLabel(originType)} · ${ipName || "未填写 IP"}`
+    : `${contentOriginLabel(originType)}${ipName ? ` · ${ipName}` : ""}`;
+}
+
+function storyProjectStatusText(status = "") {
+  const labels = {
+    draft: "草稿",
+    validating: "校验中",
+    ready_to_preview: "可预览",
+    ready_to_publish: "可发布",
+    published: "已发布",
+    archived: "已归档",
+  };
+  return labels[status] || "StoryProject";
+}
+
+function storyProjectMatchesDraft(project = {}, draft = {}) {
+  if (!project?.id || !draft) return false;
+  if ([draft.storyProjectId, draft.sourceProjectId].includes(project.id)) return true;
+  return (project.outputs || []).some((output) => (
+    output?.id && [draft.id, draft.sourceDraftId].includes(output.id)
+  ));
+}
+
+function upsertStoryProject(project) {
+  if (!project?.id) return;
+  state.storyProjects = mergeStoryProjects([
+    project,
+    ...state.storyProjects.filter((item) => item.id !== project.id),
+  ]);
+}
+
+function setCurrentStoryProject(project) {
+  state.storyProject = project?.id ? structuredClone(project) : null;
+  if (state.storyProject) upsertStoryProject(state.storyProject);
+}
+
+function resolveStoryProjectForDraft(draft) {
+  if (storyProjectMatchesDraft(state.storyProject, draft)) return state.storyProject;
+  const matched = state.storyProjects.find((project) => storyProjectMatchesDraft(project, draft));
+  if (matched) setCurrentStoryProject(matched);
+  return state.storyProject;
+}
+
+async function loadStoryProjectsForStudio({ render = true } = {}) {
+  if (!flashApi.listStoryProjects) return;
+  state.storyProjectListStatus = "loading";
+  if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+  try {
+    const response = await flashApi.listStoryProjects();
+    const loadedProjects = normalizeStoryProjectResponse(response);
+    state.storyProjects = mergeStoryProjects([
+      state.storyProject,
+      ...loadedProjects,
+    ]);
+    const current = resolveStoryProjectForDraft(state.draft);
+    if (current) setCurrentStoryProject(current);
+    state.storyProjectListStatus = "loaded";
+  } catch (error) {
+    state.storyProjectListStatus = "error";
+  }
+  if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+}
+
+function studioProjectListStatusText() {
+  if (state.storyProjectListStatus === "loading") return "同步中";
+  if (state.storyProjectListStatus === "error") return "列表同步失败";
+  if (state.storyProjectListStatus === "loaded") return "已同步";
+  return "本地";
+}
+
 function renderStudioProjectList(draft) {
-  const published = state.packs.slice(0, 3);
-  const publishedLabel = state.packs.length ? `${state.packs.length} 个已发布` : "暂无已发布";
-  $("studioProjectCount").textContent = `当前草稿 · ${publishedLabel}`;
-  return `
-    <article class="studio-project-card active">
-      <span>草稿</span>
-      <div>
-        <strong>${escapeHtml(draft.title || "未命名作品")}</strong>
-        <small>${escapeHtml(packOriginText(draft))}</small>
-      </div>
-      <em>${escapeHtml((draft.scenes || []).length)} 场</em>
-    </article>
-    ${published.map((pack) => `
-      <article class="studio-project-card">
-        <span>已发布</span>
+  resolveStoryProjectForDraft(draft);
+  const projects = state.storyProjects.length
+    ? state.storyProjects
+    : state.storyProject ? [state.storyProject] : [];
+  if (!projects.length) {
+    $("studioProjectCount").textContent = "本地草稿 · 未绑定 StoryProject";
+    return `
+      <article class="studio-project-card active">
+        <span>本地</span>
         <div>
-          <strong>${escapeHtml(displayWorkTitle(pack))}</strong>
-          <small>${escapeHtml(packOriginText(pack))}</small>
+          <strong>${escapeHtml(draft.title || "未命名作品")}</strong>
+          <small>${escapeHtml(packOriginText(draft))}</small>
         </div>
-        <em>${escapeHtml(pack.scenes?.length || 0)} 场</em>
+        <em>${escapeHtml((draft.scenes || []).length)} 场</em>
+      </article>
+    `;
+  }
+  $("studioProjectCount").textContent = `${projects.length} 个 StoryProject · ${studioProjectListStatusText()}`;
+  return `
+    ${projects.map((project) => `
+      <article class="studio-project-card ${project.id === state.storyProject?.id ? "active" : ""}" data-studio-project-id="${escapeHtml(project.id)}">
+        <span>${escapeHtml(storyProjectStatusText(project.status))}</span>
+        <div>
+          <strong>${escapeHtml(project.title || "未命名项目")}</strong>
+          <small>${escapeHtml(project.id)} · ${escapeHtml(storyProjectOriginText(project))}</small>
+        </div>
+        <em>${escapeHtml(storyProjectSceneCount(project))} 场</em>
       </article>
     `).join("")}
   `;
 }
 
+function updateSceneDialogueText(scene, text) {
+  if (!Array.isArray(scene.dialogue) || !scene.dialogue.length) {
+    scene.dialogue = [{ speaker: scene.speaker || "旁白", text }];
+    return;
+  }
+  scene.dialogue = scene.dialogue.map((line, index) => {
+    if (index > 0) return line;
+    const nextLine = { ...line, text };
+    if ("line" in nextLine) nextLine.line = text;
+    return nextLine;
+  });
+}
+
+function selectedStudioScene(draft) {
+  const scenes = draft?.scenes || [];
+  if (!scenes.length) {
+    state.selectedStudioSceneId = null;
+    return null;
+  }
+  const fallbackId = state.draftPlaySceneId || draft.entrySceneId || scenes[0]?.id;
+  if (!state.selectedStudioSceneId || !scenes.some((scene) => scene.id === state.selectedStudioSceneId)) {
+    state.selectedStudioSceneId = fallbackId;
+  }
+  return scenes.find((scene) => scene.id === state.selectedStudioSceneId) || scenes[0];
+}
+
+function studioSaveStatusText() {
+  if (state.storyProjectSaveStatus === "saving") return "保存中";
+  if (state.storyProjectSaveStatus === "saved") return "保存成功";
+  if (state.storyProjectSaveStatus === "local") return "已保存本地";
+  if (state.storyProjectSaveStatus === "error") return "保存失败";
+  return state.storyProject?.id ? "待保存" : "本地草稿";
+}
+
+function defaultStudioSaveMessage() {
+  if (!state.storyProject?.id) return "当前没有 StoryProject，保存只会写入本地草稿。";
+  return "修改会同步到当前 StoryProject。";
+}
+
+function renderStudioSceneInspector(draft) {
+  const scene = selectedStudioScene(draft);
+  if (!scene) return `<div class="empty-state compact-empty">还没有可编辑的场景。</div>`;
+  const sceneIndex = (draft.scenes || []).findIndex((item) => item.id === scene.id);
+  const message = state.storyProjectSaveMessage || defaultStudioSaveMessage();
+  return `
+    <div class="studio-inspector-form" data-studio-inspector-scene="${escapeHtml(scene.id)}">
+      <label>
+        <small>标题</small>
+        <input id="studioSceneTitleInput" data-testid="studio-scene-title" type="text" value="${escapeHtml(scene.title || "")}" placeholder="${escapeHtml(scene.id || `scene_${sceneIndex + 1}`)}" />
+      </label>
+      <label>
+        <small>正文</small>
+        <textarea id="studioSceneTextInput" data-testid="studio-scene-text" rows="5">${escapeHtml(scene.text || "")}</textarea>
+      </label>
+      <div class="studio-inspector-preview">
+        <strong>${escapeHtml(scene.speaker || draft.persona?.name || "旁白")}</strong>
+        <p>${escapeHtml(scene.text || "空场景")}</p>
+      </div>
+      <div class="studio-inspector-actions">
+        <p id="studioSceneSaveMessage" class="studio-save-message ${escapeHtml(state.storyProjectSaveStatus)}" aria-live="polite">${escapeHtml(message)}</p>
+        <button class="primary-button" id="studioSceneSaveButton" data-testid="studio-scene-save" type="button" ${state.storyProjectSaveStatus === "saving" ? "disabled" : ""}>
+          ${state.storyProject?.id ? "保存到项目" : "保存本地"}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function applyStudioSceneEditToDraft(draft, sceneId, values) {
+  const scene = (draft.scenes || []).find((item) => item.id === sceneId);
+  if (!scene) return null;
+  const title = values.title || scene.title || scene.id;
+  scene.title = title;
+  scene.text = values.text;
+  updateSceneDialogueText(scene, values.text);
+  const sceneIndex = (draft.scenes || []).findIndex((item) => item.id === scene.id);
+  scene.stageScriptText = makeSceneScriptText(draft, scene, sceneIndex);
+  scene.userEditedScript = true;
+  draft.stageScriptText = makeStageScriptText(draft);
+  draft.updatedAt = Date.now();
+  return scene;
+}
+
+function storyProjectWithStudioSceneEdit(project, draft, scene) {
+  const nextProject = structuredClone(project);
+  nextProject.title = draft.title || nextProject.title || "未命名项目";
+  nextProject.updatedAt = draft.updatedAt || Date.now();
+  nextProject.script = nextProject.script || {};
+  nextProject.script.scenes = Array.isArray(nextProject.script.scenes)
+    ? nextProject.script.scenes
+    : [];
+  const projectScene = nextProject.script.scenes.find((item) => item.id === scene.id);
+  const nextScene = {
+    ...(projectScene || {}),
+    id: scene.id,
+    title: scene.title || scene.id,
+    background: scene.background,
+    character: scene.character,
+    speaker: scene.speaker,
+    text: scene.text,
+    dialogue: structuredClone(scene.dialogue || []),
+    stageDirection: scene.stageDirection || projectScene?.stageDirection || "",
+    beat: scene.beat || projectScene?.beat || "",
+  };
+  if (projectScene) {
+    Object.assign(projectScene, nextScene);
+  } else {
+    nextProject.script.scenes.push(nextScene);
+  }
+  const node = (nextProject.storyGraph?.nodes || []).find((item) => (
+    item.sceneId === scene.id || item.id === scene.id
+  ));
+  if (node) {
+    node.title = scene.title || node.title;
+    node.summary = scene.text || node.summary;
+  }
+  nextProject.qualityReports = createDraftQualityChecks(draft);
+  return nextProject;
+}
+
+function selectStudioScene(sceneId) {
+  if (!state.draft) return;
+  const scene = (state.draft.scenes || []).find((item) => item.id === sceneId);
+  if (!scene) return;
+  state.selectedStudioSceneId = scene.id;
+  state.draftPlaySceneId = scene.id;
+  state.storyProjectSaveStatus = "idle";
+  state.storyProjectSaveMessage = "";
+  renderCreatorStudio(state.draft);
+  renderDraftPlaytest(state.draft);
+}
+
+async function saveStudioSceneInspector() {
+  if (!state.draft || !state.selectedStudioSceneId) return;
+  const text = $("studioSceneTextInput")?.value.trim() || "";
+  const title = $("studioSceneTitleInput")?.value.trim() || "";
+  if (!text) {
+    state.storyProjectSaveStatus = "error";
+    state.storyProjectSaveMessage = "正文不能为空。";
+    renderCreatorStudio(state.draft);
+    return;
+  }
+  const scene = applyStudioSceneEditToDraft(state.draft, state.selectedStudioSceneId, { title, text });
+  if (!scene) return;
+  if ($("draftScriptText")) {
+    $("draftScriptText").dataset.userEdited = "true";
+    $("draftScriptText").value = state.draft.stageScriptText || "";
+  }
+  if (!state.storyProject?.id) {
+    state.storyProjectSaveStatus = "local";
+    state.storyProjectSaveMessage = "已保存到本地草稿。";
+    renderDraft(state.draft);
+    return;
+  }
+
+  const project = storyProjectWithStudioSceneEdit(state.storyProject, state.draft, scene);
+  setCurrentStoryProject(project);
+  state.storyProjectSaveStatus = "saving";
+  state.storyProjectSaveMessage = "正在保存 StoryProject。";
+  renderCreatorStudio(state.draft);
+  try {
+    const response = await flashApi.updateStoryProject(project.id, project);
+    const savedProject = response?.item || response?.project || project;
+    setCurrentStoryProject(savedProject);
+    state.storyProjectSaveStatus = "saved";
+    state.storyProjectSaveMessage = "保存成功，StoryProject 已更新。";
+  } catch (error) {
+    state.storyProjectSaveStatus = "error";
+    state.storyProjectSaveMessage = "保存到 StoryProject 失败，本地修改已保留。";
+  }
+  renderDraft(state.draft);
+}
+
 function renderCreatorStudio(draft) {
   if (!$("creatorStudioPanel") || !draft) return;
   const scenes = draft.scenes || [];
+  const activeStudioScene = selectedStudioScene(draft);
   const report = createTextGamePlaytestReport(draft);
   const checks = createDraftQualityChecks(draft);
   const checklist = createPublishChecklist(draft, { qualityChecks: checks });
@@ -1431,6 +1725,7 @@ function renderCreatorStudio(draft) {
   `;
   $("studioSceneCount").textContent = `${scenes.length} 个场景`;
   $("studioSceneList").innerHTML = scenes.length ? scenes.map((scene, index) => {
+    const isActiveScene = scene.id === activeStudioScene?.id;
     const badges = [
       scene.id === draft.entrySceneId ? ["入口", "passed"] : null,
       endingIds.has(scene.id) ? ["结局", "passed"] : null,
@@ -1439,7 +1734,7 @@ function renderCreatorStudio(draft) {
       (scene.stageScriptText || scene.text) ? ["脚本", "passed"] : ["缺脚本", "warning"],
     ].filter(Boolean);
     return `
-      <article class="studio-scene-item">
+      <button class="studio-scene-item ${isActiveScene ? "active" : ""}" data-studio-scene-select="${escapeHtml(scene.id)}" type="button">
         <div>
           <strong>${index + 1}. ${escapeHtml(scene.title || scene.id || "未命名场景")}</strong>
           <small>${escapeHtml(scene.id || `scene_${index + 1}`)} · ${(scene.actions || []).length} 个选项</small>
@@ -1448,9 +1743,11 @@ function renderCreatorStudio(draft) {
         <div class="studio-badge-row">
           ${badges.map(([label, status]) => `<span class="${status}">${escapeHtml(label)}</span>`).join("")}
         </div>
-      </article>
+      </button>
     `;
   }).join("") : `<div class="empty-state compact-empty">还没有场景。</div>`;
+  $("studioSceneSaveStatus").textContent = studioSaveStatusText();
+  $("studioSceneInspector").innerHTML = renderStudioSceneInspector(draft);
   $("studioPublishStatus").textContent = publishStatus;
   $("studioPublishDiagnostics").innerHTML = checklistChecks.slice(0, 6).map((check) => `
     <article class="studio-diagnostic-item ${check.status}">
@@ -2882,6 +3179,10 @@ async function runDraftGeneration() {
   state.draftGenerating = true;
   state.createGuideAdvanced = false;
   state.createWizardStep = "making";
+  setCurrentStoryProject(null);
+  state.storyProjectSaveStatus = "idle";
+  state.storyProjectSaveMessage = "";
+  state.selectedStudioSceneId = null;
   setCreateProgress("AI 正在制作完整文字游戏：企划、角色、场景、素材和检查会一起完成。", "info");
   setButtonBusy(button, true, "制作中");
   startGenerationWorkbench();
@@ -2894,6 +3195,9 @@ async function runDraftGeneration() {
       state.draft.rightsAcknowledgedAt = options.rightsAcknowledgedAt || Date.now();
     }
     state.draftPlaySceneId = state.draft?.entrySceneId || state.draft?.scenes?.[0]?.id || null;
+    state.selectedStudioSceneId = state.draftPlaySceneId;
+    setCurrentStoryProject(response.storyProject || null);
+    await loadStoryProjectsForStudio({ render: false });
     state.aiEdit = {
       status: "idle",
       prompt: "",
@@ -2937,7 +3241,10 @@ function renderScreenData(screenId) {
   if (screenId === "storeScreen") renderStore();
   if (screenId === "profileScreen") renderProfile();
   if (screenId === "operatorScreen") renderOperator();
-  if (screenId === "createScreen") updateCreateReadiness();
+  if (screenId === "createScreen") {
+    updateCreateReadiness();
+    if (state.draft && state.createGuideAdvanced) void loadStoryProjectsForStudio();
+  }
 }
 
 function packSubtitle(pack) {
@@ -3495,11 +3802,16 @@ function startEditingWork(pack) {
   const draft = structuredClone(pack);
   state.editingWorkId = pack.id;
   state.createGuideAdvanced = false;
+  setCurrentStoryProject(null);
+  state.storyProjectSaveStatus = "idle";
+  state.storyProjectSaveMessage = "";
+  state.selectedStudioSceneId = null;
   state.draft = {
     ...draft,
     sourceDraftId: draft.sourceDraftId || draft.id,
   };
   state.draftPlaySceneId = state.draft.entrySceneId || state.draft.scenes?.[0]?.id || null;
+  state.selectedStudioSceneId = state.draftPlaySceneId;
   usePackAsCreateSettings(state.draft);
   $("promptInput").value = state.draft.aiAssistance?.prompt || state.draft.creationBrief?.prompt || state.draft.title || "";
   renderCreateControls();
@@ -4202,7 +4514,7 @@ function wireEvents() {
     applyPromptExample("fanwork");
   });
 
-  $("createWizardNav").addEventListener("click", (event) => {
+  $("createWizardNav").addEventListener("click", async (event) => {
     const advancedToggle = event.target.closest("[data-create-advanced-toggle]");
     if (advancedToggle) {
       state.createGuideAdvanced = !state.createGuideAdvanced;
@@ -4210,6 +4522,7 @@ function wireEvents() {
         state.createWizardStep = state.draft ? "preview" : "prompt";
       }
       renderCreateWizard();
+      if (state.createGuideAdvanced) await loadStoryProjectsForStudio();
       return;
     }
     const button = event.target.closest("[data-create-step-target]");
@@ -4267,6 +4580,15 @@ function wireEvents() {
     const studioStepButton = event.target.closest("[data-studio-step-target]");
     if (studioStepButton) {
       setCreateWizardStep(studioStepButton.dataset.studioStepTarget);
+      return;
+    }
+    const studioSceneButton = event.target.closest("[data-studio-scene-select]");
+    if (studioSceneButton) {
+      selectStudioScene(studioSceneButton.dataset.studioSceneSelect);
+      return;
+    }
+    if (event.target.closest("#studioSceneSaveButton")) {
+      await saveStudioSceneInspector();
       return;
     }
     const scriptButton = event.target.closest("[data-script-scene-open]");
@@ -4327,6 +4649,17 @@ function wireEvents() {
     }
   });
   $("createScreen").addEventListener("input", (event) => {
+    if (event.target.id === "studioSceneTitleInput" || event.target.id === "studioSceneTextInput") {
+      state.storyProjectSaveStatus = "idle";
+      state.storyProjectSaveMessage = state.storyProject?.id ? "有未保存修改。" : "有本地未保存修改。";
+      $("studioSceneSaveStatus").textContent = studioSaveStatusText();
+      const message = $("studioSceneSaveMessage");
+      if (message) {
+        message.textContent = state.storyProjectSaveMessage;
+        message.className = "studio-save-message idle";
+      }
+      return;
+    }
     if ((event.target.id === "draftScriptText" || event.target.id === "scriptSceneEditor") && state.draft) {
       event.target.dataset.userEdited = "true";
       if (event.target.id === "draftScriptText") {

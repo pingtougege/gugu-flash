@@ -55,8 +55,10 @@ test("mock facade methods map to future backend routes", () => {
 test("story project API routes are reserved for Creator Studio", () => {
   assert.equal(getApiRoute("storyProjects.create").path, "/flash/story-projects");
   assert.equal(getApiRoute("storyProjects.create").requestEntity, "StoryProject");
+  assert.equal(getApiRoute("storyProjects.versions.list").method, "GET");
   assert.equal(getApiRoute("storyProjects.versions.create").responseEntity, "StoryProjectVersion");
   assert.equal(getApiRoute("storyProjects.compileH5").responseEntity, "WorkDraft");
+  assert.equal(getApiRoute("storyProjects.compileComic").responseEntity, "ComicEpisode");
   assert.equal(getApiRoute("ai.storyProjectJobs.create").responseEntity, "AiGenerationJob");
 });
 

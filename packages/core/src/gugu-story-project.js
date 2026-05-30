@@ -12,6 +12,7 @@ import {
 } from "./ai-text-game-contract.js";
 
 export const GUGU_STORY_PROJECT_SCHEMA_VERSION = "gugu_story_project_v1";
+export const GUGU_COMIC_EPISODE_SCHEMA_VERSION = "gugu_comic_episode_v1";
 
 export const GUGU_STORY_PROJECT_STATUSES = [
   "draft",
@@ -343,6 +344,76 @@ export function compileStoryProjectToH5Pack(project = {}, options = {}) {
     throw new Error(validationErrors.join("\n"));
   }
   return pack;
+}
+
+export function compileStoryProjectToComicEpisode(project = {}, options = {}) {
+  const timestamp = options.timestamp || Date.now();
+  const errors = validateStoryProject(project);
+  if (errors.length && options.throwOnInvalid) {
+    throw new Error(errors.join("\n"));
+  }
+
+  const origin = projectOrigin(project);
+  const persona = projectPersona(project);
+  const scenesById = sceneById(project);
+  const nodes = graphNodes(project);
+  const edges = graphEdges(project);
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const cover = project.cover || {};
+  const panels = nodes.map((node, index) => {
+    const id = nodeRuntimeId(node);
+    const scene = scenesById.get(id) || {};
+    const outgoing = edges.filter((edge) => edge.fromNodeId === node.id);
+    const nextBeats = outgoing.map((edge) => {
+      const target = nodeById.get(edge.toNodeId);
+      return {
+        label: compactText(edge.label, "继续").slice(0, 20),
+        targetPanelId: target ? nodeRuntimeId(target) : nodeRuntimeId({ id: edge.toNodeId }),
+      };
+    });
+    const dialogue = asArray(scene.dialogue).length
+      ? asArray(scene.dialogue)
+      : [{ speaker: scene.speaker || persona.name || "旁白", line: compactText(scene.text || node.summary || node.title, "这一格还没有对白。").slice(0, 90) }];
+
+    return {
+      id: `panel_${id}`,
+      sceneId: id,
+      nodeId: node.id,
+      panelIndex: index + 1,
+      title: compactText(scene.title || node.title || `第 ${index + 1} 格`).slice(0, 24),
+      shotType: node.type === "ending" ? "ending_closeup" : index === 0 ? "establishing" : "dialogue_medium",
+      background: scene.background || cover.background || "story_project_background",
+      character: scene.character || persona.avatar || cover.character || "✨",
+      speaker: scene.speaker || persona.name || "旁白",
+      caption: compactText(scene.stageDirection || node.stageDirection || scene.beat || node.beat || project.brief?.logline || project.title, "").slice(0, 110),
+      dialogue,
+      sourceText: compactText(scene.text || node.summary || node.title, "").slice(0, 180),
+      ending: node.type === "ending",
+      nextBeats,
+      visualPrompt: compactText(scene.visualPrompt || scene.text || project.brief?.logline || project.title, "").slice(0, 220),
+    };
+  });
+
+  return {
+    id: options.episodeId || project.outputComicEpisodeId || project.id?.replace(/^story_project_/, "comic_") || `comic_${Math.random().toString(36).slice(2, 9)}`,
+    schemaVersion: GUGU_COMIC_EPISODE_SCHEMA_VERSION,
+    targetType: "ComicEpisode",
+    storyProjectId: project.id || null,
+    storyProjectVersionId: project.versionId || null,
+    title: compactText(project.title, "未命名漫剧").slice(0, 30),
+    status: options.status || "draft_storyboard",
+    contentOrigin: origin.contentOrigin,
+    ipId: origin.ipId,
+    ipName: origin.contentOrigin === "fanwork" ? origin.ipName : null,
+    author: project.author || { id: "user_local", name: "你" },
+    persona,
+    brief: project.brief || {},
+    panels,
+    panelCount: panels.length,
+    validationErrors: errors,
+    createdAt: project.createdAt || timestamp,
+    updatedAt: timestamp,
+  };
 }
 
 export function createStoryProjectPlayabilityReport(project = {}, options = {}) {

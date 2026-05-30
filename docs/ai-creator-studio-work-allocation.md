@@ -512,3 +512,44 @@ Status:
 StoryProject can now move from AI generation to persisted project, AI apply, validated H5 publish, and professional web inspection.
 Next slice should add editable scene inspector saving, real StoryProject project list loading, and comic/manju storyboard compile contract.
 ```
+
+### 2026-05-31 Phase 1 Save-Capable Studio Start
+
+Started by Codex and assigned agents:
+
+- Locke: mock/API StoryProject list and update support.
+- Harvey: Creator Studio project loading and single-scene inspector save.
+- Euclid: save-flow QA risk review.
+- Codex: comic/manju storyboard compiler contract.
+
+Completed locally by Codex:
+
+- Added `GUGU_COMIC_EPISODE_SCHEMA_VERSION`.
+- Added `compileStoryProjectToComicEpisode(project)` so the same editable project can output a structured comic/manju storyboard contract.
+- Added core test coverage for storyboard panels, source scene IDs, ending panels, and validation metadata.
+
+Verification:
+
+```text
+node --test packages/core/src/gugu-story-project.test.js
+```
+
+### 2026-05-31 Phase 1 Save-Capable Studio Complete
+
+Completed by Codex and assigned agents:
+
+- Mock mode now persists generated StoryProjects and supports list/get/update/version/compile/publish/job/apply methods with HTTP-compatible names.
+- HTTP StoryProject update is covered for single-scene body edits while preserving graph edges.
+- Creator Studio now loads StoryProject records and binds the generated project into the current workspace.
+- Creator Studio has a scene Inspector for editing title/body and saving to the current StoryProject.
+- The same edit updates local draft preview/playtest state so mobile preview reflects saved scene text.
+- API contract now identifies comic compilation output as `ComicEpisode`.
+- Domain schemas now include `ComicEpisode`.
+
+Verification:
+
+```text
+node --test packages/api-client/src/flash-api-contract.test.js packages/core/src/gugu-domain.test.js apps/backend/src/alpha-route-coverage.test.js
+node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/core/src/gugu-story-project.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio scene inspector|creator studio opens|mobile guide defaults"
+```
