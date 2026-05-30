@@ -33,6 +33,24 @@ function compactText(value = "", fallback = "") {
   return String(value || fallback || "").trim();
 }
 
+function imageUrlFromGeneratedImage(generatedImage) {
+  if (!generatedImage) return "";
+  if (typeof generatedImage === "string") return compactText(generatedImage);
+  if (typeof generatedImage === "object") {
+    return compactText(
+      generatedImage.imageUrl
+      || generatedImage.url
+      || generatedImage.src
+      || generatedImage.assetUrl,
+    );
+  }
+  return "";
+}
+
+function panelIdForNode(node = {}) {
+  return `panel_${nodeRuntimeId(node)}`;
+}
+
 function unique(values) {
   return Array.from(new Set(values.filter(Boolean)));
 }
@@ -368,29 +386,40 @@ export function compileStoryProjectToComicEpisode(project = {}, options = {}) {
       const target = nodeById.get(edge.toNodeId);
       return {
         label: compactText(edge.label, "继续").slice(0, 20),
-        targetPanelId: target ? nodeRuntimeId(target) : nodeRuntimeId({ id: edge.toNodeId }),
+        targetPanelId: target ? panelIdForNode(target) : panelIdForNode({ id: edge.toNodeId }),
       };
     });
     const dialogue = asArray(scene.dialogue).length
       ? asArray(scene.dialogue)
       : [{ speaker: scene.speaker || persona.name || "旁白", line: compactText(scene.text || node.summary || node.title, "这一格还没有对白。").slice(0, 90) }];
+    const generatedImage = scene.generatedImage || null;
+    const imageUrl = compactText(
+      scene.imageUrl
+      || scene.generatedImageUrl
+      || imageUrlFromGeneratedImage(generatedImage),
+    );
 
     return {
-      id: `panel_${id}`,
+      id: panelIdForNode(node),
       sceneId: id,
       nodeId: node.id,
       panelIndex: index + 1,
       title: compactText(scene.title || node.title || `第 ${index + 1} 格`).slice(0, 24),
-      shotType: node.type === "ending" ? "ending_closeup" : index === 0 ? "establishing" : "dialogue_medium",
+      shotType: compactText(
+        scene.shotType || node.shotType,
+        node.type === "ending" ? "ending_closeup" : index === 0 ? "establishing" : "dialogue_medium",
+      ).slice(0, 48),
       background: scene.background || cover.background || "story_project_background",
       character: scene.character || persona.avatar || cover.character || "✨",
       speaker: scene.speaker || persona.name || "旁白",
-      caption: compactText(scene.stageDirection || node.stageDirection || scene.beat || node.beat || project.brief?.logline || project.title, "").slice(0, 110),
+      caption: compactText(scene.caption || scene.stageDirection || node.stageDirection || scene.beat || node.beat || project.brief?.logline || project.title, "").slice(0, 110),
       dialogue,
       sourceText: compactText(scene.text || node.summary || node.title, "").slice(0, 180),
       ending: node.type === "ending",
       nextBeats,
       visualPrompt: compactText(scene.visualPrompt || scene.text || project.brief?.logline || project.title, "").slice(0, 220),
+      imageUrl: imageUrl || null,
+      generatedImage,
     };
   });
 

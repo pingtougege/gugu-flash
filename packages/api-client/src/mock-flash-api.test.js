@@ -117,6 +117,13 @@ test("mock StoryProject comic compile returns a ComicEpisode", async () => {
   const created = await api.createAiDraft("一间深夜修理铺遇到会说话的旧钟", "healing");
   const project = structuredClone(created.storyProject);
   project.title = "修理铺漫剧分镜";
+  project.script.scenes[0].shotType = "mock_wide_shot";
+  project.script.scenes[0].caption = "Mock edited storyboard caption.";
+  project.script.scenes[0].visualPrompt = "mock storyboard visual prompt";
+  project.script.scenes[0].generatedImage = {
+    id: "asset_mock_panel_start",
+    imageUrl: "https://cdn.example.test/mock/start.png",
+  };
 
   const compiled = await api.compileStoryProjectComic(project.id, {
     project,
@@ -129,6 +136,10 @@ test("mock StoryProject comic compile returns a ComicEpisode", async () => {
   assert.equal(compiled.item.storyProjectId, project.id);
   assert.equal(compiled.item.title, "修理铺漫剧分镜");
   assert.equal(compiled.item.panelCount, project.storyGraph.nodes.length);
+  assert.equal(compiled.item.panels[0].shotType, "mock_wide_shot");
+  assert.equal(compiled.item.panels[0].caption, "Mock edited storyboard caption.");
+  assert.equal(compiled.item.panels[0].visualPrompt, "mock storyboard visual prompt");
+  assert.equal(compiled.item.panels[0].imageUrl, "https://cdn.example.test/mock/start.png");
   assert.equal(compiled.episode.id, compiled.item.id);
   assert.equal(compiled.project.title, "修理铺漫剧分镜");
   assert.deepEqual(compiled.item.validationErrors, []);
@@ -188,6 +199,20 @@ test("mock StoryProject version restore replaces the current project", async () 
   const mismatch = await api.restoreStoryProjectVersion(other.storyProject.id, version.item.id);
   assert.equal(mismatch.reason, "version_mismatch");
   assert.equal(mismatch.item, null);
+});
+
+test("mock AI image generation returns a safe PNG preview with source statement", async () => {
+  const { api } = createMemoryApi([]);
+  const generated = await api.generateAiImage({
+    id: "comic_panel_visual",
+    prompt: "rainy neon storefront panel",
+  });
+
+  assert.match(generated.item.imageUrl, /^data:image\/png;base64,/);
+  assert.equal(generated.item.mediaType, "image/png");
+  assert.equal(generated.item.filename, "comic_panel_visual.png");
+  assert.equal(generated.item.sourceStatement.sourceType, "ai_generated");
+  assert.equal(generated.item.sourceStatement.rightsAcknowledged, true);
 });
 
 test("applyStoreListing requires the rights acknowledgement", async () => {

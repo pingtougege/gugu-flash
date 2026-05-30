@@ -66,6 +66,11 @@ const state = {
   comicStoryboard: null,
   comicStoryboardStatus: "idle",
   comicStoryboardMessage: "",
+  selectedComicPanelId: null,
+  comicPanelSaveStatus: "idle",
+  comicPanelSaveMessage: "",
+  comicVisualStatus: "idle",
+  comicVisualMessage: "",
   selectedStudioSceneId: null,
   storeApplyPackId: null,
   storeTermsAccepted: false,
@@ -1408,6 +1413,43 @@ function normalizeComicStoryboardResponse(response = {}) {
   return response?.episode || response?.comicEpisode || response?.item || null;
 }
 
+function projectScriptScenes(project = {}) {
+  return Array.isArray(project.script?.scenes) ? project.script.scenes : [];
+}
+
+function projectScriptSceneMap(project = {}) {
+  return new Map(projectScriptScenes(project)
+    .filter((scene) => scene?.id)
+    .map((scene) => [scene.id, scene]));
+}
+
+function decorateComicStoryboardWithProjectScenes(episode, project = state.storyProject) {
+  if (!episode?.panels) return episode;
+  const scenes = projectScriptSceneMap(project);
+  const panels = episode.panels.map((panel) => {
+    const scene = scenes.get(panel.sceneId) || {};
+    const comicPanel = scene.comicPanel || {};
+    const nextPanel = { ...panel };
+    const shotType = comicPanel.shotType || scene.shotType;
+    const caption = comicPanel.caption ?? scene.caption ?? scene.stageDirection;
+    const visualPrompt = comicPanel.visualPrompt || scene.visualPrompt;
+    const generatedImage = scene.generatedImage || comicPanel.generatedImage || panel.generatedImage;
+    if (shotType) nextPanel.shotType = shotType;
+    if (caption !== undefined) nextPanel.caption = caption;
+    if (visualPrompt) nextPanel.visualPrompt = visualPrompt;
+    if (generatedImage) nextPanel.generatedImage = structuredClone(generatedImage);
+    if (scene.visualStatus || comicPanel.visualStatus) {
+      nextPanel.visualStatus = scene.visualStatus || comicPanel.visualStatus;
+    }
+    return nextPanel;
+  });
+  return {
+    ...episode,
+    panels,
+    panelCount: panels.length,
+  };
+}
+
 function mergeStoryProjects(projects = []) {
   const byId = new Map();
   for (const project of projects) {
@@ -1494,6 +1536,11 @@ function resetStudioDerivedState({ keepVersions = false } = {}) {
   state.comicStoryboard = null;
   state.comicStoryboardStatus = "idle";
   state.comicStoryboardMessage = "";
+  state.selectedComicPanelId = null;
+  state.comicPanelSaveStatus = "idle";
+  state.comicPanelSaveMessage = "";
+  state.comicVisualStatus = "idle";
+  state.comicVisualMessage = "";
 }
 
 function setCurrentStoryProject(project) {
@@ -1527,6 +1574,11 @@ function storyProjectScriptSceneToDraftScene(scene = {}, index = 0, draft = {}) 
     dialogue: structuredClone(scene.dialogue || []),
     stageDirection: scene.stageDirection || "",
     beat: scene.beat || "",
+    caption: scene.caption ?? scene.comicPanel?.caption ?? scene.stageDirection ?? "",
+    visualPrompt: scene.visualPrompt || scene.comicPanel?.visualPrompt || "",
+    shotType: scene.shotType || scene.comicPanel?.shotType || "",
+    generatedImage: scene.generatedImage ? structuredClone(scene.generatedImage) : null,
+    comicPanel: scene.comicPanel ? structuredClone(scene.comicPanel) : null,
     actions: structuredClone(scene.actions || []),
   };
 }
@@ -1545,6 +1597,16 @@ function compileStoryProjectForStudio(project = {}) {
   draft.sourceProjectId = project.id || null;
   draft.storyProjectVersionId = project.versionId || null;
   draft.sourceProjectVersionId = project.versionId || null;
+  const projectScenes = projectScriptSceneMap(project);
+  (draft.scenes || []).forEach((scene) => {
+    const source = projectScenes.get(scene.id);
+    if (!source) return;
+    scene.visualPrompt = source.visualPrompt || source.comicPanel?.visualPrompt || scene.visualPrompt || "";
+    scene.shotType = source.shotType || source.comicPanel?.shotType || scene.shotType || "";
+    scene.caption = source.caption ?? source.comicPanel?.caption ?? source.stageDirection ?? scene.caption ?? "";
+    scene.generatedImage = source.generatedImage ? structuredClone(source.generatedImage) : scene.generatedImage || null;
+    scene.comicPanel = source.comicPanel ? structuredClone(source.comicPanel) : scene.comicPanel || null;
+  });
   draft.stageScriptText = makeStageScriptText(draft);
   (draft.scenes || []).forEach((scene, index) => {
     if (!scene.stageScriptText) scene.stageScriptText = makeSceneScriptText(draft, scene, index);
@@ -1667,7 +1729,8 @@ async function generateComicStoryboardForStudio({ render = true } = {}) {
       state.comicStoryboardStatus = "error";
       state.comicStoryboardMessage = response?.reason || response?.message || "漫剧分镜生成失败。";
     } else {
-      state.comicStoryboard = episode;
+      state.comicStoryboard = decorateComicStoryboardWithProjectScenes(episode, state.storyProject);
+      ensureSelectedComicPanel();
       state.comicStoryboardStatus = "loaded";
       state.comicStoryboardMessage = `已生成 ${episode.panelCount || episode.panels?.length || 0} 格分镜。`;
     }
@@ -1810,6 +1873,7 @@ function ensureCreatorStudioDynamicSections() {
           <button class="ghost-button compact" id="studioComicRefreshButton" data-studio-comic-refresh type="button">生成/刷新</button>
         </div>
         <div class="studio-comic-list" id="studioComicStoryboard"></div>
+        <div class="studio-comic-inspector" id="studioComicInspector"></div>
       </section>
     `);
   }
@@ -1841,6 +1905,46 @@ function panelDialogueText(panel = {}) {
   return line?.line || line?.text || panel.sourceText || "这一格还没有对白。";
 }
 
+function comicPanelImage(panel = {}) {
+  if (panel.generatedImage) return panel.generatedImage;
+  if (panel.imageUrl) {
+    return {
+      id: panel.imageAssetId || `${panel.id || panel.sceneId || "panel"}_image`,
+      imageUrl: panel.imageUrl,
+      status: panel.visualStatus || "bound",
+      provider: panel.imageProvider || "story_project",
+      prompt: panel.visualPrompt || panel.caption || panel.sourceText || "",
+    };
+  }
+  return null;
+}
+
+function comicPanelVisualStatusText(panel = {}) {
+  const image = comicPanelImage(panel);
+  if (image?.imageUrl) return "已绑定视觉";
+  if (image?.status) return `视觉：${image.status}`;
+  return "待生成视觉";
+}
+
+function ensureSelectedComicPanel() {
+  const panels = state.comicStoryboard?.panels || [];
+  if (!panels.length) {
+    state.selectedComicPanelId = null;
+    return null;
+  }
+  let panel = panels.find((item) => item.id === state.selectedComicPanelId);
+  if (!panel && state.selectedStudioSceneId) {
+    panel = panels.find((item) => item.sceneId === state.selectedStudioSceneId);
+  }
+  if (!panel) panel = panels[0];
+  state.selectedComicPanelId = panel.id;
+  return panel;
+}
+
+function selectedStudioComicPanel() {
+  return ensureSelectedComicPanel();
+}
+
 function renderStudioComicStoryboard() {
   if (!state.storyProject?.id) {
     return `<div class="empty-state compact-empty">当前草稿还未绑定 StoryProject，保存为项目后可生成漫剧分镜。</div>`;
@@ -1859,21 +1963,110 @@ function renderStudioComicStoryboard() {
   if (!panels.length) {
     return `<div class="empty-state compact-empty">点击“生成/刷新”，把当前 StoryProject 编译成可检查的漫剧分镜。</div>`;
   }
+  const selectedPanel = ensureSelectedComicPanel();
   return panels.slice(0, 6).map((panel) => {
     const nextBeats = (panel.nextBeats || []).map((beat) => beat.label).filter(Boolean).join(" / ");
+    const image = comicPanelImage(panel);
+    const imageUrl = displayMediaUrl(image?.imageUrl || "");
+    const isActive = panel.id === selectedPanel?.id;
     return `
-      <article class="studio-comic-panel">
+      <button class="studio-comic-panel ${isActive ? "active" : ""} ${imageUrl ? "has-image" : ""}" data-testid="studio-comic-panel" data-studio-comic-panel-select="${escapeHtml(panel.id)}" type="button">
         <span>Panel ${escapeHtml(panel.panelIndex || "")}</span>
         <div>
           <strong>${escapeHtml(panel.title || panel.sceneId || "未命名分镜")}</strong>
           <small>${escapeHtml(panel.shotType || "shot")} · ${escapeHtml(panel.sceneId || panel.nodeId || "")}</small>
         </div>
         <p><b>${escapeHtml(panel.speaker || "旁白")}</b> ${escapeHtml(panelDialogueText(panel))}</p>
+        <small>Caption：${escapeHtml(panel.caption || "暂无动作说明")}</small>
         <small>原文：${escapeHtml(panel.sourceText || panel.caption || "暂无原文")}</small>
         <em>Next beats：${escapeHtml(nextBeats || "无")}</em>
-      </article>
+        ${imageUrl
+          ? `<img class="studio-comic-panel-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(panel.title || "分镜视觉")}">`
+          : `<div class="studio-comic-panel-image placeholder">视觉待生成</div>`}
+        <small class="studio-comic-visual-status">${escapeHtml(comicPanelVisualStatusText(panel))}</small>
+      </button>
     `;
   }).join("");
+}
+
+function comicPanelSaveStatusText() {
+  if (state.comicPanelSaveStatus === "saving") return "保存中";
+  if (state.comicPanelSaveStatus === "saved") return "分镜已保存";
+  if (state.comicPanelSaveStatus === "partial") return "分镜已保存，快照失败";
+  if (state.comicPanelSaveStatus === "error") return "分镜保存失败";
+  return state.storyProject?.id ? "可编辑分镜" : "本地草稿";
+}
+
+function comicVisualStatusText() {
+  if (state.comicVisualStatus === "generating") return "正在生成视觉素材。";
+  if (state.comicVisualStatus === "binding") return "图片已生成，正在绑定到项目。";
+  if (state.comicVisualStatus === "bound") return state.comicVisualMessage || "视觉已绑定到当前分镜。";
+  if (state.comicVisualStatus === "unavailable") return "当前运行环境暂未开放 AI 图片生成。";
+  if (state.comicVisualStatus === "error") return state.comicVisualMessage || "视觉生成失败，请稍后重试。";
+  return state.comicVisualMessage || "使用当前视觉提示词生成或绑定图片。";
+}
+
+function renderStudioComicInspector() {
+  if (!state.storyProject?.id) {
+    return `<div class="empty-state compact-empty">保存为 StoryProject 后可编辑单格分镜。</div>`;
+  }
+  if (state.comicStoryboardStatus === "loading") {
+    return `<div class="empty-state compact-empty">分镜生成中，完成后可编辑单格。</div>`;
+  }
+  if (state.comicStoryboardStatus === "error") {
+    return `<div class="empty-state compact-empty">分镜生成失败，暂不能打开单格 Inspector。</div>`;
+  }
+  const panel = selectedStudioComicPanel();
+  if (!panel) {
+    return `<div class="empty-state compact-empty">选择一个 Comic panel 后可编辑镜头、字幕和视觉提示词。</div>`;
+  }
+  const image = comicPanelImage(panel);
+  const imageUrl = displayMediaUrl(image?.imageUrl || "");
+  const message = state.comicPanelSaveMessage || "编辑会写回当前 StoryProject 的 script scene，并生成版本快照。";
+  return `
+    <div class="studio-comic-inspector-form" data-studio-comic-inspector="${escapeHtml(panel.id)}">
+      <div class="studio-comic-inspector-heading">
+        <div>
+          <strong>分镜 Inspector</strong>
+          <small>${escapeHtml(panel.title || panel.sceneId || "未命名单格")} · ${escapeHtml(panel.sceneId || "")}</small>
+        </div>
+        <span>${escapeHtml(comicPanelSaveStatusText())}</span>
+      </div>
+      <label>
+        <small>Shot type</small>
+        <input id="studioComicShotTypeInput" data-testid="studio-comic-shot-type" type="text" value="${escapeHtml(panel.shotType || "dialogue_medium")}" />
+      </label>
+      <label>
+        <small>Caption / 动作说明</small>
+        <textarea id="studioComicCaptionInput" data-testid="studio-comic-caption" rows="2">${escapeHtml(panel.caption || "")}</textarea>
+      </label>
+      <label>
+        <small>Visual prompt</small>
+        <textarea id="studioComicVisualPromptInput" data-testid="studio-comic-visual-prompt" rows="3">${escapeHtml(panel.visualPrompt || panel.sourceText || "")}</textarea>
+      </label>
+      <label>
+        <small>Dialogue / Source text</small>
+        <textarea id="studioComicSourceTextInput" data-testid="studio-comic-source-text" rows="4">${escapeHtml(panel.sourceText || panelDialogueText(panel))}</textarea>
+      </label>
+      <div class="studio-comic-visual-preview">
+        ${imageUrl
+          ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(panel.title || "分镜视觉预览")}">`
+          : `<div>未绑定视觉素材</div>`}
+        <p id="studioComicVisualMessage" class="studio-save-message ${escapeHtml(state.comicVisualStatus)}" aria-live="polite">${escapeHtml(comicVisualStatusText())}</p>
+      </div>
+      <div class="studio-inspector-actions">
+        <p id="studioComicPanelMessage" class="studio-save-message ${escapeHtml(state.comicPanelSaveStatus)}" aria-live="polite">${escapeHtml(message)}</p>
+        <div class="studio-comic-action-row">
+          <button class="ghost-button compact" id="studioComicGenerateVisualButton" data-testid="studio-comic-generate-visual" type="button" ${state.comicVisualStatus === "generating" || state.comicPanelSaveStatus === "saving" || !flashApi.generateAiImage ? "disabled" : ""}>
+            ${state.comicVisualStatus === "generating" ? "生成中" : imageUrl ? "重新生成/绑定视觉" : "生成/绑定视觉"}
+          </button>
+          <button class="primary-button compact" id="studioComicPanelSaveButton" data-testid="studio-comic-save" type="button" ${state.comicPanelSaveStatus === "saving" ? "disabled" : ""}>
+            ${state.comicPanelSaveStatus === "saving" ? "保存中" : "保存分镜"}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function studioVersionStatusText() {
@@ -1979,14 +2172,160 @@ function storyProjectWithStudioSceneEdit(project, draft, scene) {
   return nextProject;
 }
 
+function readComicPanelEditorValues(panel = {}) {
+  return {
+    shotType: $("studioComicShotTypeInput")?.value.trim() || panel.shotType || "dialogue_medium",
+    caption: $("studioComicCaptionInput")?.value.trim() || "",
+    visualPrompt: $("studioComicVisualPromptInput")?.value.trim() || panel.visualPrompt || panel.sourceText || "",
+    sourceText: $("studioComicSourceTextInput")?.value.trim() || panel.sourceText || panelDialogueText(panel),
+  };
+}
+
+function applyComicPanelEditToDraft(draft, panel, values = {}, generatedImage = null) {
+  const scene = (draft.scenes || []).find((item) => item.id === panel.sceneId);
+  if (!scene) return null;
+  scene.text = values.sourceText;
+  scene.stageDirection = values.caption;
+  scene.caption = values.caption;
+  scene.visualPrompt = values.visualPrompt;
+  scene.shotType = values.shotType;
+  scene.comicPanel = {
+    ...(scene.comicPanel || {}),
+    shotType: values.shotType,
+    caption: values.caption,
+    visualPrompt: values.visualPrompt,
+    sourceText: values.sourceText,
+    updatedAt: Date.now(),
+  };
+  if (generatedImage) scene.generatedImage = structuredClone(generatedImage);
+  updateSceneDialogueText(scene, values.sourceText);
+  const sceneIndex = (draft.scenes || []).findIndex((item) => item.id === scene.id);
+  scene.stageScriptText = makeSceneScriptText(draft, scene, sceneIndex);
+  scene.userEditedScript = true;
+  draft.stageScriptText = makeStageScriptText(draft);
+  draft.updatedAt = Date.now();
+  return scene;
+}
+
+function storyProjectWithComicPanelEdit(project, draft, panel, values = {}, generatedImage = null) {
+  const nextProject = structuredClone(project);
+  const sceneId = panel.sceneId;
+  nextProject.title = draft.title || nextProject.title || "未命名项目";
+  nextProject.updatedAt = draft.updatedAt || Date.now();
+  nextProject.script = nextProject.script || {};
+  nextProject.script.scenes = Array.isArray(nextProject.script.scenes)
+    ? nextProject.script.scenes
+    : [];
+  let projectScene = nextProject.script.scenes.find((item) => item.id === sceneId);
+  if (!projectScene) {
+    projectScene = { id: sceneId, title: panel.title || sceneId };
+    nextProject.script.scenes.push(projectScene);
+  }
+  const draftScene = (draft.scenes || []).find((item) => item.id === sceneId) || {};
+  const nextDialogue = structuredClone(projectScene.dialogue || draftScene.dialogue || panel.dialogue || []);
+  const dialogueScene = {
+    dialogue: nextDialogue,
+    speaker: projectScene.speaker || draftScene.speaker || panel.speaker || "旁白",
+  };
+  updateSceneDialogueText(dialogueScene, values.sourceText);
+  Object.assign(projectScene, {
+    id: sceneId,
+    title: draftScene.title || projectScene.title || panel.title || sceneId,
+    background: draftScene.background || projectScene.background,
+    character: draftScene.character || projectScene.character,
+    speaker: draftScene.speaker || projectScene.speaker || panel.speaker || "旁白",
+    text: values.sourceText,
+    dialogue: dialogueScene.dialogue,
+    stageDirection: values.caption,
+    caption: values.caption,
+    visualPrompt: values.visualPrompt,
+    shotType: values.shotType,
+    comicPanel: {
+      ...(projectScene.comicPanel || {}),
+      shotType: values.shotType,
+      caption: values.caption,
+      visualPrompt: values.visualPrompt,
+      sourceText: values.sourceText,
+      updatedAt: Date.now(),
+    },
+  });
+  if (generatedImage) {
+    projectScene.generatedImage = structuredClone(generatedImage);
+    projectScene.visualStatus = generatedImage.status || "generated";
+    projectScene.comicPanel.generatedImage = structuredClone(generatedImage);
+    projectScene.comicPanel.visualStatus = projectScene.visualStatus;
+  }
+  const node = (nextProject.storyGraph?.nodes || []).find((item) => (
+    item.sceneId === sceneId || item.id === sceneId || item.id === panel.nodeId
+  ));
+  if (node) {
+    node.title = projectScene.title || node.title;
+    node.summary = values.sourceText || node.summary;
+    node.stageDirection = values.caption || node.stageDirection;
+  }
+  nextProject.qualityReports = createDraftQualityChecks(draft);
+  return nextProject;
+}
+
+function normalizeComicGeneratedImage(rawImage = {}, panel = {}, values = {}) {
+  const imageUrl = rawImage.imageUrl || rawImage.url || rawImage.src || rawImage.assetUrl || "";
+  const mediaType = rawImage.mediaType || rawImage.contentType || (
+    String(imageUrl).startsWith("data:image/png") ? "image/png" : "image/png"
+  );
+  const filename = rawImage.filename || `${panel.sceneId || panel.id || "comic-panel"}.png`;
+  return {
+    ...rawImage,
+    id: rawImage.id || `comic_visual_${panel.sceneId || panel.id || Date.now()}`,
+    imageUrl,
+    mediaType,
+    filename,
+    sizeBytes: Number(rawImage.sizeBytes || rawImage.byteLength || 96),
+    status: rawImage.status || "ai_generated",
+    provider: rawImage.provider || "mock_preview",
+    prompt: rawImage.prompt || values.visualPrompt || values.caption || values.sourceText || "",
+    generatedAt: rawImage.generatedAt || Date.now(),
+    sourceStatement: {
+      ...(rawImage.sourceStatement || {}),
+      sourceType: "ai_generated",
+      provider: rawImage.provider || rawImage.sourceStatement?.provider || "mock_preview",
+      model: rawImage.model || rawImage.sourceStatement?.model || "mock_preview",
+      prompt: rawImage.prompt || values.visualPrompt || values.caption || values.sourceText || "",
+      rightsAcknowledged: true,
+      policyVersion: "gugu_flash_asset_security_v1",
+    },
+  };
+}
+
+function selectStudioComicPanel(panelId) {
+  const panel = (state.comicStoryboard?.panels || []).find((item) => item.id === panelId);
+  if (!panel) return;
+  state.selectedComicPanelId = panel.id;
+  if (panel.sceneId && (state.draft?.scenes || []).some((scene) => scene.id === panel.sceneId)) {
+    state.selectedStudioSceneId = panel.sceneId;
+    state.draftPlaySceneId = panel.sceneId;
+  }
+  state.comicPanelSaveStatus = "idle";
+  state.comicPanelSaveMessage = "";
+  state.comicVisualStatus = "idle";
+  state.comicVisualMessage = "";
+  renderCreatorStudio(state.draft);
+  renderDraftPlaytest(state.draft);
+}
+
 function selectStudioScene(sceneId) {
   if (!state.draft) return;
   const scene = (state.draft.scenes || []).find((item) => item.id === sceneId);
   if (!scene) return;
   state.selectedStudioSceneId = scene.id;
   state.draftPlaySceneId = scene.id;
+  const panel = (state.comicStoryboard?.panels || []).find((item) => item.sceneId === scene.id);
+  if (panel) state.selectedComicPanelId = panel.id;
   state.storyProjectSaveStatus = "idle";
   state.storyProjectSaveMessage = "";
+  state.comicPanelSaveStatus = "idle";
+  state.comicPanelSaveMessage = "";
+  state.comicVisualStatus = "idle";
+  state.comicVisualMessage = "";
   renderCreatorStudio(state.draft);
   renderDraftPlaytest(state.draft);
 }
@@ -2063,6 +2402,137 @@ async function saveStudioSceneInspector() {
   }
   renderDraft(state.draft);
   if (shouldRefreshComic) await generateComicStoryboardForStudio();
+}
+
+async function saveComicPanelInspector(options = {}) {
+  if (state.comicPanelSaveStatus === "saving") return false;
+  if (!state.draft || !state.storyProject?.id) return false;
+  const panel = selectedStudioComicPanel();
+  if (!panel?.sceneId) return false;
+  const values = options.values || readComicPanelEditorValues(panel);
+  const generatedImage = options.generatedImage || null;
+  if (!values.sourceText) {
+    state.comicPanelSaveStatus = "error";
+    state.comicPanelSaveMessage = "对白 / 原文不能为空。";
+    renderCreatorStudio(state.draft);
+    return false;
+  }
+  const scene = applyComicPanelEditToDraft(state.draft, panel, values, generatedImage);
+  if (!scene) return false;
+  if ($("draftScriptText")) {
+    $("draftScriptText").dataset.userEdited = "true";
+    $("draftScriptText").value = state.draft.stageScriptText || "";
+  }
+  const project = storyProjectWithComicPanelEdit(state.storyProject, state.draft, panel, values, generatedImage);
+  setCurrentStoryProject(project);
+  if (state.comicStoryboard) {
+    state.comicStoryboard = decorateComicStoryboardWithProjectScenes(state.comicStoryboard, project);
+  }
+  state.comicPanelSaveStatus = "saving";
+  state.comicPanelSaveMessage = generatedImage ? "正在保存分镜并绑定视觉素材。" : "正在保存分镜到 StoryProject。";
+  if (generatedImage) {
+    state.comicVisualStatus = "binding";
+    state.comicVisualMessage = "图片已生成，正在绑定到项目。";
+  }
+  renderCreatorStudio(state.draft);
+  let saved = false;
+  try {
+    const response = await flashApi.updateStoryProject(project.id, project);
+    let savedProject = response?.item || response?.project || project;
+    let snapshotCreated = false;
+    let snapshotFailed = false;
+    if (flashApi.createStoryProjectVersion && savedProject?.id) {
+      try {
+        const versionResponse = await flashApi.createStoryProjectVersion(savedProject.id, {
+          project: savedProject,
+          label: options.versionLabel || (generatedImage ? "视觉绑定" : "分镜保存"),
+          reason: options.versionReason || (generatedImage ? "Creator Studio 视觉素材绑定" : "Creator Studio 分镜编辑"),
+          status: "locked",
+        });
+        snapshotCreated = Boolean(versionResponse?.item?.id);
+        savedProject = versionResponse?.project || savedProject;
+      } catch (snapshotError) {
+        snapshotFailed = true;
+      }
+    }
+    setCurrentStoryProject(savedProject);
+    state.draft.storyProjectVersionId = savedProject?.versionId || state.draft.storyProjectVersionId || null;
+    state.draft.sourceProjectVersionId = savedProject?.versionId || state.draft.sourceProjectVersionId || null;
+    state.comicPanelSaveStatus = snapshotFailed ? "partial" : "saved";
+    state.comicPanelSaveMessage = snapshotCreated
+      ? "分镜保存成功，已生成版本快照。"
+      : snapshotFailed
+        ? "分镜已保存，版本快照创建失败。"
+        : "分镜保存成功，StoryProject 已更新。";
+    if (generatedImage) {
+      state.comicVisualStatus = "bound";
+      state.comicVisualMessage = generatedImage.imageUrl ? "视觉已绑定到当前分镜。" : "视觉生成状态已绑定到当前分镜。";
+    }
+    await loadStoryProjectVersionsForStudio({ render: false });
+    state.comicStoryboard = null;
+    state.comicStoryboardStatus = "idle";
+    state.comicStoryboardMessage = "分镜已保存，正在刷新 storyboard。";
+    saved = true;
+  } catch (error) {
+    state.comicPanelSaveStatus = "error";
+    state.comicPanelSaveMessage = generatedImage
+      ? "视觉已生成，但保存绑定失败，本地修改已保留。"
+      : "分镜保存失败，本地修改已保留。";
+    if (generatedImage) {
+      state.comicVisualStatus = "error";
+      state.comicVisualMessage = "视觉绑定保存失败。";
+    }
+  }
+  renderDraft(state.draft);
+  if (saved) await generateComicStoryboardForStudio();
+  return saved;
+}
+
+async function generateAndBindStudioComicVisual() {
+  if (state.comicVisualStatus === "generating" || state.comicPanelSaveStatus === "saving") return;
+  const panel = selectedStudioComicPanel();
+  if (!panel?.sceneId) return;
+  const values = readComicPanelEditorValues(panel);
+  if (!flashApi.generateAiImage) {
+    state.comicVisualStatus = "unavailable";
+    state.comicVisualMessage = "当前运行环境暂未开放 AI 图片生成。";
+    renderCreatorStudio(state.draft);
+    return;
+  }
+  state.comicVisualStatus = "generating";
+  state.comicVisualMessage = "正在生成视觉素材。";
+  renderCreatorStudio(state.draft);
+  try {
+    const response = await flashApi.generateAiImage({
+      id: `${state.storyProject?.id || state.draft?.id || "draft"}_${panel.sceneId}_comic_visual`,
+      type: "comic_panel",
+      name: `${state.storyProject?.title || state.draft?.title || "分镜"} - ${panel.title || panel.sceneId}`,
+      usage: "comic_storyboard_panel",
+      prompt: values.visualPrompt || values.caption || values.sourceText,
+      visualPrompt: values.visualPrompt,
+      caption: values.caption,
+      sceneId: panel.sceneId,
+      panelId: panel.id,
+      draftId: state.draft?.id,
+      draftTitle: state.draft?.title,
+      persona: state.draft?.persona,
+      world: state.draft?.world,
+      contentOrigin: state.draft?.contentOrigin || state.storyProject?.origin?.contentOrigin,
+      ipName: state.draft?.ipName || state.storyProject?.origin?.ipName,
+    });
+    const generatedImage = normalizeComicGeneratedImage(response?.item || response?.image || response, panel, values);
+    if (!generatedImage?.imageUrl && !generatedImage?.id) throw new Error("image_generation_empty");
+    await saveComicPanelInspector({
+      values,
+      generatedImage,
+      versionLabel: "视觉绑定",
+      versionReason: "Creator Studio 视觉素材绑定",
+    });
+  } catch (error) {
+    state.comicVisualStatus = "error";
+    state.comicVisualMessage = "视觉生成失败，请稍后重试。";
+    renderCreatorStudio(state.draft);
+  }
 }
 
 async function restoreStudioStoryProjectVersion(versionId) {
@@ -2184,6 +2654,7 @@ function renderCreatorStudio(draft) {
   $("studioComicMessage").textContent = state.comicStoryboardMessage || "点击生成可把 StoryProject 编译成漫剧分镜。";
   $("studioComicRefreshButton").disabled = state.comicStoryboardStatus === "loading" || !state.storyProject?.id || !flashApi.compileStoryProjectComic;
   $("studioComicStoryboard").innerHTML = renderStudioComicStoryboard();
+  $("studioComicInspector").innerHTML = renderStudioComicInspector();
   $("studioVersionStatus").textContent = studioVersionStatusText();
   $("studioVersionHistory").innerHTML = renderStudioVersionHistory();
   $("studioPublishStatus").textContent = publishStatus;
@@ -5038,6 +5509,19 @@ function wireEvents() {
       await generateComicStoryboardForStudio();
       return;
     }
+    const studioComicPanelButton = event.target.closest("[data-studio-comic-panel-select]");
+    if (studioComicPanelButton) {
+      selectStudioComicPanel(studioComicPanelButton.dataset.studioComicPanelSelect);
+      return;
+    }
+    if (event.target.closest("#studioComicPanelSaveButton")) {
+      await saveComicPanelInspector();
+      return;
+    }
+    if (event.target.closest("#studioComicGenerateVisualButton")) {
+      await generateAndBindStudioComicVisual();
+      return;
+    }
     const studioVersionRestoreButton = event.target.closest("[data-studio-version-restore]");
     if (studioVersionRestoreButton) {
       await restoreStudioStoryProjectVersion(studioVersionRestoreButton.dataset.studioVersionRestore);
@@ -5110,6 +5594,28 @@ function wireEvents() {
     }
   });
   $("createScreen").addEventListener("input", (event) => {
+    if ([
+      "studioComicShotTypeInput",
+      "studioComicCaptionInput",
+      "studioComicVisualPromptInput",
+      "studioComicSourceTextInput",
+    ].includes(event.target.id)) {
+      state.comicPanelSaveStatus = "idle";
+      state.comicPanelSaveMessage = "分镜有未保存修改。";
+      state.comicVisualStatus = "idle";
+      state.comicVisualMessage = "视觉会使用当前提示词生成。";
+      const panelMessage = $("studioComicPanelMessage");
+      if (panelMessage) {
+        panelMessage.textContent = state.comicPanelSaveMessage;
+        panelMessage.className = "studio-save-message idle";
+      }
+      const visualMessage = $("studioComicVisualMessage");
+      if (visualMessage) {
+        visualMessage.textContent = state.comicVisualMessage;
+        visualMessage.className = "studio-save-message idle";
+      }
+      return;
+    }
     if (event.target.id === "studioSceneTitleInput" || event.target.id === "studioSceneTextInput") {
       state.storyProjectSaveStatus = "idle";
       state.storyProjectSaveMessage = state.storyProject?.id ? "有未保存修改。" : "有本地未保存修改。";

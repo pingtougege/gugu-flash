@@ -202,9 +202,36 @@ test("compileStoryProjectToComicEpisode creates a storyboard contract", () => {
   assert.equal(episode.storyProjectId, project.id);
   assert.equal(episode.panelCount, project.storyGraph.nodes.length);
   assert.equal(episode.panels[0].sceneId, "start");
+  assert.equal(episode.panels[0].id, "panel_start");
+  assert.equal(episode.panels[0].nextBeats[0].targetPanelId, "panel_ask_cat");
   assert.equal(episode.panels[0].shotType, "establishing");
   assert.equal(episode.panels.some((panel) => panel.ending), true);
   assert.deepEqual(episode.validationErrors, []);
+});
+
+test("compileStoryProjectToComicEpisode preserves edited storyboard fields and image bindings", () => {
+  const project = makeStoryProject();
+  const startScene = project.script.scenes.find((scene) => scene.id === "start");
+  startScene.shotType = "dramatic_closeup";
+  startScene.caption = "Rain beads on the counter while the cat watches tomorrow's paper.";
+  startScene.visualPrompt = "cinematic closeup, rainy convenience store counter, black cat, warm neon";
+  startScene.generatedImage = {
+    id: "asset_panel_start",
+    imageUrl: "https://cdn.example.test/panels/start.png",
+    provider: "gugu_render",
+  };
+
+  const episode = compileStoryProjectToComicEpisode(project, {
+    episodeId: "comic_storyboard_assets",
+    timestamp: 1760000000000,
+  });
+  const panel = episode.panels.find((item) => item.sceneId === "start");
+
+  assert.equal(panel.shotType, "dramatic_closeup");
+  assert.equal(panel.caption, "Rain beads on the counter while the cat watches tomorrow's paper.");
+  assert.equal(panel.visualPrompt, "cinematic closeup, rainy convenience store counter, black cat, warm neon");
+  assert.equal(panel.imageUrl, "https://cdn.example.test/panels/start.png");
+  assert.deepEqual(panel.generatedImage, startScene.generatedImage);
 });
 
 test("validateStoryProject blocks broken graph targets and accidental dead ends", () => {

@@ -262,6 +262,13 @@ test("StoryProject HTTP slice compiles a project as a ComicEpisode", async () =>
     const project = structuredClone(created.item);
     project.title = "Backend Slice Comic";
     project.script.scenes[0].text = "The first panel was revised for the comic compiler.";
+    project.script.scenes[0].shotType = "backend_closeup";
+    project.script.scenes[0].caption = "Backend edited panel caption.";
+    project.script.scenes[0].visualPrompt = "backend slice comic visual prompt";
+    project.script.scenes[0].generatedImage = {
+      id: "asset_backend_panel_start",
+      imageUrl: "https://cdn.example.test/backend/start.png",
+    };
 
     const compiled = await api.compileStoryProjectComic(created.item.id, {
       project,
@@ -274,6 +281,10 @@ test("StoryProject HTTP slice compiles a project as a ComicEpisode", async () =>
     assert.equal(compiled.item.storyProjectId, created.item.id);
     assert.equal(compiled.item.title, "Backend Slice Comic");
     assert.equal(compiled.item.panelCount, project.storyGraph.nodes.length);
+    assert.equal(compiled.item.panels[0].shotType, "backend_closeup");
+    assert.equal(compiled.item.panels[0].caption, "Backend edited panel caption.");
+    assert.equal(compiled.item.panels[0].visualPrompt, "backend slice comic visual prompt");
+    assert.equal(compiled.item.panels[0].imageUrl, "https://cdn.example.test/backend/start.png");
     assert.equal(compiled.episode.id, compiled.item.id);
     assert.equal(compiled.project.script.scenes[0].text, "The first panel was revised for the comic compiler.");
     assert.deepEqual(compiled.item.validationErrors, []);

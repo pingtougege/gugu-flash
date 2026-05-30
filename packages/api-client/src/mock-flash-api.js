@@ -1946,14 +1946,25 @@ export function createMockFlashApi({
 
     async generateAiImage(asset = {}) {
       const prompt = asset.prompt || asset.usage || asset.name || "素材预览";
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="720" viewBox="0 0 720 720"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0891b2"/><stop offset=".58" stop-color="#8b5cf6"/><stop offset="1" stop-color="#fb7185"/></linearGradient></defs><rect width="720" height="720" rx="54" fill="url(#g)"/><text x="58" y="330" fill="white" font-family="Arial, sans-serif" font-size="46" font-weight="800">AI 素材预览</text><text x="58" y="392" fill="rgba(255,255,255,.86)" font-family="Arial, sans-serif" font-size="25">${String(prompt).slice(0, 18)}</text></svg>`;
+      const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
       return {
         item: {
           id: `mock_ai_image_${Date.now()}`,
           status: "fallback",
           provider: "mock_preview",
           prompt,
-          imageUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+          filename: `${asset.id || "mock_ai_image"}.png`,
+          mediaType: "image/png",
+          sizeBytes: 68,
+          imageUrl: `data:image/png;base64,${png}`,
+          sourceStatement: {
+            sourceType: "ai_generated",
+            provider: "mock_preview",
+            model: "mock_preview",
+            prompt,
+            rightsAcknowledged: true,
+            policyVersion: "gugu_flash_asset_security_v1",
+          },
           generatedAt: Date.now(),
         },
       };

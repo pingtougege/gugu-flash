@@ -50,6 +50,9 @@ Allowed statuses:
 | Backend Platform Round 5 | Heisenberg | StoryProject version restore API/mock | verified | Restore endpoint + facade contract |
 | Frontend Experience Round 5 | Volta | Comic preview and version history UI | verified | Creator Studio storyboard/history panel |
 | QA And Release Round 5 | Ohm | Restore/storyboard risk review | verified | Read-only risk checklist |
+| Core Contract Round 6 | Bernoulli | Editable ComicEpisode panel fields | verified | Panel metadata + image binding contract |
+| Frontend Experience Round 6 | Darwin | Panel inspector and visual asset binding | verified | Editable storyboard panel workflow |
+| QA And Release Round 6 | Feynman | Panel-edit risk review | verified | Read-only risk checklist |
 
 ## 3. Phase 0 Board
 
@@ -57,7 +60,7 @@ Allowed statuses:
 | --- | --- | --- | --- | --- | --- |
 | Story project schema | Codex | verified | `packages/core/src/gugu-story-project.js` | `npm run test:unit` | Extend only when API/UI needs fields |
 | Story project compiler | Codex | verified | `compileStoryProjectToH5Pack` | `npm run test:unit` | Extend for comic/manju outputs later |
-| Comic storyboard compiler | Codex / Leibniz / Volta | verified | `compileStoryProjectToComicEpisode` + `/compile/comic` + Studio preview | `node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js` | Add panel-level visual editor later |
+| Comic storyboard compiler | Codex / Leibniz / Volta / Bernoulli | verified | `compileStoryProjectToComicEpisode` + `/compile/comic` + editable Studio storyboard | `node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js` | Add production render queue later |
 | Playability validation | Codex | verified | `validateStoryProject`, `createStoryProjectPlayabilityReport` | `npm run test:unit` | Surface errors in mobile wizard |
 | Domain entities | Codex | verified | `StoryProject`, `StoryProjectVersion`, `AiGenerationJob` | `npm run test:unit` | Add production DB migration later |
 | API contract routes | Codex | verified | `storyProjects.*`, `ai.storyProjectJobs.*` | `npm run test:unit` | Keep route map updated as outputs expand |
@@ -78,7 +81,7 @@ Phase 1 can start only after these gates are verified:
 | Backend can persist story projects | Mencius | verified | StoryProject JSON store + HTTP tests |
 | Backend can compile story project to H5 preview | Mencius | verified | `/flash/story-projects/:id/compile/h5` |
 | Mobile wizard PRD/UI insertion exists | Euler | verified | 5-step guide + e2e coverage |
-| Web professional editing exists | Averroes / Harvey / Hume / Volta | verified | Creator Studio panel, project switching, scene save snapshots, storyboard preview, version restore + e2e |
+| Web professional editing exists | Averroes / Harvey / Hume / Volta / Darwin | verified | Creator Studio panel, project switching, scene save snapshots, storyboard preview, version restore, panel inspector, visual binding + e2e |
 | AI graph-output contract exists | Codex / AI Ops | verified | `docs/ai-story-project-generation-contract.md` |
 | Rights and publish checklist exists | Safety / Mendel | verified | Server-side StoryProject publish blockers |
 | QA test matrix exists | Zeno | verified | `docs/ai-creator-studio-verification-checklist.md` |
@@ -101,7 +104,7 @@ Next 24h:
 
 Date: 2026-05-31
 
-Overall status: `verified_round_5`
+Overall status: `verified_round_6`
 
 Verified since last update:
 
@@ -115,6 +118,10 @@ Verified since last update:
 - Restore creates a new `restored` version snapshot and downgrades restored published snapshots back to preview state.
 - Snapshot failure is separated from full project-save failure in the editor status.
 - Mobile default flow remains five-step guided creation with professional tools hidden by default.
+- ComicEpisode panels now preserve edited shot type, caption, visual prompt, source scene text, and image binding fields from StoryProject.
+- Creator Studio can select a storyboard panel, edit panel production fields, save them back to StoryProject, and create version snapshots.
+- Creator Studio can generate and bind a PNG visual asset to the selected comic panel while retaining AI source/provenance fields.
+- Mock AI image generation now returns a safe PNG preview with source statement metadata instead of SVG.
 
 Tests run:
 
@@ -123,16 +130,55 @@ npm run test:unit
 npm run check:content
 npm run check:ai-creation-maturity
 node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js packages/core/src/gugu-story-project.test.js
+node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js apps/backend/src/asset-security.test.js
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio switches back|creator studio scene inspector|creator studio opens|mobile guide defaults"
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
-browser smoke at 1280x720 and 375x667
+browser smoke: example prompt -> draft -> Creator Studio -> select panel -> save snapshot -> bind PNG visual
 ```
 
 Next 24h:
 
-- Add panel-level comic/manju editing and visual asset hooks.
+- Add production asset library and render queue for generated panel visuals.
 - Add production storage/auth hardening for StoryProject and StoryProjectVersion.
 - Add version diff UI and restore audit filters.
+
+### 2026-05-31 Agent Execution Round 6 Started
+
+Goal:
+
+- Turn Comic storyboard from a read-only preview into an editable professional panel workflow.
+- Let creators edit panel metadata such as shot type, caption, dialogue/source text, and visual prompt.
+- Let creators generate or bind a visual asset to a storyboard panel while preserving StoryProject version history.
+
+Assignments:
+
+- Bernoulli owns ComicEpisode panel output fields and contract tests.
+- Darwin owns Creator Studio panel Inspector, visual generation/binding, and e2e coverage.
+- Feynman owns read-only QA risk review.
+- Codex owns integration, final verification, progress reporting, commit, and push.
+
+### 2026-05-31 Agent Execution Round 6 Completed
+
+Completed by Codex and assigned agents:
+
+- Bernoulli extended `ComicEpisode` panel output so edited shot type, caption, visual prompt, source text, image URL, and generated image bindings survive compilation.
+- Darwin added selectable Comic storyboard panels, a panel Inspector, panel save/version snapshot flow, and visual generation/binding from the professional Creator Studio.
+- Feynman identified panel ID, scene mapping, asset provenance, save-state isolation, and mobile-default risks before final integration.
+- Codex aligned panel IDs with `nextBeats.targetPanelId`, normalized generated images as safe PNG assets with source statements, and updated mock AI image generation away from SVG.
+- Mobile creation remains a simple five-step guided flow with professional panel tools hidden behind advanced editing.
+
+Verification:
+
+```text
+node --check apps/web/src/app.js
+node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js apps/backend/src/asset-security.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
+npm run test:unit
+npm run check:content
+npm run check:ai-creation-maturity
+git diff --check
+browser smoke: example prompt -> draft -> Creator Studio -> select panel -> save snapshot -> bind PNG visual
+```
 
 ### 2026-05-31 Agent Execution Round 5 Started
 

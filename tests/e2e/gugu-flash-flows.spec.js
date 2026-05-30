@@ -142,6 +142,9 @@ test("mobile guide defaults to idea role generation playtest and publish checks"
   await expect(page.locator('[data-create-step="script"]')).toBeHidden();
   await expect(page.locator('[data-create-step="views"]')).toBeHidden();
   await expect(page.locator('[data-create-step="assets"]')).toBeHidden();
+  await expect(page.locator("#studioComicInspector")).toBeHidden();
+  await expect(page.locator('[data-testid="studio-comic-save"]')).toBeHidden();
+  await expect(page.locator('[data-testid="studio-comic-generate-visual"]')).toBeHidden();
   await expect(page.locator("[data-create-advanced-toggle]")).toHaveText("高级编辑");
 
   await page.locator("#createWizardNextButton").click();
@@ -173,6 +176,38 @@ test("creator studio opens with scene count and publish diagnostics after draft 
   await expect(studio).toContainText("发布诊断");
   await expect(studio.locator(".studio-scene-item").first()).toBeVisible();
   await expect(studio.locator(".studio-scene-item").first()).toContainText(/脚本|入口|结局|可达/);
+});
+
+test("creator studio comic panel inspector edits and binds a visual asset", async ({ page }) => {
+  await openCreate(page);
+  await page.getByPlaceholder(PROMPT_PLACEHOLDER).fill("雨夜便利店单格分镜编辑");
+  await generateDraft(page);
+
+  await page.locator("[data-create-advanced-toggle]").click();
+
+  const studio = page.locator("#creatorStudioPanel");
+  await expect(studio).toBeVisible();
+  const firstPanel = studio.locator('[data-testid="studio-comic-panel"]').first();
+  await expect(firstPanel).toBeVisible();
+  await firstPanel.click();
+  await expect(studio.locator("#studioComicInspector")).toContainText("分镜 Inspector");
+
+  const caption = "雨水里出现新的预言符号。";
+  const visualPrompt = "霓虹便利店外景，雨水反光，角色举起发光硬币";
+  const sourceText = "新的单格对白会写回 StoryProject。";
+  await page.locator('[data-testid="studio-comic-caption"]').fill(caption);
+  await page.locator('[data-testid="studio-comic-visual-prompt"]').fill(visualPrompt);
+  await page.locator('[data-testid="studio-comic-source-text"]').fill(sourceText);
+  await page.locator('[data-testid="studio-comic-save"]').click();
+
+  await expect(page.locator("#studioComicPanelMessage")).toContainText(/保存成功|版本快照/);
+  await expect(studio.locator('[data-testid="studio-comic-panel"].active')).toContainText(caption);
+  await expect(studio.locator('[data-testid="studio-comic-panel"].active')).toContainText(sourceText);
+
+  await page.locator('[data-testid="studio-comic-generate-visual"]').click();
+  await expect(page.locator("#studioComicVisualMessage")).toContainText(/视觉已绑定|视觉生成状态已绑定/);
+  await expect(studio.locator('[data-testid="studio-comic-panel"].active')).toContainText("已绑定视觉");
+  await expect(studio.locator('[data-testid="studio-comic-panel"].active .studio-comic-panel-image')).toHaveAttribute("src", /data:image/);
 });
 
 test("creator studio scene inspector saves one scene back to the project", async ({ page }) => {

@@ -1,6 +1,6 @@
 # AI Creator Studio Work Allocation
 
-Updated: 2026-05-30
+Updated: 2026-05-31
 
 Owner: Codex, Project Owner / AI Creation Director
 
@@ -614,4 +614,49 @@ Verification target:
 ```text
 node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js apps/backend/src/alpha-route-coverage.test.js
 npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
+```
+
+### 2026-05-31 Phase 1 Panel Editing And Visual Binding Start
+
+Started by Codex and assigned agents:
+
+- Bernoulli: extend ComicEpisode panel contract so edited shot/caption/visual/image fields survive compilation.
+- Darwin: add Creator Studio panel Inspector, save flow, and visual generation/binding workflow.
+- Feynman: review panel-scene mapping, save state isolation, asset safety, versioning, and mobile default-flow risks.
+- Codex: integrate, verify, and report.
+
+Acceptance target:
+
+```text
+Professional Creator Studio can select a Comic storyboard panel, edit its production fields, generate/bind a visual asset, save a versioned StoryProject update, and keep mobile creation simple by default.
+```
+
+### 2026-05-31 Phase 1 Panel Editing And Visual Binding Complete
+
+Completed by Codex and assigned agents:
+
+- Bernoulli completed the ComicEpisode contract update for editable panel fields and image bindings.
+- Darwin completed the Creator Studio panel Inspector, save flow, visual generation/binding flow, and focused e2e coverage.
+- Feynman completed read-only QA review across panel ID mapping, StoryProject save semantics, asset provenance, and mobile default hiding.
+- Codex integrated the round by aligning panel IDs with comic `nextBeats`, normalizing AI images to PNG assets with source statements, and keeping version snapshots tied to panel saves.
+- The mobile path remains a guided no-code route; the professional web path now supports panel-level production edits for comic/manju preparation.
+
+Verification:
+
+```text
+node --check apps/web/src/app.js
+node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js apps/backend/src/asset-security.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio|mobile guide defaults"
+npm run test:unit
+npm run check:content
+npm run check:ai-creation-maturity
+git diff --check
+browser smoke: example prompt -> draft -> Creator Studio -> select panel -> save snapshot -> bind PNG visual
+```
+
+Status:
+
+```text
+Round 6 closes the minimum usable professional comic storyboard loop: a generated StoryProject can now become an editable panel storyboard with saved production fields and bound visual assets.
+Next implementation slice should move from mock visual binding to a production asset library/render queue, then add version diff UI and stricter production auth/storage.
 ```
