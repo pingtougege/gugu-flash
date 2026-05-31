@@ -64,6 +64,7 @@ const state = {
   storyProjectVersionMessage: "",
   storyProjectRestoringVersionId: null,
   storyProjectAssets: [],
+  storyProjectRenderJobs: [],
   storyProjectAssetStatus: "idle",
   storyProjectAssetMessage: "",
   basicVisualStatus: "idle",
@@ -119,6 +120,7 @@ let createDeckScrollTimer = null;
 let suppressCreateDeckSyncUntil = 0;
 let studioVersionRequestId = 0;
 let studioComicRequestId = 0;
+let studioProductionRequestId = 0;
 const DRAFT_GENERATION_TIMEOUT_MS = 120000;
 const FEED_SWIPE_MIN_DISTANCE = 48;
 const FEED_SWIPE_MIN_DOMINANCE = 1.2;
@@ -1430,6 +1432,14 @@ function normalizeStoryProjectVersionResponse(response = {}) {
   return response.item ? [response.item] : [];
 }
 
+function normalizeListItemsResponse(response = {}) {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response.items)) return response.items;
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response.item)) return response.item;
+  return response.item ? [response.item] : [];
+}
+
 function normalizeComicStoryboardResponse(response = {}) {
   return response?.episode || response?.comicEpisode || response?.item || null;
 }
@@ -1572,6 +1582,7 @@ function resetStudioDerivedState({ keepVersions = false } = {}) {
   state.comicVisualStatus = "idle";
   state.comicVisualMessage = "";
   state.storyProjectAssets = [];
+  state.storyProjectRenderJobs = [];
   state.storyProjectAssetStatus = "idle";
   state.storyProjectAssetMessage = "";
   state.basicVisualStatus = "idle";
@@ -1581,9 +1592,15 @@ function resetStudioDerivedState({ keepVersions = false } = {}) {
 }
 
 function setCurrentStoryProject(project) {
+  const previousProjectId = state.storyProject?.id || null;
   state.storyProject = project?.id ? structuredClone(project) : null;
+  if (!state.storyProject || state.storyProject.id !== previousProjectId) {
+    state.storyProjectAssets = [];
+    state.storyProjectRenderJobs = [];
+    state.storyProjectAssetStatus = "idle";
+    state.storyProjectAssetMessage = "";
+  }
   if (state.storyProject) {
-    state.storyProjectAssets = projectComicVisualAssets(state.storyProject);
     state.comicRenderJobs = projectComicRenderJobs(state.storyProject);
     upsertStoryProject(state.storyProject);
   }
@@ -1693,6 +1710,7 @@ async function selectStudioProject(projectId) {
   renderDraftPlaytest(state.draft);
   await Promise.all([
     loadStoryProjectVersionsForStudio(),
+    loadStoryProjectProductionIndex(),
     generateComicStoryboardForStudio(),
   ]);
 }
@@ -1710,6 +1728,7 @@ async function loadStoryProjectsForStudio({ render = true } = {}) {
     ]);
     const current = resolveStoryProjectForDraft(state.draft);
     if (current) setCurrentStoryProject(current);
+    if (current) await loadStoryProjectProductionIndex({ render: false });
     state.storyProjectListStatus = "loaded";
   } catch (error) {
     state.storyProjectListStatus = "error";
@@ -1752,6 +1771,64 @@ async function loadStoryProjectVersionsForStudio({ render = true } = {}) {
     if (requestId !== studioVersionRequestId) return;
     state.storyProjectVersionStatus = "error";
     state.storyProjectVersionMessage = "版本历史同步失败，请稍后重试。";
+  }
+  if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+}
+
+async function loadStoryProjectProductionIndex({ render = true } = {}) {
+  const projectId = state.storyProject?.id;
+  const requestId = ++studioProductionRequestId;
+  if (!projectId) {
+    state.storyProjectAssets = [];
+    state.storyProjectRenderJobs = [];
+    state.storyProjectAssetStatus = "idle";
+    state.storyProjectAssetMessage = "当前草稿还没有 StoryProject，素材索引待创建。";
+    if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+    return;
+  }
+  if (!flashApi.listStoryProjectAssets && !flashApi.listAssets && !flashApi.listStoryProjectAiJobs) {
+    state.storyProjectAssetStatus = "unavailable";
+    state.storyProjectAssetMessage = "当前运行环境暂未开放素材索引接口。";
+    if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+    return;
+  }
+
+  state.storyProjectAssetStatus = "loading";
+  state.storyProjectAssetMessage = "正在同步素材索引。";
+  if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
+  const assetPromise = flashApi.listStoryProjectAssets
+    ? flashApi.listStoryProjectAssets(projectId)
+    : flashApi.listAssets
+      ? flashApi.listAssets({ storyProjectId: projectId })
+      : Promise.resolve({ items: [] });
+  const jobPromise = flashApi.listStoryProjectAiJobs
+    ? flashApi.listStoryProjectAiJobs(projectId)
+    : Promise.resolve({ items: [] });
+  const [assetResult, jobResult] = await Promise.allSettled([assetPromise, jobPromise]);
+  if (requestId !== studioProductionRequestId || state.storyProject?.id !== projectId) return;
+
+  const assetOk = assetResult.status === "fulfilled";
+  const jobOk = jobResult.status === "fulfilled";
+  if (assetOk) {
+    state.storyProjectAssets = normalizeListItemsResponse(assetResult.value)
+      .map(normalizeIndexedAsset)
+      .filter(Boolean);
+  }
+  if (jobOk) {
+    state.storyProjectRenderJobs = normalizeListItemsResponse(jobResult.value)
+      .map(normalizeIndexedRenderJob)
+      .filter(Boolean);
+    state.comicRenderJobs = projectComicRenderJobs(state.storyProject);
+  }
+
+  if (assetOk || jobOk) {
+    const assetCount = state.storyProjectAssets.length;
+    const jobCount = state.storyProjectRenderJobs.length;
+    state.storyProjectAssetStatus = assetOk && jobOk ? "loaded" : "partial";
+    state.storyProjectAssetMessage = `素材索引已同步：${assetCount} assets · ${jobCount} jobs。`;
+  } else {
+    state.storyProjectAssetStatus = "error";
+    state.storyProjectAssetMessage = "素材索引同步失败，继续使用 StoryProject 镜像数据。";
   }
   if (render && state.draft && state.createGuideAdvanced) renderCreatorStudio(state.draft);
 }
@@ -2137,6 +2214,56 @@ function normalizeComicVisualAssetRecord(image = {}, panel = {}, values = {}, ex
   };
 }
 
+function normalizeIndexedAsset(asset = {}) {
+  const id = comicAssetId(asset);
+  if (!id) return null;
+  return {
+    ...asset,
+    id,
+    assetId: id,
+    type: asset.type || asset.usage || "project_asset",
+    usage: asset.usage || asset.type || "project_asset",
+    provider: asset.provider || asset.sourceStatement?.provider || "asset_index",
+    prompt: asset.prompt || asset.visualPrompt || asset.sourceStatement?.prompt || "",
+    visualPrompt: asset.visualPrompt || asset.prompt || asset.sourceStatement?.prompt || "",
+    imageUrl: asset.imageUrl || asset.assetUrl || asset.previewUrl || "",
+    mediaType: asset.mediaType || "image/png",
+    sourceStatement: asset.sourceStatement || null,
+    syncMode: asset.syncMode || "asset_index",
+    updatedAt: asset.updatedAt || asset.createdAt || Date.now(),
+  };
+}
+
+function storyProjectIndexedAssets(project = state.storyProject) {
+  if (!project?.id) return [];
+  return (state.storyProjectAssets || [])
+    .filter((asset) => !asset.storyProjectId || asset.storyProjectId === project.id || asset.projectId === project.id)
+    .map(normalizeIndexedAsset)
+    .filter(Boolean);
+}
+
+function normalizeIndexedRenderJob(job = {}) {
+  if (!job?.id) return null;
+  return {
+    ...job,
+    assetId: job.assetId || job.result?.assetId || (job.result?.assetIds || [])[0] || "",
+    panelId: job.panelId || job.request?.panelId || job.result?.panelId || "",
+    sceneId: job.sceneId || job.request?.sceneId || job.result?.sceneId || "",
+    characterId: job.characterId || job.request?.characterId || job.result?.characterId || "",
+    characterName: job.characterName || job.request?.characterName || job.result?.characterName || "",
+    provider: job.provider || job.result?.provider || "render_job_index",
+    updatedAt: job.updatedAt || job.completedAt || job.startedAt || job.createdAt || Date.now(),
+  };
+}
+
+function storyProjectIndexedRenderJobs(project = state.storyProject) {
+  if (!project?.id) return [];
+  return (state.storyProjectRenderJobs || [])
+    .filter((job) => !job.storyProjectId || job.storyProjectId === project.id)
+    .map(normalizeIndexedRenderJob)
+    .filter(Boolean);
+}
+
 function projectComicVisualAssets(project = state.storyProject) {
   if (!project?.id) return [];
   const byId = new Map();
@@ -2212,6 +2339,20 @@ function projectComicVisualAssets(project = state.storyProject) {
       syncMode: generatedImage?.syncMode || "",
       createdAt: generatedImage?.generatedAt || generatedImage?.createdAt || comicPanel.updatedAt || 0,
       updatedAt: generatedImage?.updatedAt || comicPanel.updatedAt || scene.updatedAt || 0,
+    });
+  });
+
+  storyProjectIndexedAssets(project).forEach((asset) => {
+    if (isBasicVisualAsset(asset)) return;
+    const isComicAsset = asset.usage === "comic_storyboard_panel"
+      || asset.type === "comic_panel_visual"
+      || asset.usage === "comic_panel_visual"
+      || asset.panelId;
+    if (!isComicAsset) return;
+    upsert({
+      ...asset,
+      name: asset.name || "分镜视觉素材",
+      status: asset.status || asset.assetStatus || "registered",
     });
   });
 
@@ -2349,6 +2490,15 @@ function projectBasicVisualAssets(project = state.storyProject) {
       syncMode: image?.syncMode || "",
       createdAt: image?.generatedAt || image?.createdAt || 0,
       updatedAt: image?.updatedAt || character.updatedAt || 0,
+    });
+  });
+
+  storyProjectIndexedAssets(project).forEach((asset) => {
+    if (!asset || !isBasicVisualAsset(asset)) return;
+    upsert({
+      ...asset,
+      name: asset.name || basicVisualTypeLabel(asset.type || asset.usage),
+      status: asset.status || asset.assetStatus || "registered",
     });
   });
 
@@ -2559,6 +2709,7 @@ function projectComicRenderJobs(project = state.storyProject) {
   state.comicRenderJobs
     .filter((job) => !project?.id || !job.storyProjectId || job.storyProjectId === project.id)
     .forEach(ingest);
+  storyProjectIndexedRenderJobs(project).forEach(ingest);
   return Array.from(byId.values())
     .sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
 }
@@ -2720,12 +2871,18 @@ function studioComicProductionStatusText() {
 }
 
 function studioComicProductionMessageText() {
+  const indexMessage = state.storyProjectAssetMessage || "";
+  if (["loading", "error", "unavailable"].includes(state.storyProjectAssetStatus) && indexMessage) return indexMessage;
   const latestJob = projectComicRenderJobs()[0];
   if (latestJob) {
-    return `最近任务：${comicRenderJobStatusText(latestJob.status)} · ${latestJob.sceneId || latestJob.panelId || "panel"}`;
+    const latestJobText = `最近任务：${comicRenderJobStatusText(latestJob.status)} · ${latestJob.sceneId || latestJob.panelId || "panel"}`;
+    return indexMessage ? `${indexMessage} ${latestJobText}` : latestJobText;
   }
   const assetCount = projectComicVisualAssets().length;
-  if (assetCount) return `已登记 ${assetCount} 个分镜视觉素材，可用于后续渲染和复用。`;
+  if (assetCount) {
+    const assetText = `已登记 ${assetCount} 个分镜视觉素材，可用于后续渲染和复用。`;
+    return indexMessage ? `${indexMessage} ${assetText}` : assetText;
+  }
   return "生成/绑定视觉后，会把 panel -> asset 链接写入 StoryProject。";
 }
 
@@ -3463,10 +3620,12 @@ async function saveBasicVisualBinding(target, generatedImage = {}, assetRecord =
         ? `${basicVisualTypeLabel(target.type)}已绑定，版本快照创建失败。`
         : `${basicVisualTypeLabel(target.type)}已绑定到 StoryProject。`;
     await loadStoryProjectVersionsForStudio({ render: false });
+    await loadStoryProjectProductionIndex({ render: false });
     saved = true;
   } catch (error) {
     state.basicVisualStatus = "error";
     state.basicVisualMessage = `${basicVisualTypeLabel(target.type)}保存绑定失败，本地修改已保留。`;
+    await loadStoryProjectProductionIndex({ render: false });
   }
   renderDraft(state.draft);
   return saved;
@@ -3629,6 +3788,7 @@ async function saveStudioSceneInspector() {
         ? "项目已保存，版本快照创建失败。"
         : "保存成功，StoryProject 已更新。";
     await loadStoryProjectVersionsForStudio({ render: false });
+    await loadStoryProjectProductionIndex({ render: false });
     state.comicStoryboard = null;
     state.comicStoryboardStatus = "idle";
     state.comicStoryboardMessage = "场景已保存，可刷新漫剧分镜。";
@@ -3712,6 +3872,7 @@ async function saveComicPanelInspector(options = {}) {
           : "视觉生成状态已绑定到当前分镜。";
     }
     await loadStoryProjectVersionsForStudio({ render: false });
+    await loadStoryProjectProductionIndex({ render: false });
     state.comicStoryboard = null;
     state.comicStoryboardStatus = "idle";
     state.comicStoryboardMessage = "分镜已保存，正在刷新 storyboard。";
@@ -3809,6 +3970,7 @@ async function generateAndBindStudioComicVisual() {
     }
     state.comicVisualStatus = "error";
     state.comicVisualMessage = "视觉生成失败，请稍后重试。";
+    await loadStoryProjectProductionIndex({ render: false });
     renderCreatorStudio(state.draft);
   }
 }
@@ -3849,6 +4011,7 @@ async function restoreStudioStoryProjectVersion(versionId) {
     usePackAsCreateSettings(state.draft);
     resetStudioDerivedState({ keepVersions: true });
     await loadStoryProjectVersionsForStudio({ render: false });
+    await loadStoryProjectProductionIndex({ render: false });
     renderDraft(state.draft);
     await generateComicStoryboardForStudio();
   } catch (error) {
@@ -5446,7 +5609,16 @@ function renderScreenData(screenId) {
   if (screenId === "operatorScreen") renderOperator();
   if (screenId === "createScreen") {
     updateCreateReadiness();
-    if (state.draft && state.createGuideAdvanced) void loadStoryProjectsForStudio();
+    if (state.draft && state.createGuideAdvanced) {
+      void (async () => {
+        await loadStoryProjectsForStudio();
+        await Promise.all([
+          loadStoryProjectVersionsForStudio(),
+          loadStoryProjectProductionIndex(),
+          generateComicStoryboardForStudio(),
+        ]);
+      })();
+    }
   }
 }
 
@@ -6730,6 +6902,7 @@ function wireEvents() {
         await loadStoryProjectsForStudio();
         await Promise.all([
           loadStoryProjectVersionsForStudio(),
+          loadStoryProjectProductionIndex(),
           generateComicStoryboardForStudio(),
         ]);
       }

@@ -352,6 +352,10 @@ test("StoryProject HTTP image generation registers an indexed asset and render j
       });
       const fetchedAsset = await api.getAsset(generated.item.id);
       const fetchedJob = await api.getAiGenerationJob("ai_job_http_background_seed");
+      const projectJobs = await api.listStoryProjectAiJobs(created.item.id, {
+        stage: "scene_background_render",
+        assetId: generated.item.id,
+      });
       const listedAssets = await api.listAssets({
         storyProjectId: created.item.id,
         usage: "scene_background",
@@ -373,6 +377,8 @@ test("StoryProject HTTP image generation registers an indexed asset and render j
       assert.equal(fetchedAsset.item.id, generated.item.id);
       assert.equal(fetchedAsset.item.sourceStatement.sourceType, "ai_generated");
       assert.equal(fetchedJob.item.result.assetId, generated.item.id);
+      assert.deepEqual(projectJobs.items.map((item) => item.id), ["ai_job_http_background_seed"]);
+      assert.equal(projectJobs.filters.stage, "scene_background_render");
       assert.ok(listedAssets.items.some((item) => item.id === generated.item.id));
       assert.deepEqual(projectAssets.items.map((item) => item.id), [generated.item.id]);
       assert.ok(refetchedProject.item.assets.some((item) => item.id === generated.item.id));

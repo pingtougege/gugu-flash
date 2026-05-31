@@ -41,6 +41,7 @@ export const BACKEND_ALPHA_ROUTE_IDS = new Set([
   "storyProjects.compileH5",
   "storyProjects.compileComic",
   "storyProjects.publish",
+  "ai.storyProjectJobs.list",
   "ai.storyProjectJobs.create",
   "ai.storyProjectJobs.get",
   "ai.storyProjectJobs.apply",

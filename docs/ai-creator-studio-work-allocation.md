@@ -802,3 +802,27 @@ Status:
 Round 9 removes the biggest HTTP/mock gap for visual production: assets and render jobs now have a real backend index while the existing Studio UI keeps working through mirrored StoryProject fields.
 Next implementation slice should make Creator Studio hydrate directly from independent indexes and then run render jobs through a background worker loop.
 ```
+
+### 2026-05-31 Phase 1 Indexed Studio Hydration Start
+
+Started by Codex and assigned agents:
+
+- API Platform: keep project-scoped Asset Index and AI Job Index reads stable for usage, scene, character, panel, and render task lookup.
+- Frontend Experience: hydrate Creator Studio backgrounds, character portraits, storyboard panel visuals, asset library, and render queue from indexes, with StoryProject mirrors as fallback.
+- QA Release: add reopen/restore regressions proving indexed records recover visual bindings and render task state.
+- Codex: maintain Round 10 progress docs and integration status.
+
+Acceptance target:
+
+```text
+Professional Creator Studio can reopen a generated StoryProject and recover background images, character portraits, storyboard visuals, asset library entries, and render tasks from the Asset Index / AI Job Index instead of depending on local StoryProject mirror fields.
+```
+
+Status:
+
+```text
+Round 10 is verified.
+Current artifact: Creator Studio indexed visual hydration across API, backend, mock, and web.
+Verification: npm run test:unit; npm run test:e2e.
+Next action should wire the asynchronous render worker execution loop behind indexed render job records.
+```

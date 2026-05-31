@@ -90,6 +90,7 @@ export function createHttpFlashApi({ baseUrl = "", token = "", getToken = null }
     compileStoryProjectH5: (id, payload = {}) => post(`/flash/story-projects/${encode(id)}/compile/h5`, payload),
     compileStoryProjectComic: (id, payload = {}) => post(`/flash/story-projects/${encode(id)}/compile/comic`, payload),
     publishStoryProject: (id, payload = {}) => post(`/flash/story-projects/${encode(id)}/publish`, payload),
+    listStoryProjectAiJobs: (id, options = {}) => request(`/flash/ai/story-projects/${encode(id)}/jobs`, { query: options }),
     createStoryProjectAiJob: (id, payload = {}) => post(`/flash/ai/story-projects/${encode(id)}/jobs`, payload),
     getAiGenerationJob: (id) => request(`/flash/ai/jobs/${encode(id)}`),
     applyAiGenerationJob: (id, payload = {}) => post(`/flash/ai/jobs/${encode(id)}/apply`, payload),

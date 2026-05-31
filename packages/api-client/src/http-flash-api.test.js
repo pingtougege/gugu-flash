@@ -78,6 +78,21 @@ async function postRaw(baseUrl, path, body = {}, headers = {}) {
   }).then((response) => response.json());
 }
 
+async function readJsonFileEventually(path) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    try {
+      const raw = await readFile(path, "utf8");
+      if (raw.trim()) return JSON.parse(raw);
+    } catch (error) {
+      lastError = error;
+    }
+    await delay(5);
+  }
+  if (lastError) throw lastError;
+  return JSON.parse(await readFile(path, "utf8"));
+}
+
 test("HTTP backend alpha exposes the release-critical mock facade flow", async () => {
   const tempDir = await mkdtemp(join(tmpdir(), "gugu-flash-api-"));
   const dataPath = join(tempDir, "packs.json");
@@ -215,7 +230,7 @@ test("HTTP backend alpha enforces asset upload security policy", async () => {
     const fetched = await api.getAsset(safeAsset.item.id);
     const listed = await api.listAssets({ status: safeAsset.item.status });
     const review = await api.submitAssetReview(safeAsset.item.id);
-    const state = JSON.parse(await readFile(statePath, "utf8"));
+    const state = await readJsonFileEventually(statePath);
 
     assert.equal(safeAsset.item.securityPolicyVersion, "gugu_flash_asset_security_v1");
     assert.equal(safeAsset.item.securityReport.status, "passed");

@@ -62,6 +62,9 @@ Allowed statuses:
 | API Platform Round 9 | Peirce / Codex | Independent asset and render job index | verified | JSON asset repository + HTTP indexed routes |
 | Frontend Experience Round 9 | Confucius | Base visual restore regression | verified | Restore e2e for background and portrait bindings |
 | QA And Release Round 9 | Herschel | Asset index migration risk review | verified | Read-only risk checklist |
+| API Platform Round 10 | Codex / API Platform | Asset Index and AI Job Index read-path support | in_progress | Project-scoped indexed visual/task query path |
+| Frontend Experience Round 10 | Codex / Frontend Experience | Creator Studio indexed visual hydration | in_progress | Background, portrait, panel visual, and render task rehydration |
+| QA And Release Round 10 | Codex / QA Release | Indexed hydration regression map | in_progress | Reopen/restore checks for visual assets and tasks |
 
 ## 3. Phase 0 Board
 
@@ -113,7 +116,7 @@ Next 24h:
 
 Date: 2026-05-31
 
-Overall status: `verified_round_9`
+Overall status: `verified_round_10`
 
 Verified since last update:
 
@@ -143,13 +146,32 @@ Verified since last update:
 - HTTP image generation now registers an indexed asset and linked render job, then mirrors both back to the project asset library/render queue.
 - The production schema and persistence contract now include `render_jobs` plus StoryProject/usage/render-job indexes for visual production lookup.
 - Creator Studio e2e now verifies that restoring a base visual version keeps the scene background, character portrait, and base asset library bindings intact.
+- Shared API, HTTP client, mock facade, and Backend Alpha now expose `GET /flash/ai/story-projects/:id/jobs` for project-scoped AI/render job lookup.
+- Creator Studio now hydrates backgrounds, character portraits, storyboard panel visuals, asset library entries, and render queue state from Asset Index / AI Job Index, with StoryProject mirrors as fallback.
+- Creator Studio save, switch, restore, advanced-entry, and visual-generation failure paths refresh the production index so generated images do not disappear after reopen or partial save failure.
+- Operator E2E IP-pool coverage now targets the tabbed IP UI explicitly, keeping the full E2E suite aligned with the current console.
+
+In progress:
+
+- Next work is the asynchronous render worker execution loop behind the indexed render job records.
 
 Tests run:
 
 ```text
 npm run test:unit
+npm run test:e2e
 npm run check:content
 npm run check:ai-creation-maturity
+node --check apps/web/src/app.js
+node --check apps/backend/src/flash-http-server.js
+node --check packages/api-client/src/mock-flash-api.js
+node --check packages/api-client/src/http-flash-api.js
+node --check packages/api-client/src/flash-api-contract.js
+node --check packages/api-client/src/http-flash-api.test.js
+node --check tests/e2e/gugu-flash-operator.spec.js
+node --test packages/api-client/src/flash-api-contract.test.js packages/api-client/src/mock-flash-api.test.js apps/backend/src/alpha-route-coverage.test.js apps/backend/src/flash-http-server.story-project.test.js
+npm run test:e2e -- tests/e2e/gugu-flash-flows.spec.js -g "creator studio comic panel inspector edits and binds a visual asset|creator studio generates scene background"
+npm run test:e2e -- tests/e2e/gugu-flash-operator.spec.js
 node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js packages/core/src/gugu-story-project.test.js
 node --test packages/core/src/gugu-story-project.test.js apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js apps/backend/src/asset-security.test.js
 node --test apps/backend/src/ai-image-generator.test.js apps/backend/src/asset-security.test.js packages/api-client/src/flash-api-contract.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/http-flash-api.test.js apps/backend/src/flash-http-server.story-project.test.js apps/backend/src/alpha-route-coverage.test.js
@@ -172,10 +194,42 @@ browser smoke in real API mode: draft -> Creator Studio -> generate scene backgr
 Next 24h:
 
 - Wire the asynchronous render worker execution loop behind the indexed render job records.
-- Add Creator Studio hydration from independent asset/render-job indexes instead of relying on StoryProject mirror fields.
 - Add production storage/auth hardening for StoryProject and StoryProjectVersion.
 - Add true mobile viewport regression coverage for the simple guided flow.
 - Add version diff UI and restore audit filters.
+
+### 2026-05-31 Agent Execution Round 10 Started
+
+Goal:
+
+- Move Creator Studio frontend hydration for visual production from StoryProject mirror fields to Asset Index and AI Job Index reads.
+- Rehydrate scene backgrounds, character portraits, storyboard panel visual bindings, asset library entries, and render tasks after project reopen or restore.
+- Keep StoryProject mirror fields only as a compatibility fallback while indexed records become the primary source for professional Studio display.
+- Keep mobile guided creation unchanged.
+
+Assignments:
+
+- API Platform owns read-path compatibility for project-scoped assets and AI/render jobs.
+- Frontend Experience owns Creator Studio index hydration and fallback behavior.
+- QA Release owns reopen/restore regression coverage for indexed visuals and tasks.
+- Codex owns progress docs and integration reporting for this round.
+
+Workstream report:
+
+```text
+status: verified
+owner: Codex / API Platform / Frontend Experience / QA Release
+current artifact: Creator Studio indexed visual hydration
+verification command: npm run test:unit; npm run test:e2e
+blocker: none known
+next action: wire the asynchronous render worker execution loop behind indexed render job records
+```
+
+Acceptance target:
+
+```text
+Professional Creator Studio can reopen a StoryProject and recover generated background, portrait, panel visual, asset library, and render task state from independent indexes, so generated images no longer only live inside the local StoryProject mirror.
+```
 
 ### 2026-05-31 Agent Execution Round 9 Started
 

@@ -478,6 +478,43 @@ export function createMockFlashApi({
     return structuredClone(item);
   }
 
+  function filterAiGenerationJobsForMock(jobs = [], options = {}) {
+    const storyProjectId = options.storyProjectId || options.projectId || null;
+    const status = options.status || null;
+    const stage = options.stage || null;
+    const kind = options.kind || null;
+    const assetId = options.assetId || null;
+    const panelId = options.panelId || null;
+    const sceneId = options.sceneId || null;
+    const characterId = options.characterId || null;
+    return (Array.isArray(jobs) ? jobs : [])
+      .filter((job) => !storyProjectId || job.storyProjectId === storyProjectId)
+      .filter((job) => !status || job.status === status)
+      .filter((job) => !stage || job.stage === stage)
+      .filter((job) => !kind || job.kind === kind)
+      .filter((job) => !assetId || job.assetId === assetId || job.result?.assetId === assetId || (job.result?.assetIds || []).includes(assetId))
+      .filter((job) => !panelId || job.panelId === panelId || job.request?.panelId === panelId || job.result?.panelId === panelId)
+      .filter((job) => !sceneId || job.sceneId === sceneId || job.request?.sceneId === sceneId || job.result?.sceneId === sceneId)
+      .filter((job) => !characterId || job.characterId === characterId || job.request?.characterId === characterId || job.result?.characterId === characterId)
+      .map((job) => structuredClone(job));
+  }
+
+  function listAiGenerationJobsForMock(options = {}) {
+    ensureStoryProjectState();
+    return filterAiGenerationJobsForMock(aiGenerationJobsCache, options);
+  }
+
+  function storyProjectRenderJobsForMock(project = {}) {
+    return [
+      ...(Array.isArray(project.renderJobs) ? project.renderJobs : []),
+      ...(Array.isArray(project.aiJobs) ? project.aiJobs : []),
+      ...(Array.isArray(project.aiGenerationJobs) ? project.aiGenerationJobs : []),
+    ].filter((job) => job?.id).map((job) => ({
+      ...job,
+      storyProjectId: job.storyProjectId || project.id || null,
+    }));
+  }
+
   function assetKindForMediaType(mediaType = "") {
     const type = String(mediaType || "").toLowerCase();
     if (type.startsWith("image/")) return "image";
@@ -2109,6 +2146,10 @@ export function createMockFlashApi({
         inputSnapshotId,
         outputSnapshotId: payload.outputSnapshotId || null,
         prompt: payload.prompt || payload.instruction || "",
+        panelId: payload.panelId || payload.request?.panelId || null,
+        sceneId: payload.sceneId || payload.request?.sceneId || null,
+        characterId: payload.characterId || payload.request?.characterId || null,
+        characterName: payload.characterName || payload.request?.characterName || null,
         request: structuredClone(payload),
         result: payload.result || null,
         errors: Array.isArray(payload.errors) ? payload.errors : [],
@@ -2117,6 +2158,32 @@ export function createMockFlashApi({
         updatedAt: timestamp,
       });
       return { item: job, inputSnapshot };
+    },
+
+    async listStoryProjectAiJobs(id, options = {}) {
+      const project = findStoryProject(id);
+      if (!project) return { items: [], filters: { storyProjectId: id }, reason: "not_found" };
+      const filters = {
+        ...options,
+        storyProjectId: id,
+      };
+      const indexed = listAiGenerationJobsForMock(filters);
+      const indexedIds = new Set(indexed.map((job) => job.id));
+      const mirrored = filterAiGenerationJobsForMock(storyProjectRenderJobsForMock(project), filters)
+        .filter((job) => !indexedIds.has(job.id));
+      return {
+        items: [...indexed, ...mirrored],
+        filters: {
+          storyProjectId: id,
+          status: filters.status || null,
+          stage: filters.stage || null,
+          kind: filters.kind || null,
+          assetId: filters.assetId || null,
+          panelId: filters.panelId || null,
+          sceneId: filters.sceneId || null,
+          characterId: filters.characterId || null,
+        },
+      };
     },
 
     async getAiGenerationJob(id) {

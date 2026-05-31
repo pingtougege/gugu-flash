@@ -239,6 +239,7 @@ test("creator studio comic panel inspector edits and binds a visual asset", asyn
   await expect(studio.locator('[data-testid="studio-comic-panel"].active .studio-comic-panel-image')).toHaveAttribute("src", /data:image/);
   await expect(studio.locator("#studioComicProduction")).toBeVisible();
   await expect(studio.locator("#studioComicProductionStatus")).toContainText(/assets .* jobs/);
+  await expect(studio.locator("#studioComicProductionMessage")).toContainText("素材索引已同步");
   const assetItem = studio.locator('[data-testid="studio-comic-asset-item"]').first();
   await expect(assetItem).toContainText(/Asset ID/);
   await expect(assetItem).toContainText(/已绑定|本地保存|待审核|可用/);

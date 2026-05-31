@@ -133,6 +133,19 @@ function assetFiltersFromSearch(searchParams = new URLSearchParams()) {
   };
 }
 
+function aiJobFiltersFromSearch(searchParams = new URLSearchParams()) {
+  return {
+    storyProjectId: searchParams.get("storyProjectId") || searchParams.get("projectId") || null,
+    status: searchParams.get("status") || null,
+    stage: searchParams.get("stage") || null,
+    kind: searchParams.get("kind") || null,
+    assetId: searchParams.get("assetId") || null,
+    panelId: searchParams.get("panelId") || null,
+    sceneId: searchParams.get("sceneId") || null,
+    characterId: searchParams.get("characterId") || null,
+  };
+}
+
 function filterAssets(assets = [], filters = {}) {
   return (Array.isArray(assets) ? assets : [])
     .filter((asset) => !filters.storyProjectId || asset.storyProjectId === filters.storyProjectId || asset.projectId === filters.storyProjectId)
@@ -143,6 +156,18 @@ function filterAssets(assets = [], filters = {}) {
     .filter((asset) => !filters.sceneId || asset.sceneId === filters.sceneId)
     .filter((asset) => !filters.characterId || asset.characterId === filters.characterId)
     .filter((asset) => !filters.renderJobId || asset.renderJobId === filters.renderJobId || asset.createdByJobId === filters.renderJobId);
+}
+
+function filterAiGenerationJobs(jobs = [], filters = {}) {
+  return (Array.isArray(jobs) ? jobs : [])
+    .filter((job) => !filters.storyProjectId || job.storyProjectId === filters.storyProjectId)
+    .filter((job) => !filters.status || job.status === filters.status)
+    .filter((job) => !filters.stage || job.stage === filters.stage)
+    .filter((job) => !filters.kind || job.kind === filters.kind)
+    .filter((job) => !filters.assetId || job.assetId === filters.assetId || job.result?.assetId === filters.assetId || (job.result?.assetIds || []).includes(filters.assetId))
+    .filter((job) => !filters.panelId || job.panelId === filters.panelId || job.request?.panelId === filters.panelId || job.result?.panelId === filters.panelId)
+    .filter((job) => !filters.sceneId || job.sceneId === filters.sceneId || job.request?.sceneId === filters.sceneId || job.result?.sceneId === filters.sceneId)
+    .filter((job) => !filters.characterId || job.characterId === filters.characterId || job.request?.characterId === filters.characterId || job.result?.characterId === filters.characterId);
 }
 
 function normalizeHeaderValue(value) {
@@ -1698,6 +1723,32 @@ export function createFlashBackendApp(options = {}) {
         await persistence.aiGenerationJobs.save(job);
         await mirrorRenderJobToStoryProject(job);
         ok(res, { item: job, inputSnapshot });
+        return;
+      }
+
+      if (parts[0] === "flash" && parts[1] === "ai" && parts[2] === "story-projects" && parts[3] && parts[4] === "jobs" && req.method === "GET") {
+        const projectId = decodePart(parts[3]);
+        const project = await persistence.storyProjects.get(projectId);
+        if (!project) {
+          notFound(res, "story_project_not_found");
+          return;
+        }
+        const filters = {
+          ...aiJobFiltersFromSearch(requestUrl.searchParams),
+          storyProjectId: projectId,
+        };
+        const indexed = await persistence.aiGenerationJobs.listForProject(projectId);
+        const mirrored = storyProjectRenderJobs(project).map((job) => ({
+          ...job,
+          storyProjectId: job.storyProjectId || projectId,
+        }));
+        ok(res, {
+          items: filterAiGenerationJobs([
+            ...indexed,
+            ...mirrored.filter((job) => !indexed.some((item) => item.id === job.id)),
+          ], filters),
+          filters,
+        });
         return;
       }
 

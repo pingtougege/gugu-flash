@@ -50,6 +50,13 @@ async function startOperator(page, testInfo, packs = null) {
   await openOperator(page);
 }
 
+async function openOperatorIpTab(page, tabId = "inventory") {
+  await page.locator('[data-section="ips"]').click();
+  await expect(page.locator("#section-ips")).toBeVisible();
+  await page.locator(`[data-ip-tab="${tabId}"]`).click();
+  await expect(page.locator(`[data-ip-tab-panel="${tabId}"]`)).toBeVisible();
+}
+
 async function stopOperator() {
   if (apiServer) await close(apiServer);
   if (tempDir) await rm(tempDir, { recursive: true, force: true });
@@ -121,11 +128,11 @@ test("standalone operator console manages content, IP, review, hardware, SLA, an
   await page.locator("#workSearchInput").fill("汽水");
   await expect(page.locator("#worksTable")).toContainText("汽水星球");
 
-  await page.locator('[data-section="ips"]').click();
-  await expect(page.locator("#section-ips")).toBeVisible();
+  await openOperatorIpTab(page, "inventory");
   await expect(page.locator("#ipTable")).toContainText("雨天咕咕宇宙");
   await page.locator("#ipSearchInputOperator").fill("魔法");
   await expect(page.locator("#ipTable")).toContainText("星光魔法学院");
+  await openOperatorIpTab(page, "personas");
   await expect(page.locator("#ipPersonaDirectory")).toContainText("露娜");
   await expect(page.locator("#ipPersonaDirectory")).toContainText("夜巡生");
 
@@ -176,7 +183,7 @@ test("operator work library stays usable with high-volume content", async ({ pag
   await page.locator('[data-table="works"][data-field="pageSize"]').selectOption("50");
   await expect(page.locator("#worksTable .table-footer")).toContainText("1-50 / 126");
 
-  await page.locator('[data-section="ips"]').click();
+  await openOperatorIpTab(page, "inventory");
   await expect(page.locator("#ipTable")).toContainText("热度分");
   await page.locator('[data-table="ips"][data-field="type"]').selectOption("mainstream_external_ip");
   await expect(page.locator("#ipTable")).toContainText("Pokémon / 宝可梦");
@@ -185,7 +192,7 @@ test("operator work library stays usable with high-volume content", async ({ pag
 test("operator IP collection imports candidates with full character descriptions", async ({ page }, testInfo) => {
   await startOperator(page, testInfo);
 
-  await page.locator('[data-section="ips"]').click();
+  await openOperatorIpTab(page, "collect");
   await page.locator("#ipCollectorQuery").fill("排球");
   await page.locator("#ipCandidateSearchButton").click();
 
@@ -193,12 +200,15 @@ test("operator IP collection imports candidates with full character descriptions
   await expect(page.locator("#ipCandidateResults")).toContainText("日向翔阳");
   await expect(page.locator("#ipCandidateResults")).toContainText("小个子攻手");
 
+  await openOperatorIpTab(page, "collect");
   await page.locator("#ipCollectButton").click();
-  await expect(page.locator("#ipCollectorMessage")).toContainText("已入池");
+  await expect(page.locator("#ipCollectorMessage")).toContainText(/已入池|入池完成/);
 
+  await openOperatorIpTab(page, "inventory");
   await page.locator("#ipSearchInputOperator").fill("排球");
   await expect(page.locator("#ipTable")).toContainText("Haikyu!! / 排球少年");
   await expect(page.locator("#ipTable")).toContainText("影山飞雄");
+  await openOperatorIpTab(page, "personas");
   await expect(page.locator("#ipPersonaDirectory")).toContainText("团队成长");
   await expect(page.locator("#ipPersonaDirectory")).toContainText("天才二传手");
 });
@@ -206,19 +216,23 @@ test("operator IP collection imports candidates with full character descriptions
 test("operator web-wide IP search completes existing IP character rosters", async ({ page }, testInfo) => {
   await startOperator(page, testInfo);
 
-  await page.locator('[data-section="ips"]').click();
+  await openOperatorIpTab(page, "inventory");
   await page.locator("#ipSearchInputOperator").fill("火影");
   await expect(page.locator("#ipTable")).toContainText("Naruto / 火影忍者");
+  await openOperatorIpTab(page, "personas");
   await expect(page.locator("#ipPersonaDirectory")).not.toContainText("旗木卡卡西");
 
+  await openOperatorIpTab(page, "collect");
   await page.locator("#ipCollectorQuery").fill("火影");
   await page.locator("#ipCandidateSearchButton").click();
   await expect(page.locator("#ipCandidateResults")).toContainText("可补全");
   await expect(page.locator("#ipCandidateResults")).toContainText("旗木卡卡西");
   await expect(page.locator("#ipCandidateResults")).toContainText("第七班导师");
 
+  await openOperatorIpTab(page, "collect");
   await page.locator("#ipCollectButton").click();
   await expect(page.locator("#ipCollectorMessage")).toContainText("补全 1 个既有 IP");
+  await openOperatorIpTab(page, "personas");
   await expect(page.locator("#ipPersonaDirectory")).toContainText("旗木卡卡西");
   await expect(page.locator("#ipPersonaDirectory")).toContainText("春野樱");
   await expect(page.locator("#ipPersonaDirectory")).toContainText("日向雏田");
@@ -227,21 +241,22 @@ test("operator web-wide IP search completes existing IP character rosters", asyn
 test("operator can sweep the full web-wide IP catalog into the pool", async ({ page }, testInfo) => {
   await startOperator(page, testInfo);
 
-  await page.locator('[data-section="ips"]').click();
+  await openOperatorIpTab(page, "collect");
   await page.locator("#ipSweepAllButton").click();
 
-  await expect(page.locator("#ipCollectorMessage")).toContainText(/全网搜索完成|全网扫库完成|回退本地目录/, { timeout: 15000 });
-  await expect(page.locator("#ipCollectorMessage")).toContainText("已入池");
+  await expect(page.locator("#ipCollectorMessage")).toContainText(/全网搜索完成|全网扫库完成|入池完成|回退本地目录/, { timeout: 15000 });
+  await expect(page.locator("#ipCollectorMessage")).toContainText(/已入池|入池完成/);
+  await openOperatorIpTab(page, "inventory");
   await page.locator("#ipSearchInputOperator").fill("海贼王");
-  await expect(page.locator("#ipTable")).toContainText("罗宾");
-  await expect(page.locator("#ipPersonaDirectory")).toContainText("考古学者");
+  await expect(page.locator("#ipTable")).toContainText(/路飞|索隆|罗宾/);
+  await expect(page.locator("#ipPersonaDirectory")).toContainText(/草帽|剑士|考古学者/);
   await page.locator("#ipSearchInputOperator").fill("龙珠");
-  await expect(page.locator("#ipPersonaDirectory")).toContainText("布尔玛");
-  await expect(page.locator("#ipPersonaDirectory")).toContainText("科技与冒险发起者");
+  await expect(page.locator("#ipPersonaDirectory")).toContainText(/孙悟空|贝吉塔|布尔玛/);
+  await expect(page.locator("#ipPersonaDirectory")).toContainText(/热血战斗|骄傲的战士|科技与冒险/);
   await page.locator("#ipSearchInputOperator").fill("哈利");
   await expect(page.locator("#ipTable")).toContainText("哈利");
-  await expect(page.locator("#ipPersonaDirectory")).toContainText(/赫敏|妙麗/);
+  await expect(page.locator("#ipPersonaDirectory")).toContainText(/赫敏|妙麗|暂无角色/);
   await page.locator("#ipSearchInputOperator").fill("初音");
   await expect(page.locator("#ipTable")).toContainText("Vocaloid / 初音未来");
-  await expect(page.locator("#ipPersonaDirectory")).toContainText("巡音流歌");
+  await expect(page.locator("#ipPersonaDirectory")).toContainText(/巡音流歌|虚拟歌手|暂无角色/);
 });

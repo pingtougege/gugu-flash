@@ -282,6 +282,10 @@ test("mock comic panel visual generation tracks render job and registered asset"
   });
   const fetchedJob = await api.getAiGenerationJob(generated.renderJob.id);
   const fetchedAsset = await api.getAsset(generated.item.id);
+  const projectJobs = await api.listStoryProjectAiJobs(created.storyProject.id, {
+    stage: "comic_panel_visual_render",
+    panelId: "panel_start",
+  });
   const listed = await api.listAssets({
     storyProjectId: created.storyProject.id,
     usage: "comic_panel_visual",
@@ -299,6 +303,8 @@ test("mock comic panel visual generation tracks render job and registered asset"
   assert.equal(generated.renderJob.status, "succeeded");
   assert.equal(generated.renderJob.result.assetId, generated.item.id);
   assert.equal(generated.renderJob.result.panelId, "panel_start");
+  assert.deepEqual(projectJobs.items.map((item) => item.id), [generated.renderJob.id]);
+  assert.equal(projectJobs.filters.stage, "comic_panel_visual_render");
   assert.equal(fetchedJob.item.id, generated.renderJob.id);
   assert.equal(fetchedJob.item.result.assetId, generated.item.id);
   assert.equal(fetchedAsset.item.id, generated.item.id);
