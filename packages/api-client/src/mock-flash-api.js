@@ -14,6 +14,7 @@ import {
   createStoryProjectPlayabilityReport,
   contentOriginLabel,
   discoverWebwideIpCandidates,
+  enrichStoryProjectWithAgentWorkup,
   formatNumber,
   importAnimeIpCandidates,
   mergeCandidateLists,
@@ -397,7 +398,7 @@ export function createMockFlashApi({
       existing?.origin?.contentOrigin ||
       "original";
 
-    return {
+    const normalized = {
       ...structuredClone(existing || {}),
       ...source,
       id: id || source.id || existing?.id || makeMockId("story_project"),
@@ -415,6 +416,11 @@ export function createMockFlashApi({
       createdAt: existing?.createdAt || source.createdAt || timestamp,
       updatedAt: timestamp,
     };
+
+    return enrichStoryProjectWithAgentWorkup(normalized, {
+      source: "mock_flash_api",
+      generatedAt: timestamp,
+    });
   }
 
   function saveStoryProject(project = {}) {

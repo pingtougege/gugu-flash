@@ -74,10 +74,10 @@ async function expectBasicVisualBindings(studio) {
   const sceneAsset = sceneGroup.locator('[data-testid="studio-basic-asset-item"]').first();
   const portraitAsset = portraitGroup.locator('[data-testid="studio-basic-asset-item"]').first();
 
-  await expect(studio.locator("#studioBasicVisualAssetCount")).toHaveText("2 assets");
-  await expect(library.locator('[data-testid="studio-basic-asset-item"]')).toHaveCount(2);
-  await expect(sceneGroup.locator(".studio-basic-asset-group-title")).toContainText("1 assets");
-  await expect(portraitGroup.locator(".studio-basic-asset-group-title")).toContainText("1 assets");
+  await expect(studio.locator("#studioBasicVisualAssetCount")).toHaveText(/[2-9]\d* assets/);
+  expect(await library.locator('[data-testid="studio-basic-asset-item"]').count()).toBeGreaterThanOrEqual(2);
+  await expect(sceneGroup.locator(".studio-basic-asset-group-title")).toContainText(/[1-9]\d* assets/);
+  await expect(portraitGroup.locator(".studio-basic-asset-group-title")).toContainText(/[1-9]\d* assets/);
 
   await expect(studio.locator('[data-testid="studio-scene-background-preview"] img')).toHaveAttribute("src", /data:image/);
   await expect(studio.locator("#studioCharacterPortraitTarget img")).toHaveAttribute("src", /data:image/);
@@ -179,6 +179,8 @@ test("mobile guide defaults to idea role generation playtest and publish checks"
   await page.locator("#createWizardNextButton").click();
   await expect(page.locator('[data-create-step="playtest"]')).toHaveClass(/active/);
   await expect(page.locator('[data-mobile-guide-step="playtest"]')).toHaveClass(/active/);
+  await expect(page.locator(".draft-play-scene")).toHaveAttribute("style", /data:image/);
+  await expect(page.locator(".draft-play-character img")).toHaveAttribute("src", /data:image/);
   await page.locator("#createWizardNextButton").click();
   await expect(page.locator('[data-create-step="publish"]')).toHaveClass(/active/);
   await expect(page.locator('[data-mobile-guide-step="publish"]')).toHaveClass(/active/);

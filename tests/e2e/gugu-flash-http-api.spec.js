@@ -12,6 +12,7 @@ let apiServer;
 let apiBaseUrl;
 let tempDir;
 let previousAiDisabled;
+let previousImageAiDisabled;
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -84,7 +85,9 @@ async function createAndPublishOriginal(page, title) {
 
 test.beforeEach(async ({ page }, testInfo) => {
   previousAiDisabled = process.env.GUGU_FLASH_AI_DISABLED;
+  previousImageAiDisabled = process.env.GUGU_FLASH_IMAGE_AI_DISABLED;
   process.env.GUGU_FLASH_AI_DISABLED = "1";
+  process.env.GUGU_FLASH_IMAGE_AI_DISABLED = "1";
   tempDir = await mkdtemp(join(tmpdir(), `gugu-flash-http-e2e-${testInfo.workerIndex}-`));
   const dataPath = join(tempDir, "packs.json");
   apiServer = createFlashHttpServer({ dataPath }).server;
@@ -100,10 +103,16 @@ test.afterEach(async () => {
   } else {
     process.env.GUGU_FLASH_AI_DISABLED = previousAiDisabled;
   }
+  if (previousImageAiDisabled === undefined) {
+    delete process.env.GUGU_FLASH_IMAGE_AI_DISABLED;
+  } else {
+    process.env.GUGU_FLASH_IMAGE_AI_DISABLED = previousImageAiDisabled;
+  }
   apiServer = null;
   apiBaseUrl = null;
   tempDir = null;
   previousAiDisabled = null;
+  previousImageAiDisabled = null;
 });
 
 test("web can publish, list, purchase, download, and sync through Backend Alpha HTTP mode", async ({ page }) => {

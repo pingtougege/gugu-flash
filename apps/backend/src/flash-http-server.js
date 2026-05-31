@@ -13,6 +13,7 @@ import {
   createHardwareStudioExportBundle,
   createPublishChecklist,
   createStoryProjectPlayabilityReport,
+  enrichStoryProjectWithAgentWorkup,
   validateStoryProject,
 } from "../../../packages/core/src/index.js";
 import { createAiDraftFromPrompt } from "./ai-draft-generator.js";
@@ -657,7 +658,7 @@ function normalizeStoryProjectForPersistence(project = {}, {
   const authorUserId = project.authorUserId || author.id || existing?.authorUserId || session?.userId || "user_local";
   const contentOrigin = project.contentOrigin || project.origin?.contentOrigin || existing?.contentOrigin || existing?.origin?.contentOrigin || "original";
 
-  return {
+  const normalized = {
     ...structuredClone(existing || {}),
     ...structuredClone(project),
     id: id || project.id || existing?.id || prefixedId("story_project"),
@@ -675,6 +676,11 @@ function normalizeStoryProjectForPersistence(project = {}, {
     createdAt: existing?.createdAt || project.createdAt || timestamp,
     updatedAt: timestamp,
   };
+
+  return enrichStoryProjectWithAgentWorkup(normalized, {
+    source: "flash_http_server",
+    generatedAt: timestamp,
+  });
 }
 
 function createStoryProjectVersionSnapshot(project, {

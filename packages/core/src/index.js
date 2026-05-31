@@ -90,6 +90,19 @@ export {
 } from "./gugu-story-project.js";
 
 export {
+  GUGU_STORY_AGENT_PIPELINE_VERSION,
+  GUGU_STORY_AGENT_STAGES,
+  GUGU_STORY_AUDIT_DIMENSIONS,
+  GUGU_STORY_TRUTH_SECTIONS,
+  auditStoryProjectWithTruth,
+  createStoryAgentRuntimePlan,
+  createStoryProjectAgentWorkup,
+  createStoryRepairProposal,
+  createStoryTruthBundle,
+  enrichStoryProjectWithAgentWorkup,
+} from "./gugu-story-agent-pipeline.js";
+
+export {
   WEBWIDE_IP_DISCOVERY_SOURCE,
   discoverWebwideIpCandidates,
   mergeCandidateLists,

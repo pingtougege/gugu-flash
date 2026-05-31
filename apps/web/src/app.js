@@ -70,6 +70,7 @@ const state = {
   basicVisualStatus: "idle",
   basicVisualMessage: "",
   basicVisualTarget: "",
+  initialBasicVisualPromise: null,
   comicStoryboard: null,
   comicStoryboardStatus: "idle",
   comicStoryboardMessage: "",
@@ -519,6 +520,41 @@ function sceneBackgroundStyle(scene = {}, draft = {}) {
     || scene.background
     || draft.cover?.background
     || "#111827";
+}
+
+function characterPortraitImageUrl(character = {}) {
+  return displayMediaUrl(character.portraitImageUrl || character.portraitImage?.imageUrl || "");
+}
+
+function sceneCharacterPortrait(scene = {}, draft = {}) {
+  const characters = filterDisplayableStoryCharacters(draft.characters || []);
+  if (!characters.length) return null;
+  const matches = [
+    scene.characterId,
+    scene.speaker,
+    scene.character,
+  ].map((value) => String(value || "").trim()).filter(Boolean);
+  const matched = characters.find((character) => {
+    const keys = [
+      character.id,
+      character.name,
+      character.avatar,
+      draftCharacterKey(character),
+    ].map((value) => String(value || "").trim()).filter(Boolean);
+    return keys.some((key) => matches.includes(key)) && characterPortraitImageUrl(character);
+  });
+  return matched || characters.find((character) => character.enabled !== false && characterPortraitImageUrl(character))
+    || characters.find((character) => characterPortraitImageUrl(character))
+    || null;
+}
+
+function sceneCharacterPortraitUrl(scene = {}, draft = {}) {
+  return characterPortraitImageUrl(sceneCharacterPortrait(scene, draft) || {});
+}
+
+function sceneCharacterLabel(scene = {}, draft = {}) {
+  const character = sceneCharacterPortrait(scene, draft);
+  return character?.avatar || scene.character || draft.persona?.avatar || "✨";
 }
 
 function stripLargeInlineImages(value) {
@@ -3631,6 +3667,52 @@ async function saveBasicVisualBinding(target, generatedImage = {}, assetRecord =
   return saved;
 }
 
+function missingInitialBasicVisualTypes(draft = state.draft) {
+  const missing = [];
+  const backgroundTarget = selectedSceneBackgroundTarget(draft);
+  const backgroundImageUrl = backgroundTarget?.scene?.backgroundImageUrl || backgroundTarget?.scene?.backgroundImage?.imageUrl || "";
+  if (backgroundTarget && !backgroundImageUrl) missing.push("scene_background");
+  const portraitTarget = firstCharacterPortraitTarget(draft);
+  const portraitImageUrl = portraitTarget?.character?.portraitImageUrl || portraitTarget?.character?.portraitImage?.imageUrl || "";
+  if (portraitTarget && !portraitImageUrl) missing.push("character_portrait");
+  return missing;
+}
+
+async function generateInitialBasicVisualsForMobileDraft() {
+  if (!state.draft || !state.storyProject?.id || !flashApi.generateAiImage) return { generated: 0, skipped: true };
+  const visualTypes = missingInitialBasicVisualTypes(state.draft);
+  if (!visualTypes.length) return { generated: 0, skipped: true };
+  setCreateProgress("AI 正在补齐首屏背景和人物立绘，完成后会自动出现在试玩卡片里。", "info");
+  let generated = 0;
+  for (const visualType of visualTypes) {
+    await generateAndBindStudioBasicVisual(visualType);
+    generated += 1;
+  }
+  renderDraft(state.draft);
+  await loadStoryProjectProductionIndex({ render: false });
+  setCreateProgress("文字游戏和首屏背景、人物立绘已生成，可以直接试玩。", "success");
+  showToast("背景和人物图像已生成。");
+  return { generated, skipped: false };
+}
+
+function startInitialBasicVisualGenerationForDraft() {
+  if (state.initialBasicVisualPromise) return state.initialBasicVisualPromise;
+  state.initialBasicVisualPromise = generateInitialBasicVisualsForMobileDraft()
+    .catch(() => {
+      setCreateProgress("作品已生成，但首屏背景或人物立绘自动生成失败；可在高级编辑里手动重试。", "warning");
+      return { generated: 0, skipped: false, failed: true };
+    })
+    .finally(() => {
+      state.initialBasicVisualPromise = null;
+    });
+  return state.initialBasicVisualPromise;
+}
+
+async function waitForInitialBasicVisualGeneration() {
+  if (!state.initialBasicVisualPromise) return;
+  await state.initialBasicVisualPromise;
+}
+
 async function generateAndBindStudioBasicVisual(type) {
   if (["generating", "binding"].includes(state.basicVisualStatus)) return;
   const target = type === "scene_background"
@@ -4297,10 +4379,16 @@ function renderDraftPlaytest(draft) {
     return;
   }
   const index = scenes.findIndex((item) => item.id === scene.id);
+  const portraitImageUrl = sceneCharacterPortraitUrl(scene, draft);
+  const characterLabel = sceneCharacterLabel(scene, draft);
   $("draftPlayPosition").textContent = `${index + 1} / ${scenes.length}`;
   $("draftPlaytestPanel").innerHTML = `
     <div class="draft-play-scene" style="background: ${escapeHtml(sceneBackgroundStyle(scene, draft))}">
-      <div class="draft-play-character">${escapeHtml(scene.character || draft.persona?.avatar || "✨")}</div>
+      <div class="draft-play-character ${portraitImageUrl ? "has-image" : ""}">
+        ${portraitImageUrl
+          ? `<img src="${escapeHtml(portraitImageUrl)}" alt="${escapeHtml(scene.speaker || "人物立绘")}">`
+          : escapeHtml(characterLabel)}
+      </div>
       <div class="draft-play-copy">
         <strong>${escapeHtml(scene.speaker || draft.persona?.name || "旁白")}</strong>
         <p>${escapeHtml(scene.text || "空场景")}</p>
@@ -5581,6 +5669,7 @@ async function runDraftGeneration() {
     showToast(state.draft.aiProvider?.status === "used"
       ? `AI 作品已生成：${state.draft.aiProvider.provider}`
       : "文字游戏草稿已生成。");
+    void startInitialBasicVisualGenerationForDraft();
   } catch (error) {
     state.createWizardStep = "prompt";
     failGenerationWorkbench(error);
@@ -7178,26 +7267,30 @@ function wireEvents() {
     const options = createOptionsFromForm();
     if (!validateCreateOptions(options)) return;
     const button = $("publishDraftButton");
-    const draftToPublish = prepareDraftForPublish(state.draft);
-    const checklist = createPublishChecklist(draftToPublish, { qualityChecks: createDraftQualityChecks(draftToPublish) });
-    if (checklist.status === "blocked") {
-      renderDraftQuality(draftToPublish);
-      setCreateProgress("发布前检查未通过，请先修复阻塞项。", "error");
-      showToast("发布检查未通过。");
-      return;
-    }
-    const draftKey = draftToPublish.publishFingerprint || workFingerprint(draftToPublish);
-    if (!state.editingWorkId && state.publishedDraftKeys.has(draftKey)) {
-      setCreateProgress("这个草稿已经发布过了，避免生成重复作品。修改标题或剧本后可以再次发布。", "warning");
-      showToast("这个草稿已经发布过了。");
-      return;
-    }
     state.draftPublishing = true;
     let publishSucceeded = false;
-    setCreateProgress(state.editingWorkId ? "正在保存作品更新，请稍等。" : "正在发布到首页和我的作品，请稍等。", "info");
     button.dataset.idleText = state.editingWorkId ? "保存更新" : "发布";
-    setButtonBusy(button, true, state.editingWorkId ? "保存中" : "发布中");
+    setCreateProgress("正在确认首屏背景和人物立绘已保存。", "info");
+    setButtonBusy(button, true, "准备中");
     try {
+      await waitForInitialBasicVisualGeneration();
+      if (!state.draft) return;
+      const draftToPublish = prepareDraftForPublish(state.draft);
+      const checklist = createPublishChecklist(draftToPublish, { qualityChecks: createDraftQualityChecks(draftToPublish) });
+      if (checklist.status === "blocked") {
+        renderDraftQuality(draftToPublish);
+        setCreateProgress("发布前检查未通过，请先修复阻塞项。", "error");
+        showToast("发布检查未通过。");
+        return;
+      }
+      const draftKey = draftToPublish.publishFingerprint || workFingerprint(draftToPublish);
+      if (!state.editingWorkId && state.publishedDraftKeys.has(draftKey)) {
+        setCreateProgress("这个草稿已经发布过了，避免生成重复作品。修改标题或剧本后可以再次发布。", "warning");
+        showToast("这个草稿已经发布过了。");
+        return;
+      }
+      setCreateProgress(state.editingWorkId ? "正在保存作品更新，请稍等。" : "正在发布到首页和我的作品，请稍等。", "info");
+      setButtonBusy(button, true, state.editingWorkId ? "保存中" : "发布中");
       const response = state.editingWorkId && flashApi.updateWork
         ? await flashApi.updateWork(state.editingWorkId, { ...draftToPublish, id: state.editingWorkId })
         : await flashApi.publishDraft(draftToPublish);

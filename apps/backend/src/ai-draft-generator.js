@@ -6,6 +6,7 @@ import {
   createStoryProjectFromH5Pack,
   createDraftFromPrompt,
   createDraftQualityChecks,
+  enrichStoryProjectWithAgentWorkup,
   validatePack,
 } from "../../../packages/core/src/index.js";
 
@@ -358,9 +359,12 @@ function fallbackDraft(prompt, template, options, reason = "missing_api_key") {
     generatedAt: Date.now(),
   };
   item.qualityChecks = createDraftQualityChecks(item);
-  const storyProject = createStoryProjectFromH5Pack(item, {
+  const storyProject = enrichStoryProjectWithAgentWorkup(createStoryProjectFromH5Pack(item, {
     projectId: `story_project_${String(item.id || "").replace(/^h5_/, "")}`,
     status: "ready_to_preview",
+  }), {
+    source: "ai_draft_generator",
+    generatedAt: item.aiProvider.generatedAt,
   });
   item.sourceProjectId = storyProject.id;
   item.storyProjectId = storyProject.id;
@@ -389,9 +393,12 @@ export async function createAiDraftFromPrompt(prompt, template = "healing", opti
         attempts.push({ provider, ok: false, reason: "invalid_pack", errors });
         continue;
       }
-      const storyProject = createStoryProjectFromH5Pack(item, {
+      const storyProject = enrichStoryProjectWithAgentWorkup(createStoryProjectFromH5Pack(item, {
         projectId: `story_project_${String(item.id || "").replace(/^h5_/, "")}`,
         status: "ready_to_preview",
+      }), {
+        source: "ai_draft_generator",
+        generatedAt: item.aiProvider.generatedAt,
       });
       item.sourceProjectId = storyProject.id;
       item.storyProjectId = storyProject.id;
