@@ -826,3 +826,27 @@ Current artifact: Creator Studio indexed visual hydration across API, backend, m
 Verification: npm run test:unit; npm run test:e2e.
 Next action should wire the asynchronous render worker execution loop behind indexed render job records.
 ```
+
+### 2026-05-31 Phase 1 Render Worker MVP Verified
+
+Completed by Codex and assigned agents:
+
+- Backend Platform: built the Round 11 worker loop that scans indexed `queued` and recoverable `running` render jobs, claims executable work, calls the AI image generator, registers the generated image as an indexed `Asset`, updates the linked AI Job, and mirrors the result into the owning `StoryProject`.
+- Frontend Experience: kept Creator Studio on the indexed hydration path so worker-updated assets and jobs flow back into the visual asset library, render queue, scene backgrounds, character portraits, and storyboard panel visuals.
+- QA Release: verified queued execution, asset/job index consistency, StoryProject mirror compatibility, and Creator Studio recovery after worker completion.
+- Codex: closed Round 11 progress docs and integration status with implementation evidence.
+
+Acceptance target:
+
+```text
+Indexed render jobs move from passive queue records to executable worker tasks: the worker scans queued/running jobs, invokes the AI image generator, persists the produced Asset, updates the AI Job, mirrors StoryProject compatibility fields, and lets Creator Studio rehydrate the completed visual production state.
+```
+
+Status:
+
+```text
+Round 11 / Phase 1 Render Worker MVP is verified.
+Current artifact: backend render worker loop, HTTP run route, shared API client contract, mock worker parity, and StoryProject asset/job mirror writes.
+Verification: node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js apps/backend/src/alpha-route-coverage.test.js packages/api-client/src/http-flash-api.test.js; npm run test:unit; npm run test:e2e; npm run check:content.
+Next action should start Round 12 production storage/auth hardening and true mobile viewport evidence.
+```

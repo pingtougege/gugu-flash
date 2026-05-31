@@ -62,9 +62,12 @@ Allowed statuses:
 | API Platform Round 9 | Peirce / Codex | Independent asset and render job index | verified | JSON asset repository + HTTP indexed routes |
 | Frontend Experience Round 9 | Confucius | Base visual restore regression | verified | Restore e2e for background and portrait bindings |
 | QA And Release Round 9 | Herschel | Asset index migration risk review | verified | Read-only risk checklist |
-| API Platform Round 10 | Codex / API Platform | Asset Index and AI Job Index read-path support | in_progress | Project-scoped indexed visual/task query path |
-| Frontend Experience Round 10 | Codex / Frontend Experience | Creator Studio indexed visual hydration | in_progress | Background, portrait, panel visual, and render task rehydration |
-| QA And Release Round 10 | Codex / QA Release | Indexed hydration regression map | in_progress | Reopen/restore checks for visual assets and tasks |
+| API Platform Round 10 | Codex / API Platform | Asset Index and AI Job Index read-path support | verified | Project-scoped indexed visual/task query path |
+| Frontend Experience Round 10 | Codex / Frontend Experience | Creator Studio indexed visual hydration | verified | Background, portrait, panel visual, and render task rehydration |
+| QA And Release Round 10 | Codex / QA Release | Indexed hydration regression map | verified | Reopen/restore checks for visual assets and tasks |
+| Backend Platform Round 11 | Codex / Backend Platform | Phase 1 Render Worker MVP | verified | Worker loop + `/flash/ai/render-jobs/run` execute indexed render jobs |
+| Frontend Experience Round 11 | Codex / Frontend Experience | Creator Studio render worker feedback | verified | Worker-updated assets/jobs rehydrate through indexed Studio state |
+| QA And Release Round 11 | Codex / QA Release | Render worker MVP regression map | verified | Queued render job execution covered by HTTP, mock, unit, and E2E tests |
 
 ## 3. Phase 0 Board
 
@@ -116,7 +119,7 @@ Next 24h:
 
 Date: 2026-05-31
 
-Overall status: `verified_round_10`
+Overall status: `round_11_verified_next_phase_ready`
 
 Verified since last update:
 
@@ -127,6 +130,8 @@ Verified since last update:
 - Professional Creator Studio can switch between existing StoryProjects and save a scene with a version snapshot.
 - Professional Creator Studio can preview the current StoryProject as a `ComicEpisode` storyboard.
 - StoryProject versions can be restored through backend, HTTP client, mock API, and Creator Studio.
+- Project-scoped indexed asset and AI job read paths are verified across backend, HTTP client, mock API, and Creator Studio hydration.
+- Round 11 Phase 1 Render Worker MVP is verified: queued visual render jobs can be scanned, claimed, generated, saved as indexed `Asset` records, linked back to `AiGenerationJob`, mirrored into `StoryProject`, and queried by Creator Studio.
 - Restore creates a new `restored` version snapshot and downgrades restored published snapshots back to preview state.
 - Snapshot failure is separated from full project-save failure in the editor status.
 - Mobile default flow remains five-step guided creation with professional tools hidden by default.
@@ -153,7 +158,7 @@ Verified since last update:
 
 In progress:
 
-- Next work is the asynchronous render worker execution loop behind the indexed render job records.
+- Round 11 / Phase 1 Render Worker MVP: move indexed render jobs from queue records to executable worker tasks that scan `queued`/`running` jobs, call the AI image generator, register the produced `Asset`, update the linked AI Job, mirror the result back into `StoryProject`, and feed the refreshed state into Creator Studio.
 
 Tests run:
 
@@ -193,10 +198,42 @@ browser smoke in real API mode: draft -> Creator Studio -> generate scene backgr
 
 Next 24h:
 
-- Wire the asynchronous render worker execution loop behind the indexed render job records.
 - Add production storage/auth hardening for StoryProject and StoryProjectVersion.
 - Add true mobile viewport regression coverage for the simple guided flow.
 - Add version diff UI and restore audit filters.
+
+### 2026-05-31 Agent Execution Round 11 Verified
+
+Goal:
+
+- Promote indexed render jobs from passive queue records into an executable Phase 1 Render Worker MVP.
+- Scan `queued` and recoverable `running` render jobs from the AI Job Index.
+- For each eligible job, call the AI image generator with the stored render context, register the generated image as an indexed `Asset`, update the linked AI Job state, mirror asset/job results back into the owning `StoryProject`, and let Creator Studio rehydrate the refreshed asset library and render queue.
+- Keep mobile guided creation unchanged while professional Creator Studio receives worker-produced visual state.
+
+Assignments:
+
+- Backend Platform owns the worker scan/claim/execute loop, AI image generator call, asset registration, AI Job update, and StoryProject mirror write.
+- Frontend Experience owns Creator Studio recovery of worker-updated asset/job state through the existing indexed hydration path.
+- QA Release owns regression evidence for `queued`/recoverable `running` job execution, failed/retry-safe job states, StoryProject mirror compatibility, and Creator Studio refresh after worker completion.
+- Codex owns Round 11 closure docs and integration reporting.
+
+Workstream report:
+
+```text
+status: verified
+owner: Codex / Backend Platform / Frontend Experience / QA Release
+current artifact: backend render worker loop, HTTP run route, shared API client contract, mock worker parity, and StoryProject asset/job mirror writes
+verification command: node --test apps/backend/src/flash-http-server.story-project.test.js packages/api-client/src/mock-flash-api.test.js packages/api-client/src/flash-api-contract.test.js apps/backend/src/alpha-route-coverage.test.js packages/api-client/src/http-flash-api.test.js; npm run test:unit; npm run test:e2e; npm run check:content
+blocker: none for Round 11 MVP
+next action: start Round 12 production storage/auth hardening and true mobile viewport evidence
+```
+
+Acceptance target:
+
+```text
+Professional Creator Studio can enqueue visual production work, let a backend worker execute queued/running render jobs through the AI image generator, recover the generated Asset and AI Job state from indexes, and display the refreshed visual library/render queue without depending on manual inline generation.
+```
 
 ### 2026-05-31 Agent Execution Round 10 Started
 

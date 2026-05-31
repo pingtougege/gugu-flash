@@ -56,6 +56,7 @@ export const FLASH_API_ROUTES = [
   { id: "ai.storyProjectJobs.get", method: "GET", path: "/flash/ai/jobs/:id", auth: "user", responseEntity: "AiGenerationJob" },
   { id: "ai.storyProjectJobs.apply", method: "POST", path: "/flash/ai/jobs/:id/apply", auth: "user", requestEntity: "AiGenerationJob", responseEntity: "StoryProject" },
   { id: "ai.storyProjectJobs.discard", method: "POST", path: "/flash/ai/jobs/:id/discard", auth: "user", requestEntity: "AiGenerationJob", responseEntity: "AiGenerationJob" },
+  { id: "ai.renderJobs.run", method: "POST", path: "/flash/ai/render-jobs/run", auth: "user", requestEntity: "AiGenerationJob", responseEntity: "AiGenerationJob" },
 
   { id: "drafts.create", method: "POST", path: "/flash/drafts", auth: "user", requestEntity: "WorkDraft", responseEntity: "WorkDraft" },
   { id: "ai.createDraft", method: "POST", path: "/flash/ai/create-draft", auth: "user", requestEntity: "WorkDraft", responseEntity: "WorkDraft" },
@@ -190,6 +191,7 @@ export const MOCK_FLASH_API_METHOD_ROUTES = {
   createStoryProjectAiJob: "ai.storyProjectJobs.create",
   getAiGenerationJob: "ai.storyProjectJobs.get",
   applyAiGenerationJob: "ai.storyProjectJobs.apply",
+  runAiRenderJobs: "ai.renderJobs.run",
   getDeviceDashboard: "devices.dashboard",
   purchaseBadgePack: "hardwarePacks.purchase",
   downloadBadgePack: "hardwarePacks.download",

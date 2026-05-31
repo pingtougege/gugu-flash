@@ -433,6 +433,46 @@ export function createMockFlashApi({
     return item ? structuredClone(item) : null;
   }
 
+  function mirrorAssetToStoryProjectForMock(asset = {}, timestamp = Date.now()) {
+    if (!asset?.id || !asset.storyProjectId) return null;
+    const project = findStoryProject(asset.storyProjectId);
+    if (!project) return null;
+    const assets = Array.isArray(project.assets) ? structuredClone(project.assets) : [];
+    const index = assets.findIndex((item) => item.id === asset.id || item.assetId === asset.id);
+    const nextAsset = {
+      ...(index >= 0 ? assets[index] : {}),
+      ...structuredClone(asset),
+      updatedAt: asset.updatedAt || timestamp,
+    };
+    if (index >= 0) assets[index] = nextAsset;
+    else assets.unshift(nextAsset);
+    return saveStoryProject({
+      ...project,
+      assets,
+      updatedAt: timestamp,
+    });
+  }
+
+  function mirrorRenderJobToStoryProjectForMock(job = {}, timestamp = Date.now()) {
+    if (!job?.id || !job.storyProjectId) return null;
+    const project = findStoryProject(job.storyProjectId);
+    if (!project) return null;
+    const renderJobs = Array.isArray(project.renderJobs) ? structuredClone(project.renderJobs) : [];
+    const index = renderJobs.findIndex((item) => item.id === job.id);
+    const nextJob = {
+      ...(index >= 0 ? renderJobs[index] : {}),
+      ...structuredClone(job),
+      updatedAt: job.updatedAt || timestamp,
+    };
+    if (index >= 0) renderJobs[index] = nextJob;
+    else renderJobs.unshift(nextJob);
+    return saveStoryProject({
+      ...project,
+      renderJobs: renderJobs.slice(0, 50),
+      updatedAt: timestamp,
+    });
+  }
+
   function createStoryProjectVersionSnapshot(project, {
     id = makeMockId("spv"),
     status = "locked",
@@ -551,6 +591,87 @@ export function createMockFlashApi({
     }[usage] || `${usage || "asset"}_render`;
   }
 
+  function assetUsageForRenderStage(stage = "") {
+    const value = String(stage || "");
+    if (value === "scene_background_render") return "scene_background";
+    if (value === "character_portrait_render") return "character_portrait";
+    if (value === "comic_panel_visual_render") return "comic_panel_visual";
+    if (value.endsWith("_render")) return value.slice(0, -"_render".length) || "project_asset";
+    return value || "project_asset";
+  }
+
+  function isTerminalAiJobStatus(status = "") {
+    return ["applied", "canceled", "cancelled", "discarded", "failed", "succeeded"].includes(String(status || ""));
+  }
+
+  function isRenderableAiJob(job = {}) {
+    const stage = String(job.stage || job.kind || job.request?.stage || job.request?.kind || "");
+    return stage.endsWith("_render")
+      || ["scene_background", "character_portrait", "comic_panel_visual"].includes(stage)
+      || ["scene_background", "character_portrait", "comic_panel_visual"].includes(job.request?.usage);
+  }
+
+  function shouldProcessRenderJob(job = {}, {
+    includeRunning = false,
+    runningStaleMs = 5 * 60 * 1000,
+    now = Date.now(),
+  } = {}) {
+    if (!job?.id || !isRenderableAiJob(job)) return false;
+    const status = String(job.status || "queued");
+    if (isTerminalAiJobStatus(status)) return false;
+    if (["queued", "pending"].includes(status)) return true;
+    if (status === "running" && includeRunning) return true;
+    if (status === "running") {
+      const startedAt = Number(job.startedAt || job.updatedAt || job.createdAt || 0);
+      return Boolean(startedAt && now - startedAt >= runningStaleMs);
+    }
+    return false;
+  }
+
+  function renderWorkerAssetId(job = {}, usage = "project_asset") {
+    const raw = String(job.result?.assetId || job.assetId || job.request?.assetId || job.request?.id || `${usage}_${job.id || makeMockId("ai_job")}`);
+    const safe = raw.replace(/[^a-zA-Z0-9_-]/g, "_").replace(/_+/g, "_").slice(0, 96);
+    if (safe.startsWith("asset_") && safe.length > "asset_".length) return safe;
+    return `asset_${safe || makeMockId("render")}`;
+  }
+
+  function renderWorkerPrompt(job = {}, project = {}) {
+    return job.prompt
+      || job.request?.prompt
+      || job.request?.visualPrompt
+      || job.request?.caption
+      || job.request?.sourceText
+      || `${project.title || "StoryProject"} visual render`;
+  }
+
+  function renderWorkerPayloadForJob(job = {}, project = {}) {
+    const request = structuredClone(job.request || {});
+    const usage = request.usage || assetUsageForRenderStage(job.stage || job.kind || request.stage || request.kind);
+    const assetId = renderWorkerAssetId(job, usage);
+    const prompt = renderWorkerPrompt(job, project);
+    return {
+      ...request,
+      id: assetId,
+      assetId,
+      kind: "image",
+      type: request.type || usage,
+      usage,
+      name: request.name || `${project.title || "StoryProject"} ${usage}`,
+      filename: request.filename || `${assetId}.png`,
+      storyProjectId: project.id || job.storyProjectId || request.storyProjectId || null,
+      storyProjectVersionId: request.storyProjectVersionId || request.projectVersionId || job.inputSnapshotId || project.versionId || null,
+      renderJobId: job.id,
+      createdByJobId: job.id,
+      prompt,
+      visualPrompt: request.visualPrompt || prompt,
+      stage: job.stage || request.stage || renderStageForAssetUsage(usage),
+      panelId: job.panelId || request.panelId || null,
+      sceneId: job.sceneId || request.sceneId || null,
+      characterId: job.characterId || request.characterId || null,
+      characterName: job.characterName || request.characterName || null,
+    };
+  }
+
   function assetIdFromPayload(asset = {}) {
     if (asset.assetId) return asset.assetId;
     if (String(asset.id || "").startsWith("asset_")) return asset.id;
@@ -665,6 +786,7 @@ export function createMockFlashApi({
     const panelId = options.panelId || null;
     const sceneId = options.sceneId || null;
     const characterId = options.characterId || null;
+    const renderJobId = options.renderJobId || options.jobId || null;
     return assetsCache
       .filter((asset) => !storyProjectId || asset.storyProjectId === storyProjectId)
       .filter((asset) => !usage || asset.usage === usage)
@@ -673,6 +795,7 @@ export function createMockFlashApi({
       .filter((asset) => !panelId || asset.panelId === panelId)
       .filter((asset) => !sceneId || asset.sceneId === sceneId)
       .filter((asset) => !characterId || asset.characterId === characterId)
+      .filter((asset) => !renderJobId || asset.renderJobId === renderJobId || asset.createdByJobId === renderJobId)
       .map((asset) => structuredClone(asset));
   }
 
@@ -1909,6 +2032,7 @@ export function createMockFlashApi({
           panelId: filters.panelId || null,
           sceneId: filters.sceneId || null,
           characterId: filters.characterId || null,
+          renderJobId: filters.renderJobId || filters.jobId || null,
         },
       };
     },
@@ -2183,6 +2307,118 @@ export function createMockFlashApi({
           sceneId: filters.sceneId || null,
           characterId: filters.characterId || null,
         },
+      };
+    },
+
+    async runAiRenderJobs(options = {}) {
+      ensureStoryProjectState();
+      ensureAssetState();
+      const timestamp = Date.now();
+      const limit = Math.max(1, Math.min(50, Number(options.limit) || 5));
+      const storyProjectId = options.storyProjectId || options.projectId || null;
+      const jobId = options.jobId || options.renderJobId || null;
+      const workerId = options.workerId || "mock_render_worker";
+      const includeRunning = Boolean(options.includeRunning);
+      const runningStaleMs = Number(options.runningStaleMs || 5 * 60 * 1000);
+      const jobs = jobId
+        ? aiGenerationJobsCache.filter((job) => job.id === jobId)
+        : aiGenerationJobsCache;
+      const candidates = jobs
+        .filter((job) => !storyProjectId || job.storyProjectId === storyProjectId)
+        .filter((job) => shouldProcessRenderJob(job, { includeRunning, runningStaleMs, now: timestamp }))
+        .sort((left, right) => Number(left.queuedAt || left.createdAt || 0) - Number(right.queuedAt || right.createdAt || 0))
+        .slice(0, limit);
+      const items = [];
+
+      for (const job of candidates) {
+        const latest = aiGenerationJobsCache.find((item) => item.id === job.id) || job;
+        if (!shouldProcessRenderJob(latest, { includeRunning, runningStaleMs, now: timestamp })) {
+          items.push({ status: "skipped", reason: "job_not_processable", job: structuredClone(latest) });
+          continue;
+        }
+
+        const project = findStoryProject(latest.storyProjectId);
+        if (!project) {
+          const failed = saveAiGenerationJob({
+            ...structuredClone(latest),
+            status: "failed",
+            workerId,
+            errors: [
+              ...(Array.isArray(latest.errors) ? latest.errors : []),
+              { message: "story_project_not_found", at: timestamp, workerId },
+            ],
+            completedAt: timestamp,
+            updatedAt: timestamp,
+          });
+          items.push({ status: "failed", reason: "story_project_not_found", job: failed });
+          continue;
+        }
+
+        const running = saveAiGenerationJob({
+          ...structuredClone(latest),
+          status: "running",
+          workerId,
+          startedAt: latest.startedAt || timestamp,
+          updatedAt: timestamp,
+          errors: [],
+        });
+        mirrorRenderJobToStoryProjectForMock(running, timestamp);
+
+        const payload = renderWorkerPayloadForJob(running, project);
+        const asset = saveAsset(normalizeAssetForMock({
+          ...payload,
+          kind: "image",
+          status: "uploaded",
+          provider: payload.provider || "mock_preview",
+          model: payload.model || "mock_preview",
+          mediaType: "image/png",
+          sizeBytes: payload.sizeBytes || 68,
+          imageUrl: payload.imageUrl || `data:image/png;base64,${MOCK_AI_IMAGE_PNG}`,
+          uploaderUserId: payload.uploaderUserId || project.authorUserId || project.author?.id || "user_local",
+        }, { timestamp }));
+        const renderJob = createStoryProjectAssetRenderJob({
+          project,
+          asset,
+          payload: {
+            ...payload,
+            renderJobId: running.id,
+            jobStatus: "succeeded",
+            provider: asset.provider,
+            model: asset.model,
+          },
+          timestamp,
+        });
+        const completedJob = saveAiGenerationJob({
+          ...structuredClone(renderJob || running),
+          status: "succeeded",
+          workerId,
+          startedAt: running.startedAt || timestamp,
+          completedAt: timestamp,
+          updatedAt: timestamp,
+        });
+        const linkedAsset = saveAsset({
+          ...asset,
+          renderJobId: completedJob.id,
+          createdByJobId: completedJob.id,
+          updatedAt: timestamp,
+        });
+        mirrorAssetToStoryProjectForMock(linkedAsset, timestamp);
+        mirrorRenderJobToStoryProjectForMock(completedJob, timestamp);
+        items.push({
+          status: "succeeded",
+          job: completedJob,
+          asset: linkedAsset,
+        });
+      }
+
+      return {
+        items,
+        processed: items.length,
+        succeeded: items.filter((item) => item.status === "succeeded").length,
+        failed: items.filter((item) => item.status === "failed").length,
+        skipped: items.filter((item) => item.status === "skipped").length,
+        limit,
+        workerId,
       };
     },
 
@@ -3038,6 +3274,7 @@ export function createMockFlashApi({
           panelId: options.panelId || null,
           sceneId: options.sceneId || null,
           characterId: options.characterId || null,
+          renderJobId: options.renderJobId || options.jobId || null,
         },
       };
     },

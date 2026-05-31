@@ -390,6 +390,63 @@ test("StoryProject HTTP image generation registers an indexed asset and render j
   }
 });
 
+test("StoryProject HTTP render worker processes queued visual jobs into indexed assets", async () => {
+  const previousDisabled = process.env.GUGU_FLASH_IMAGE_AI_DISABLED;
+  process.env.GUGU_FLASH_IMAGE_AI_DISABLED = "1";
+  try {
+    await withStoryProjectBackend(async (api) => {
+      const created = await api.createStoryProject(makeStoryProject({
+        id: "story_project_render_worker",
+      }));
+      const job = await api.createStoryProjectAiJob(created.item.id, {
+        id: "ai_job_worker_panel",
+        stage: "comic_panel_visual_render",
+        kind: "comic_panel_visual",
+        status: "queued",
+        usage: "comic_panel_visual",
+        panelId: "panel_start",
+        sceneId: "start",
+        prompt: "worker should render a moody first panel",
+        visualPrompt: "wide cinematic first panel of a mystery studio door",
+      });
+
+      const run = await api.runAiRenderJobs({
+        storyProjectId: created.item.id,
+        limit: 2,
+        workerId: "worker_test",
+      });
+      const fetchedJob = await api.getAiGenerationJob(job.item.id);
+      const projectJobs = await api.listStoryProjectAiJobs(created.item.id, {
+        stage: "comic_panel_visual_render",
+        panelId: "panel_start",
+      });
+      const projectAssets = await api.listStoryProjectAssets(created.item.id, {
+        renderJobId: job.item.id,
+      });
+      const refetchedProject = await api.getStoryProject(created.item.id);
+
+      assert.equal(run.processed, 1);
+      assert.equal(run.succeeded, 1);
+      assert.equal(run.failed, 0);
+      assert.equal(run.items[0].status, "succeeded");
+      assert.equal(run.items[0].job.id, "ai_job_worker_panel");
+      assert.equal(run.items[0].job.workerId, "worker_test");
+      assert.equal(run.items[0].asset.storyProjectId, created.item.id);
+      assert.equal(run.items[0].asset.renderJobId, "ai_job_worker_panel");
+      assert.equal(run.items[0].asset.panelId, "panel_start");
+      assert.equal(fetchedJob.item.status, "succeeded");
+      assert.equal(fetchedJob.item.result.assetId, run.items[0].asset.id);
+      assert.deepEqual(projectJobs.items.map((item) => item.id), ["ai_job_worker_panel"]);
+      assert.deepEqual(projectAssets.items.map((item) => item.id), [run.items[0].asset.id]);
+      assert.ok(refetchedProject.item.assets.some((item) => item.id === run.items[0].asset.id));
+      assert.ok(refetchedProject.item.renderJobs.some((item) => item.id === "ai_job_worker_panel"));
+    });
+  } finally {
+    if (previousDisabled === undefined) delete process.env.GUGU_FLASH_IMAGE_AI_DISABLED;
+    else process.env.GUGU_FLASH_IMAGE_AI_DISABLED = previousDisabled;
+  }
+});
+
 test("StoryProject HTTP slice publishes a playable project as a public H5 Work", async () => {
   await withStoryProjectBackend(async (api) => {
     const created = await api.createStoryProject(makePublishableStoryProject({

@@ -46,6 +46,7 @@ export const BACKEND_ALPHA_ROUTE_IDS = new Set([
   "ai.storyProjectJobs.get",
   "ai.storyProjectJobs.apply",
   "ai.storyProjectJobs.discard",
+  "ai.renderJobs.run",
   "ai.createDraft",
   "ai.editProposals.create",
   "ai.generateImage",

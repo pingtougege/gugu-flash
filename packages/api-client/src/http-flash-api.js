@@ -94,6 +94,7 @@ export function createHttpFlashApi({ baseUrl = "", token = "", getToken = null }
     createStoryProjectAiJob: (id, payload = {}) => post(`/flash/ai/story-projects/${encode(id)}/jobs`, payload),
     getAiGenerationJob: (id) => request(`/flash/ai/jobs/${encode(id)}`),
     applyAiGenerationJob: (id, payload = {}) => post(`/flash/ai/jobs/${encode(id)}/apply`, payload),
+    runAiRenderJobs: (options = {}) => post("/flash/ai/render-jobs/run", options),
     getOperatorReports: () => request("/flash/operator/reports"),
     resolveReport: (reportId, action = "limit_recommend", reason) => post(`/flash/operator/reports/${encode(reportId)}/resolve`, { action, reason }),
     getModerationActions: () => request("/flash/operator/moderation-actions"),

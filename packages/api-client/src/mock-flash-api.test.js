@@ -315,6 +315,53 @@ test("mock comic panel visual generation tracks render job and registered asset"
   assert.ok(runtime.aiGenerationJobs.some((item) => item.id === generated.renderJob.id));
 });
 
+test("mock render worker turns queued visual jobs into assets", async () => {
+  const { api } = createMemoryApi([]);
+  const created = await api.createAiDraft("一间深夜修理铺遇到会说话的旧钟", "healing");
+  const sceneId = created.storyProject.script.scenes[0].id;
+  const queued = await api.createStoryProjectAiJob(created.storyProject.id, {
+    id: "ai_job_mock_worker_panel",
+    stage: "comic_panel_visual_render",
+    kind: "comic_panel_visual",
+    status: "queued",
+    usage: "comic_panel_visual",
+    panelId: "panel_worker_start",
+    sceneId,
+    prompt: "worker renders the repair shop opening panel",
+    visualPrompt: "wide rainy repair shop panel",
+  });
+
+  const run = await api.runAiRenderJobs({
+    storyProjectId: created.storyProject.id,
+    limit: 1,
+    workerId: "mock_worker_test",
+  });
+  const fetchedJob = await api.getAiGenerationJob(queued.item.id);
+  const projectJobs = await api.listStoryProjectAiJobs(created.storyProject.id, {
+    stage: "comic_panel_visual_render",
+    panelId: "panel_worker_start",
+  });
+  const projectAssets = await api.listStoryProjectAssets(created.storyProject.id, {
+    renderJobId: queued.item.id,
+  });
+  const refetchedProject = await api.getStoryProject(created.storyProject.id);
+
+  assert.equal(run.processed, 1);
+  assert.equal(run.succeeded, 1);
+  assert.equal(run.items[0].status, "succeeded");
+  assert.equal(run.items[0].job.id, "ai_job_mock_worker_panel");
+  assert.equal(run.items[0].job.workerId, "mock_worker_test");
+  assert.equal(run.items[0].asset.renderJobId, "ai_job_mock_worker_panel");
+  assert.equal(run.items[0].asset.panelId, "panel_worker_start");
+  assert.match(run.items[0].asset.imageUrl, /^data:image\/png;base64,/);
+  assert.equal(fetchedJob.item.status, "succeeded");
+  assert.equal(fetchedJob.item.result.assetId, run.items[0].asset.id);
+  assert.deepEqual(projectJobs.items.map((item) => item.id), ["ai_job_mock_worker_panel"]);
+  assert.deepEqual(projectAssets.items.map((item) => item.id), [run.items[0].asset.id]);
+  assert.ok(refetchedProject.item.assets.some((item) => item.id === run.items[0].asset.id));
+  assert.ok(refetchedProject.item.renderJobs.some((item) => item.id === "ai_job_mock_worker_panel"));
+});
+
 test("mock visual asset generation registers scene backgrounds and character portraits", async () => {
   const { api } = createMemoryApi([]);
   const created = await api.createAiDraft("一间深夜修理铺遇到会说话的旧钟", "healing");

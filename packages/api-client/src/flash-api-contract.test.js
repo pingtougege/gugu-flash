@@ -53,6 +53,7 @@ test("mock facade methods map to future backend routes", () => {
   assert.equal(routeForMockMethod("restoreStoryProjectVersion").path, "/flash/story-projects/:id/versions/:versionId/restore");
   assert.equal(routeForMockMethod("listStoryProjectAssets").path, "/flash/story-projects/:id/assets");
   assert.equal(routeForMockMethod("listStoryProjectAiJobs").path, "/flash/ai/story-projects/:id/jobs");
+  assert.equal(routeForMockMethod("runAiRenderJobs").path, "/flash/ai/render-jobs/run");
   assert.equal(routeForMockMethod("listAssets").path, "/flash/assets");
   assert.equal(routeForMockMethod("createAsset").requestEntity, "Asset");
   assert.equal(routeForMockMethod("getAsset").responseEntity, "Asset");
@@ -70,6 +71,8 @@ test("story project API routes are reserved for Creator Studio", () => {
   assert.equal(getApiRoute("storyProjects.compileComic").responseEntity, "ComicEpisode");
   assert.equal(getApiRoute("ai.storyProjectJobs.list").method, "GET");
   assert.equal(getApiRoute("ai.storyProjectJobs.create").responseEntity, "AiGenerationJob");
+  assert.equal(getApiRoute("ai.renderJobs.run").method, "POST");
+  assert.equal(getApiRoute("ai.renderJobs.run").responseEntity, "AiGenerationJob");
 });
 
 test("HTTP facade exposes the same public method surface as the mock facade", () => {

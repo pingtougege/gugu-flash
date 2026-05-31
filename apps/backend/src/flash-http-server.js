@@ -390,6 +390,70 @@ function renderStageForAssetUsage(usage = "") {
   return `${String(usage || "project_asset").replace(/[^a-zA-Z0-9_]+/g, "_")}_render`;
 }
 
+function assetUsageForRenderStage(stage = "") {
+  const value = String(stage || "");
+  if (value === "scene_background_render") return "scene_background";
+  if (value === "character_portrait_render") return "character_portrait";
+  if (value === "comic_panel_visual_render") return "comic_panel_visual";
+  if (value.endsWith("_render")) return value.slice(0, -"_render".length) || "project_asset";
+  return value || "project_asset";
+}
+
+function isRenderableAiJob(job = {}) {
+  const stage = String(job.stage || job.kind || job.request?.stage || job.request?.kind || "");
+  return stage.endsWith("_render")
+    || ["scene_background", "character_portrait", "comic_panel_visual"].includes(stage)
+    || ["scene_background", "character_portrait", "comic_panel_visual"].includes(job.request?.usage);
+}
+
+function isTerminalAiJobStatus(status = "") {
+  return ["applied", "canceled", "cancelled", "discarded", "failed", "succeeded"].includes(String(status || ""));
+}
+
+function renderWorkerAssetId(job = {}, usage = "project_asset") {
+  const raw = String(job.result?.assetId || job.request?.assetId || job.request?.id || `${usage}_${job.id || prefixedId("ai_job")}`);
+  const safe = raw.replace(/[^a-zA-Z0-9_-]/g, "_").replace(/_+/g, "_").slice(0, 96);
+  if (safe.startsWith("asset_") && safe.length > "asset_".length) return safe;
+  return `asset_${safe || prefixedId("render")}`;
+}
+
+function renderWorkerPrompt(job = {}, project = {}) {
+  return job.prompt
+    || job.request?.prompt
+    || job.request?.visualPrompt
+    || job.request?.caption
+    || job.request?.sourceText
+    || `${project.title || "StoryProject"} visual render`;
+}
+
+function renderWorkerPayloadForJob(job = {}, project = {}) {
+  const request = structuredClone(job.request || {});
+  const usage = request.usage || assetUsageForRenderStage(job.stage || job.kind || request.stage || request.kind);
+  const assetId = renderWorkerAssetId(job, usage);
+  const prompt = renderWorkerPrompt(job, project);
+  return {
+    ...request,
+    id: assetId,
+    assetId,
+    kind: "image",
+    type: request.type || usage,
+    usage,
+    name: request.name || `${project.title || "StoryProject"} ${usage}`,
+    filename: request.filename || `${assetId}.png`,
+    storyProjectId: project.id || job.storyProjectId || request.storyProjectId || null,
+    storyProjectVersionId: request.storyProjectVersionId || request.projectVersionId || job.inputSnapshotId || project.versionId || null,
+    renderJobId: job.id,
+    createdByJobId: job.id,
+    prompt,
+    visualPrompt: request.visualPrompt || prompt,
+    stage: job.stage || request.stage || renderStageForAssetUsage(usage),
+    panelId: job.panelId || request.panelId || null,
+    sceneId: job.sceneId || request.sceneId || null,
+    characterId: job.characterId || request.characterId || null,
+    characterName: job.characterName || request.characterName || null,
+  };
+}
+
 function fallbackAssetSourceStatement(asset = {}, { uploaderUserId = "user_local", prompt = "" } = {}) {
   if (asset.sourceStatement && typeof asset.sourceStatement === "object") {
     return structuredClone(asset.sourceStatement);
@@ -1084,6 +1148,205 @@ export function createFlashBackendApp(options = {}) {
     await persistence.aiGenerationJobs.save(job);
     await mirrorRenderJobToStoryProject(job);
     return job;
+  }
+
+  async function failAiRenderJob(job = {}, error, {
+    workerId = "render_worker_alpha",
+    timestamp = Date.now(),
+  } = {}) {
+    const message = error?.message || String(error || "render_worker_failed");
+    const failed = {
+      ...structuredClone(job),
+      status: "failed",
+      workerId,
+      errors: [
+        ...(Array.isArray(job.errors) ? job.errors : []),
+        {
+          message,
+          at: timestamp,
+          workerId,
+        },
+      ],
+      completedAt: timestamp,
+      updatedAt: timestamp,
+    };
+    await persistence.aiGenerationJobs.save(failed);
+    await mirrorRenderJobToStoryProject(failed);
+    return failed;
+  }
+
+  function shouldProcessRenderJob(job = {}, {
+    includeRunning = false,
+    runningStaleMs = 5 * 60 * 1000,
+    now = Date.now(),
+  } = {}) {
+    if (!job?.id || !isRenderableAiJob(job)) return false;
+    const status = String(job.status || "queued");
+    if (isTerminalAiJobStatus(status)) return false;
+    if (["queued", "pending"].includes(status)) return true;
+    if (status === "running" && includeRunning) return true;
+    if (status === "running") {
+      const startedAt = Number(job.startedAt || job.updatedAt || job.createdAt || 0);
+      return Boolean(startedAt && now - startedAt >= runningStaleMs);
+    }
+    return false;
+  }
+
+  async function processAiRenderJob(job = {}, {
+    workerId = "render_worker_alpha",
+    includeRunning = false,
+    runningStaleMs = 5 * 60 * 1000,
+  } = {}) {
+    const latest = job.id ? (await persistence.aiGenerationJobs.get(job.id)) || job : job;
+    if (!shouldProcessRenderJob(latest, { includeRunning, runningStaleMs })) {
+      return { status: "skipped", reason: "job_not_processable", job: latest };
+    }
+
+    const project = latest.storyProjectId ? await persistence.storyProjects.get(latest.storyProjectId) : null;
+    const timestamp = Date.now();
+    if (!project?.id) {
+      const failed = await failAiRenderJob(latest, new Error("story_project_not_found"), { workerId, timestamp });
+      return { status: "failed", reason: "story_project_not_found", job: failed };
+    }
+
+    const running = {
+      ...structuredClone(latest),
+      status: "running",
+      workerId,
+      startedAt: latest.startedAt || timestamp,
+      updatedAt: timestamp,
+      errors: [],
+    };
+    await persistence.aiGenerationJobs.save(running);
+    await mirrorRenderJobToStoryProject(running);
+
+    try {
+      const payload = renderWorkerPayloadForJob(running, project);
+      const generated = await generateAiImage(payload);
+      const generatedAsset = generated.item || generated.asset || generated;
+      let asset = await saveIndexedAsset({
+        ...payload,
+        ...generatedAsset,
+        renderJobId: running.id,
+        createdByJobId: running.id,
+        sourceStatement: generatedAsset.sourceStatement || payload.sourceStatement,
+      }, {
+        timestamp: Date.now(),
+        securityReport: generatedAsset.securityReport || createAssetSecurityReport({
+          ...payload,
+          ...generatedAsset,
+          renderJobId: running.id,
+          createdByJobId: running.id,
+          sourceStatement: generatedAsset.sourceStatement || payload.sourceStatement,
+        }),
+      });
+      const completedJob = await upsertAssetRenderJob({
+        project,
+        asset,
+        payload: {
+          ...structuredClone(running.request || {}),
+          ...payload,
+          renderJobId: running.id,
+          jobStatus: "succeeded",
+          provider: asset.provider,
+          model: asset.model,
+        },
+        timestamp: Date.now(),
+      });
+      if (completedJob?.id && asset.renderJobId !== completedJob.id) {
+        asset = await saveIndexedAsset({
+          ...asset,
+          renderJobId: completedJob.id,
+          createdByJobId: completedJob.id,
+        }, {
+          timestamp: Date.now(),
+          securityReport: asset.securityReport,
+        });
+      }
+      await mirrorAssetToStoryProject(asset);
+      return {
+        status: "succeeded",
+        job: completedJob,
+        asset,
+      };
+    } catch (error) {
+      const failed = await failAiRenderJob(running, error, { workerId, timestamp: Date.now() });
+      return {
+        status: "failed",
+        reason: error?.message || "render_worker_failed",
+        job: failed,
+      };
+    }
+  }
+
+  async function processRenderJobs({
+    limit = 5,
+    storyProjectId = null,
+    jobId = null,
+    workerId = "render_worker_alpha",
+    includeRunning = false,
+    runningStaleMs = 5 * 60 * 1000,
+  } = {}) {
+    const normalizedLimit = Math.max(1, Math.min(50, Number(limit) || 5));
+    const jobs = jobId
+      ? [await persistence.aiGenerationJobs.get(jobId)].filter(Boolean)
+      : await persistence.aiGenerationJobs.list(storyProjectId ? { storyProjectId } : {});
+    const now = Date.now();
+    const candidates = jobs
+      .filter((job) => !storyProjectId || job.storyProjectId === storyProjectId)
+      .filter((job) => shouldProcessRenderJob(job, { includeRunning, runningStaleMs, now }))
+      .sort((left, right) => Number(left.queuedAt || left.createdAt || 0) - Number(right.queuedAt || right.createdAt || 0))
+      .slice(0, normalizedLimit);
+    const items = [];
+    for (const job of candidates) {
+      items.push(await processAiRenderJob(job, { workerId, includeRunning, runningStaleMs }));
+    }
+    return {
+      items,
+      processed: items.length,
+      succeeded: items.filter((item) => item.status === "succeeded").length,
+      failed: items.filter((item) => item.status === "failed").length,
+      skipped: items.filter((item) => item.status === "skipped").length,
+      limit: normalizedLimit,
+      workerId,
+    };
+  }
+
+  let renderWorkerTimer = null;
+  let renderWorkerRunning = false;
+
+  function stopRenderWorker() {
+    if (renderWorkerTimer) clearInterval(renderWorkerTimer);
+    renderWorkerTimer = null;
+  }
+
+  function startRenderWorker({
+    intervalMs = 5000,
+    limit = 3,
+    workerId = "render_worker_alpha",
+    runImmediately = false,
+    includeRunning = false,
+    runningStaleMs = 5 * 60 * 1000,
+  } = {}) {
+    if (renderWorkerTimer) return { stop: stopRenderWorker };
+    const tick = async () => {
+      if (renderWorkerRunning) return;
+      renderWorkerRunning = true;
+      try {
+        await processRenderJobs({ limit, workerId, includeRunning, runningStaleMs });
+      } catch (error) {
+        console.error("[gugu-flash] render worker tick failed", error);
+      } finally {
+        renderWorkerRunning = false;
+      }
+    };
+    const interval = Math.max(1000, Number(intervalMs) || 5000);
+    renderWorkerTimer = setInterval(() => {
+      void tick();
+    }, interval);
+    renderWorkerTimer.unref?.();
+    if (runImmediately) void tick();
+    return { stop: stopRenderWorker, tick };
   }
 
   async function handle(req, res) {
@@ -1844,6 +2107,19 @@ export function createFlashBackendApp(options = {}) {
         return;
       }
 
+      if (requestUrl.pathname === "/flash/ai/render-jobs/run" && req.method === "POST") {
+        const body = await readJsonBody(req);
+        ok(res, await processRenderJobs({
+          limit: body.limit,
+          storyProjectId: body.storyProjectId || body.projectId || null,
+          jobId: body.jobId || body.renderJobId || null,
+          workerId: body.workerId || requestId,
+          includeRunning: Boolean(body.includeRunning),
+          runningStaleMs: Number(body.runningStaleMs || 5 * 60 * 1000),
+        }));
+        return;
+      }
+
       if (requestUrl.pathname === "/flash/ai/create-draft" && req.method === "POST") {
         const body = await readJsonBody(req);
         const response = await createAiDraftFromPrompt(body.prompt || "", body.template || "healing", body.options || {});
@@ -2579,7 +2855,13 @@ export function createFlashBackendApp(options = {}) {
     }
   }
 
-  return { api, handle };
+  return {
+    api,
+    handle,
+    processRenderJobs,
+    startRenderWorker,
+    stopRenderWorker,
+  };
 }
 
 export function createFlashHttpServer(options = {}) {
